@@ -45,6 +45,8 @@ Smoke coverage currently includes:
 - simulated HR ingest into `mynahd`,
 - HR summary visibility through daemon and UI status,
 - simulated audio ingest into `mynahd` with fixture transcript,
+- chunked audio ingest (`/ingest/audio_chunk`) with idempotent resume checks,
+- daemon restart durability checks for partial chunk sessions,
 - audio transcription pipeline (`/pipeline/audio/transcribe`) and transcript visibility checks,
 - note-memory creation from transcript and UI recent-note visibility,
 - report generation (`/tools/report_generate`) with persisted markdown artifact checks,
@@ -113,4 +115,4 @@ mynah/
 - Freshness policy: stale/unverified memory is downgraded or expired.
 
 ## Project Status
-This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, audio fixture ingest/transcript/memory flow, report artifact generation/listing, agent SQL guardrails/audit, and memory governance/verification/supersession/freshness.
+This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, chunked audio resume/restart durability, audio fixture ingest/transcript/memory flow, report artifact generation/listing, agent SQL guardrails/audit, and memory governance/verification/supersession/freshness.

@@ -99,3 +99,62 @@ def test_ingest_audio_and_recent_summary(tmp_path, monkeypatch):
         assert len(entries) == 1
         assert entries[0]["id"] == "fixture_note_01"
         assert entries[0]["transcript_ready"] == 0
+
+
+def test_ingest_audio_chunk_resume_and_idempotent(tmp_path, monkeypatch):
+    test_db = tmp_path / "mynah_test.db"
+    artifacts_path = tmp_path / "artifacts"
+    monkeypatch.setattr(main, "DB_PATH", test_db)
+    monkeypatch.setattr(main, "ARTIFACTS_PATH", artifacts_path)
+
+    chunk0 = {
+        "object_id": "fixture_chunk_01",
+        "device_id": "fixture_wearable_01",
+        "session_id": "sess_a",
+        "start_ts": "2026-02-24T11:00:00+00:00",
+        "end_ts": "2026-02-24T11:00:08+00:00",
+        "chunk_index": 0,
+        "total_chunks": 2,
+        "chunk_b64": "UklG",
+        "transcript_hint": "chunked audio fixture",
+        "source": "test",
+    }
+    chunk1 = {
+        "object_id": "fixture_chunk_01",
+        "device_id": "fixture_wearable_01",
+        "session_id": "sess_a",
+        "start_ts": "2026-02-24T11:00:00+00:00",
+        "end_ts": "2026-02-24T11:00:08+00:00",
+        "chunk_index": 1,
+        "total_chunks": 2,
+        "chunk_b64": "Rg==",
+        "source": "test",
+    }
+
+    with TestClient(main.app) as client:
+        first = client.post("/ingest/audio_chunk", json=chunk0)
+        assert first.status_code == 200
+        assert first.json()["complete"] is False
+        assert first.json()["received_chunks"] == 1
+
+        duplicate = client.post("/ingest/audio_chunk", json=chunk0)
+        assert duplicate.status_code == 200
+        assert duplicate.json()["received_chunks"] == 1
+
+        status_mid = client.get("/ingest/audio_chunk/status", params={"object_id": "fixture_chunk_01"})
+        assert status_mid.status_code == 200
+        assert status_mid.json()["sync_object"]["status"] == "pending"
+
+        finish = client.post("/ingest/audio_chunk", json=chunk1)
+        assert finish.status_code == 200
+        assert finish.json()["complete"] is True
+        assert finish.json()["audio_id"] == "fixture_chunk_01"
+
+        status_done = client.get("/ingest/audio_chunk/status", params={"object_id": "fixture_chunk_01"})
+        assert status_done.status_code == 200
+        assert status_done.json()["sync_object"]["status"] == "complete"
+
+        recent = client.get("/summary/audio/recent", params={"limit": 5})
+        assert recent.status_code == 200
+        entries = recent.json()["entries"]
+        assert any(entry["id"] == "fixture_chunk_01" for entry in entries)

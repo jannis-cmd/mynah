@@ -176,8 +176,8 @@ Thresholds are initial defaults and should be tightened as the system matures.
 | E2E-007 | SQL write-attempt rejection | End-to-End | Passing | 2026-02-24 | `DELETE ...` blocked by SQL validator |
 | E2E-008 | SQL no-LIMIT rejection | End-to-End | Passing | 2026-02-24 | `SELECT` without `LIMIT` rejected |
 | E2E-009 | Query audit persistence | End-to-End | Passing | 2026-02-24 | `GET /tools/query_audit/recent` shows accepted/rejected rows |
-| E2E-010 | Interrupted ingest recovery | End-to-End | Planned | - | Idempotent resume |
-| E2E-011 | Restart durability recovery | End-to-End | Planned | - | Durable state restore |
+| E2E-010 | Interrupted ingest recovery | End-to-End | Passing | 2026-02-24 | `POST /ingest/audio_chunk` resume + duplicate chunk idempotency + status inspection |
+| E2E-011 | Restart durability recovery | End-to-End | Passing | 2026-02-24 | daemon restart between chunk uploads still completes persisted `sync_object` |
 | E2E-012 | Stale memory exclusion | End-to-End | Passing | 2026-02-24 | stale memory blocked from trusted search until `POST /tools/memory_reverify/{memory_id}` |
 | QLT-001 | 100 transcript corpus ingest/run | Quality Eval | Planned | - | Dataset-driven evaluation |
 | QLT-002 | Correlation quality metrics gate | Quality Eval | Planned | - | Precision/recall thresholds |

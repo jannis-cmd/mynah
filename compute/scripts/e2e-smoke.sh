@@ -63,6 +63,157 @@ assert ui_status.get("hr_today") is not None, ui_status
 print("ui status", ui_status)
 PY
 
+echo "== chunked ingest resume/idempotency + restart durability =="
+docker compose exec -T mynah_ui python - <<'PY'
+import base64
+import json
+import sqlite3
+import urllib.request
+from datetime import datetime, timezone
+
+day = datetime.now(timezone.utc).date().isoformat()
+obj1 = "e2e_chunk_note_01"
+obj2 = "e2e_chunk_note_02"
+
+with sqlite3.connect("/home/appuser/data/db/mynah.db") as conn:
+    conn.execute("DELETE FROM sync_chunk WHERE object_id IN (?, ?)", (obj1, obj2))
+    conn.execute("DELETE FROM sync_object WHERE object_id IN (?, ?)", (obj1, obj2))
+    conn.execute("DELETE FROM audio_note WHERE id IN (?, ?)", (obj1, obj2))
+    conn.commit()
+
+chunk0 = {
+    "object_id": obj1,
+    "device_id": "fixture_wearable_01",
+    "session_id": "e2e_sess_01",
+    "start_ts": f"{day}T09:00:00+00:00",
+    "end_ts": f"{day}T09:00:08+00:00",
+    "chunk_index": 0,
+    "total_chunks": 2,
+    "chunk_b64": base64.b64encode(b"RIFF_CHUNK_A").decode("ascii"),
+    "transcript_hint": "Chunked transfer resumed cleanly.",
+    "source": "e2e_smoke",
+}
+chunk1 = {
+    "object_id": obj1,
+    "device_id": "fixture_wearable_01",
+    "session_id": "e2e_sess_01",
+    "start_ts": f"{day}T09:00:00+00:00",
+    "end_ts": f"{day}T09:00:08+00:00",
+    "chunk_index": 1,
+    "total_chunks": 2,
+    "chunk_b64": base64.b64encode(b"_B").decode("ascii"),
+    "source": "e2e_smoke",
+}
+
+def post_chunk(payload):
+    req = urllib.request.Request(
+        "http://mynahd:8001/ingest/audio_chunk",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+first = post_chunk(chunk0)
+assert first["complete"] is False and first["received_chunks"] == 1, first
+duplicate = post_chunk(chunk0)
+assert duplicate["received_chunks"] == 1, duplicate
+with urllib.request.urlopen(f"http://mynahd:8001/ingest/audio_chunk/status?object_id={obj1}", timeout=5) as resp:
+    status_mid = json.loads(resp.read().decode("utf-8"))
+assert status_mid["sync_object"]["status"] == "pending", status_mid
+done = post_chunk(chunk1)
+assert done["complete"] is True and done["audio_id"] == obj1, done
+print("chunk resume complete", done)
+PY
+
+docker compose restart mynahd >/dev/null
+sleep 3
+
+docker compose exec -T mynah_ui python - <<'PY'
+import base64
+import json
+import urllib.request
+from datetime import datetime, timezone
+
+day = datetime.now(timezone.utc).date().isoformat()
+obj2 = "e2e_chunk_note_02"
+chunk0 = {
+    "object_id": obj2,
+    "device_id": "fixture_wearable_01",
+    "session_id": "e2e_sess_02",
+    "start_ts": f"{day}T09:10:00+00:00",
+    "end_ts": f"{day}T09:10:08+00:00",
+    "chunk_index": 0,
+    "total_chunks": 2,
+    "chunk_b64": base64.b64encode(b"RIFF_RESTART_A").decode("ascii"),
+    "transcript_hint": "Chunked transfer survived daemon restart.",
+    "source": "e2e_smoke",
+}
+chunk1 = {
+    "object_id": obj2,
+    "device_id": "fixture_wearable_01",
+    "session_id": "e2e_sess_02",
+    "start_ts": f"{day}T09:10:00+00:00",
+    "end_ts": f"{day}T09:10:08+00:00",
+    "chunk_index": 1,
+    "total_chunks": 2,
+    "chunk_b64": base64.b64encode(b"_B").decode("ascii"),
+    "source": "e2e_smoke",
+}
+
+def post_chunk(payload):
+    req = urllib.request.Request(
+        "http://mynahd:8001/ingest/audio_chunk",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+first = post_chunk(chunk0)
+assert first["complete"] is False and first["received_chunks"] == 1, first
+print("chunk before restart", first)
+PY
+
+docker compose restart mynahd >/dev/null
+sleep 3
+
+docker compose exec -T mynah_ui python - <<'PY'
+import base64
+import json
+import urllib.request
+from datetime import datetime, timezone
+
+day = datetime.now(timezone.utc).date().isoformat()
+obj2 = "e2e_chunk_note_02"
+chunk1 = {
+    "object_id": obj2,
+    "device_id": "fixture_wearable_01",
+    "session_id": "e2e_sess_02",
+    "start_ts": f"{day}T09:10:00+00:00",
+    "end_ts": f"{day}T09:10:08+00:00",
+    "chunk_index": 1,
+    "total_chunks": 2,
+    "chunk_b64": base64.b64encode(b"_B").decode("ascii"),
+    "source": "e2e_smoke",
+}
+req = urllib.request.Request(
+    "http://mynahd:8001/ingest/audio_chunk",
+    data=json.dumps(chunk1).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(req, timeout=10) as resp:
+    completed = json.loads(resp.read().decode("utf-8"))
+assert completed["complete"] is True and completed["audio_id"] == obj2, completed
+with urllib.request.urlopen(f"http://mynahd:8001/ingest/audio_chunk/status?object_id={obj2}", timeout=5) as resp:
+    state = json.loads(resp.read().decode("utf-8"))
+assert state["sync_object"]["status"] == "complete", state
+print("chunk restart recovery complete", completed)
+PY
+
 echo "== ingest fixture audio and transcribe =="
 docker compose exec -T mynah_ui python - <<'PY'
 import base64

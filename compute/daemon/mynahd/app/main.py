@@ -53,6 +53,26 @@ class AudioIngestRequest(BaseModel):
         return value.astimezone(timezone.utc)
 
 
+class AudioChunkIngestRequest(BaseModel):
+    object_id: str = Field(min_length=4, max_length=80, pattern=r"^[A-Za-z0-9._:-]+$")
+    device_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._:-]+$")
+    session_id: str = Field(default="default", min_length=1, max_length=80, pattern=r"^[A-Za-z0-9._:-]+$")
+    start_ts: datetime
+    end_ts: datetime
+    chunk_index: int = Field(ge=0, le=4096)
+    total_chunks: int = Field(ge=1, le=4096)
+    chunk_b64: str = Field(min_length=4, max_length=1_500_000)
+    transcript_hint: str | None = Field(default=None, max_length=20_000)
+    source: str = Field(default="simulated", max_length=32)
+
+    @field_validator("start_ts", "end_ts")
+    @classmethod
+    def normalize_ts(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            raise ValueError("timestamp must include timezone information")
+        return value.astimezone(timezone.utc)
+
+
 def _init_db() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     ARTIFACTS_PATH.mkdir(parents=True, exist_ok=True)
@@ -128,6 +148,35 @@ def _init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sync_object (
+                object_id TEXT PRIMARY KEY,
+                device_id TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                start_ts TEXT NOT NULL,
+                end_ts TEXT NOT NULL,
+                total_chunks INTEGER NOT NULL,
+                received_chunks INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL,
+                transcript_hint TEXT,
+                source TEXT NOT NULL,
+                audio_id TEXT,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sync_chunk (
+                object_id TEXT NOT NULL,
+                chunk_index INTEGER NOT NULL,
+                chunk_data BLOB NOT NULL,
+                PRIMARY KEY(object_id, chunk_index),
+                FOREIGN KEY(object_id) REFERENCES sync_object(object_id)
+            )
+            """
+        )
         conn.commit()
 
 
@@ -163,6 +212,68 @@ def _audio_artifact_paths(note_id: str, start_ts: datetime) -> tuple[Path, Path]
     audio_dir.mkdir(parents=True, exist_ok=True)
     transcript_fixture_dir.mkdir(parents=True, exist_ok=True)
     return audio_dir / f"{note_id}.wav", transcript_fixture_dir / f"{note_id}.txt"
+
+
+def _persist_audio_note(
+    conn: sqlite3.Connection,
+    *,
+    note_id: str,
+    device_id: str,
+    start_ts: datetime,
+    end_ts: datetime,
+    audio_bytes: bytes,
+    transcript_hint: str | None,
+    source: str,
+    ingested_at: str,
+) -> dict:
+    _ensure_device(conn, device_id)
+    audio_sha = sha256(audio_bytes).hexdigest()
+    audio_path, transcript_fixture_path = _audio_artifact_paths(note_id, start_ts)
+    audio_path.write_bytes(audio_bytes)
+
+    transcript_hint_path_str = None
+    if transcript_hint:
+        transcript_fixture_path.write_text(transcript_hint.strip(), encoding="utf-8")
+        transcript_hint_path_str = str(transcript_fixture_path)
+
+    conn.execute(
+        """
+        INSERT INTO audio_note(
+            id, device_id, start_ts, end_ts, audio_path, audio_sha256, audio_bytes,
+            transcript_hint_path, source, transcription_state, ingested_at
+        )
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+        ON CONFLICT(id) DO UPDATE SET
+            device_id=excluded.device_id,
+            start_ts=excluded.start_ts,
+            end_ts=excluded.end_ts,
+            audio_path=excluded.audio_path,
+            audio_sha256=excluded.audio_sha256,
+            audio_bytes=excluded.audio_bytes,
+            transcript_hint_path=excluded.transcript_hint_path,
+            source=excluded.source,
+            transcription_state='pending',
+            ingested_at=excluded.ingested_at
+        """,
+        (
+            note_id,
+            device_id,
+            start_ts.isoformat(),
+            end_ts.isoformat(),
+            str(audio_path),
+            audio_sha,
+            len(audio_bytes),
+            transcript_hint_path_str,
+            source,
+            ingested_at,
+        ),
+    )
+    return {
+        "audio_id": note_id,
+        "audio_bytes": len(audio_bytes),
+        "audio_sha256": audio_sha,
+        "transcript_hint_available": bool(transcript_hint_path_str),
+    }
 
 
 @app.on_event("startup")
@@ -232,49 +343,18 @@ def ingest_audio(payload: AudioIngestRequest) -> dict:
         raise HTTPException(status_code=422, detail="decoded audio payload is empty")
 
     note_id = payload.note_id or str(uuid4())
-    audio_sha = sha256(audio_bytes).hexdigest()
-    audio_path, transcript_fixture_path = _audio_artifact_paths(note_id, payload.start_ts)
-    audio_path.write_bytes(audio_bytes)
-
-    transcript_hint_path_str = None
-    if payload.transcript_hint:
-        transcript_fixture_path.write_text(payload.transcript_hint.strip(), encoding="utf-8")
-        transcript_hint_path_str = str(transcript_fixture_path)
-
     ingested_at = datetime.now(timezone.utc).isoformat()
     with sqlite3.connect(DB_PATH) as conn:
-        _ensure_device(conn, payload.device_id)
-        conn.execute(
-            """
-            INSERT INTO audio_note(
-                id, device_id, start_ts, end_ts, audio_path, audio_sha256, audio_bytes,
-                transcript_hint_path, source, transcription_state, ingested_at
-            )
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
-            ON CONFLICT(id) DO UPDATE SET
-                device_id=excluded.device_id,
-                start_ts=excluded.start_ts,
-                end_ts=excluded.end_ts,
-                audio_path=excluded.audio_path,
-                audio_sha256=excluded.audio_sha256,
-                audio_bytes=excluded.audio_bytes,
-                transcript_hint_path=excluded.transcript_hint_path,
-                source=excluded.source,
-                transcription_state='pending',
-                ingested_at=excluded.ingested_at
-            """,
-            (
-                note_id,
-                payload.device_id,
-                payload.start_ts.isoformat(),
-                payload.end_ts.isoformat(),
-                str(audio_path),
-                audio_sha,
-                len(audio_bytes),
-                transcript_hint_path_str,
-                payload.source,
-                ingested_at,
-            ),
+        persisted = _persist_audio_note(
+            conn,
+            note_id=note_id,
+            device_id=payload.device_id,
+            start_ts=payload.start_ts,
+            end_ts=payload.end_ts,
+            audio_bytes=audio_bytes,
+            transcript_hint=payload.transcript_hint,
+            source=payload.source,
+            ingested_at=ingested_at,
         )
         conn.commit()
 
@@ -282,11 +362,160 @@ def ingest_audio(payload: AudioIngestRequest) -> dict:
         "status": "ok",
         "audio_id": note_id,
         "device_id": payload.device_id,
-        "audio_bytes": len(audio_bytes),
-        "audio_sha256": audio_sha,
-        "transcript_hint_available": bool(transcript_hint_path_str),
+        "audio_bytes": persisted["audio_bytes"],
+        "audio_sha256": persisted["audio_sha256"],
+        "transcript_hint_available": persisted["transcript_hint_available"],
         "ingested_at": ingested_at,
     }
+
+
+@app.post("/ingest/audio_chunk")
+def ingest_audio_chunk(payload: AudioChunkIngestRequest) -> dict:
+    if payload.end_ts <= payload.start_ts:
+        raise HTTPException(status_code=422, detail="end_ts must be later than start_ts")
+    if payload.chunk_index >= payload.total_chunks:
+        raise HTTPException(status_code=422, detail="chunk_index must be less than total_chunks")
+    try:
+        chunk_bytes = b64decode(payload.chunk_b64, validate=True)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=422, detail="chunk_b64 must be valid base64") from exc
+    if not chunk_bytes:
+        raise HTTPException(status_code=422, detail="decoded chunk payload is empty")
+
+    now = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        existing = conn.execute(
+            "SELECT * FROM sync_object WHERE object_id = ?",
+            (payload.object_id,),
+        ).fetchone()
+        if existing:
+            if (
+                existing["device_id"] != payload.device_id
+                or existing["total_chunks"] != payload.total_chunks
+                or existing["start_ts"] != payload.start_ts.isoformat()
+                or existing["end_ts"] != payload.end_ts.isoformat()
+            ):
+                raise HTTPException(status_code=409, detail="sync object metadata conflict")
+            conn.execute(
+                """
+                UPDATE sync_object
+                SET updated_at = ?, transcript_hint = COALESCE(?, transcript_hint)
+                WHERE object_id = ?
+                """,
+                (now, payload.transcript_hint, payload.object_id),
+            )
+        else:
+            _ensure_device(conn, payload.device_id)
+            conn.execute(
+                """
+                INSERT INTO sync_object(
+                    object_id, device_id, session_id, start_ts, end_ts, total_chunks,
+                    received_chunks, status, transcript_hint, source, audio_id, updated_at
+                )
+                VALUES(?, ?, ?, ?, ?, ?, 0, 'pending', ?, ?, NULL, ?)
+                """,
+                (
+                    payload.object_id,
+                    payload.device_id,
+                    payload.session_id,
+                    payload.start_ts.isoformat(),
+                    payload.end_ts.isoformat(),
+                    payload.total_chunks,
+                    payload.transcript_hint,
+                    payload.source,
+                    now,
+                ),
+            )
+
+        conn.execute(
+            """
+            INSERT INTO sync_chunk(object_id, chunk_index, chunk_data)
+            VALUES(?, ?, ?)
+            ON CONFLICT(object_id, chunk_index) DO NOTHING
+            """,
+            (payload.object_id, payload.chunk_index, chunk_bytes),
+        )
+
+        received = conn.execute(
+            "SELECT COUNT(*) FROM sync_chunk WHERE object_id = ?",
+            (payload.object_id,),
+        ).fetchone()
+        received_chunks = int(received[0] if received else 0)
+        conn.execute(
+            """
+            UPDATE sync_object
+            SET received_chunks = ?, updated_at = ?
+            WHERE object_id = ?
+            """,
+            (received_chunks, now, payload.object_id),
+        )
+
+        complete = received_chunks == payload.total_chunks
+        persisted_audio = None
+        if complete:
+            state = conn.execute(
+                "SELECT status, audio_id, transcript_hint FROM sync_object WHERE object_id = ?",
+                (payload.object_id,),
+            ).fetchone()
+            if state and state["status"] != "complete":
+                rows = conn.execute(
+                    """
+                    SELECT chunk_data
+                    FROM sync_chunk
+                    WHERE object_id = ?
+                    ORDER BY chunk_index ASC
+                    """,
+                    (payload.object_id,),
+                ).fetchall()
+                audio_bytes = b"".join(bytes(row[0]) for row in rows)
+                persisted_audio = _persist_audio_note(
+                    conn,
+                    note_id=payload.object_id,
+                    device_id=payload.device_id,
+                    start_ts=payload.start_ts,
+                    end_ts=payload.end_ts,
+                    audio_bytes=audio_bytes,
+                    transcript_hint=state["transcript_hint"],
+                    source=payload.source,
+                    ingested_at=now,
+                )
+                conn.execute(
+                    """
+                    UPDATE sync_object
+                    SET status = 'complete', audio_id = ?, updated_at = ?
+                    WHERE object_id = ?
+                    """,
+                    (payload.object_id, now, payload.object_id),
+                )
+        conn.commit()
+
+    return {
+        "status": "ok",
+        "object_id": payload.object_id,
+        "received_chunks": received_chunks,
+        "total_chunks": payload.total_chunks,
+        "complete": complete,
+        "audio_id": payload.object_id if complete else None,
+        "audio_persisted": bool(persisted_audio),
+    }
+
+
+@app.get("/ingest/audio_chunk/status")
+def ingest_audio_chunk_status(object_id: str = Query(min_length=4, max_length=80)) -> dict:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            """
+            SELECT object_id, device_id, session_id, total_chunks, received_chunks, status, audio_id, updated_at
+            FROM sync_object
+            WHERE object_id = ?
+            """,
+            (object_id,),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="object_id not found")
+    return {"status": "ok", "sync_object": dict(row)}
 
 
 @app.get("/summary/hr/today")

@@ -422,6 +422,8 @@ MYNAH uses these agentic memory principles for an offline personal system.
     - `POST /ingest/hr`,
     - `GET /summary/hr/today`,
     - `POST /ingest/audio`,
+    - `POST /ingest/audio_chunk`,
+    - `GET /ingest/audio_chunk/status`,
     - `GET /summary/audio/recent`
     on the internal runtime network.
   - agent exposes:
