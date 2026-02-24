@@ -27,6 +27,15 @@ def _probe(url: str) -> tuple[str, str]:
         return "down", "unreachable"
 
 
+def _fetch_json(url: str) -> dict | None:
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+        return None
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "service": SERVICE}
@@ -36,10 +45,12 @@ def health() -> dict:
 def status() -> JSONResponse:
     daemon_state, daemon_detail = _probe(f"{DAEMON_URL}/ready")
     agent_state, agent_detail = _probe(f"{AGENT_URL}/ready")
+    hr_today = _fetch_json(f"{DAEMON_URL}/summary/hr/today")
     payload = {
         "service": SERVICE,
         "daemon": {"state": daemon_state, "detail": daemon_detail},
         "agent": {"state": agent_state, "detail": agent_detail},
+        "hr_today": hr_today,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     return JSONResponse(payload)
@@ -49,6 +60,7 @@ def status() -> JSONResponse:
 def home(request: Request):
     daemon_state, daemon_detail = _probe(f"{DAEMON_URL}/ready")
     agent_state, agent_detail = _probe(f"{AGENT_URL}/ready")
+    hr_today = _fetch_json(f"{DAEMON_URL}/summary/hr/today") or {}
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -58,6 +70,7 @@ def home(request: Request):
             "daemon_detail": daemon_detail,
             "agent_state": agent_state,
             "agent_detail": agent_detail,
+            "hr_today": hr_today,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     )

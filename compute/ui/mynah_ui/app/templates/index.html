@@ -67,6 +67,17 @@
           (<code>{{ agent_detail }}</code>)
         </p>
       </section>
+
+      <section class="panel">
+        <h2>Today HR Summary (UTC)</h2>
+        <p>Samples: <code>{{ hr_today.sample_count if hr_today else "n/a" }}</code></p>
+        <p>
+          Min/Max/Avg BPM:
+          <code>{{ hr_today.min_bpm if hr_today else "n/a" }}</code> /
+          <code>{{ hr_today.max_bpm if hr_today else "n/a" }}</code> /
+          <code>{{ hr_today.avg_bpm if hr_today else "n/a" }}</code>
+        </p>
+      </section>
     </main>
   </body>
 </html>

@@ -49,6 +49,8 @@ Notes:
 - Validates object integrity (hash/checksum).
 - Persists structured and file artifacts.
 - Emits local events for agent and UI.
+- Provides internal-only fixture ingest and summary endpoints for deterministic no-wearable E2E loops.
+- Why: a closed local debug loop is required before hardware sync is available.
 
 ### 4.3 Agent + Memory
 - Ingests synced events and artifacts.
@@ -400,6 +402,9 @@ MYNAH uses these agentic memory principles for an offline personal system.
 - Migration strategy:
   - Raw SQL versioned migration files.
   - Why: keeps schema evolution transparent, tool-light, and aligned with minimal-stack principles.
+- Internal compute API contract:
+  - daemon exposes `POST /ingest/hr` and `GET /summary/hr/today` on the internal runtime network.
+  - Why: deterministic fixture ingestion and summary inspection are required to keep the E2E debug loop fast and transparent.
 
 ## 10. BLE Sync Contract (Solution-Level)
 - Custom GATT service with characteristics for:

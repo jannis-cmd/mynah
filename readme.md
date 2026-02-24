@@ -40,6 +40,12 @@ Windows PowerShell:
 ./compute/scripts/e2e-smoke.ps1
 ```
 
+Smoke coverage currently includes:
+- health checks for daemon/agent/ui,
+- simulated HR ingest into `mynahd`,
+- HR summary visibility through daemon and UI status,
+- agent analyze round-trip against local Ollama.
+
 Stop:
 ```bash
 docker compose down
@@ -97,4 +103,4 @@ mynah/
 - Freshness policy: stale/unverified memory is downgraded or expired.
 
 ## Project Status
-This repository is currently in initial setup and specification phase.
+This repository now has a runnable compute runtime skeleton with a first vertical slice for simulated HR ingest and UI-visible daily HR summary.
