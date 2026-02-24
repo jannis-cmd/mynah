@@ -17,6 +17,9 @@ MYNAH now includes a runtime skeleton with:
 - `mynah_ui` (local UI service)
 - `ollama` (local model server)
 
+`mynah_agent` now includes a typed trend-analysis endpoint:
+- `POST /analysis/trends` (tool-oriented DAG pipeline over local transcripts with run/step lineage)
+
 Default topology uses an internal Docker network with no published ports.
 
 Quick start:
@@ -88,8 +91,8 @@ Quality-eval coverage includes:
 
 Longitudinal human-transcript eval coverage includes:
 - 200 human-like daily transcripts (memories, feelings, sleep, pain, stress, exercise) over multiple months,
-- seeded long-range trends and numeric-correlation checks,
-- LLM trend extraction pass/fail checks,
+- open human-prompt trend requests executed via `/analysis/trends`,
+- deterministic metric comparison against script-derived ground truth,
 - guaranteed cleanup of inserted DB rows/artifacts after run,
 - Markdown report output at `reports/human-transcript-trend-report.md`.
 
@@ -150,4 +153,4 @@ mynah/
 - Freshness policy: stale/unverified memory is downgraded or expired.
 
 ## Project Status
-This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, chunked audio resume/restart durability, audio fixture ingest/transcript/memory flow, report artifact generation/listing, agent SQL guardrails/audit, memory governance/verification/supersession/freshness, a 100-transcript quality-eval gate, and a 200-transcript longitudinal human-eval loop.
+This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, chunked audio resume/restart durability, audio fixture ingest/transcript/memory flow, report artifact generation/listing, agent SQL guardrails/audit, memory governance/verification/supersession/freshness, a 100-transcript quality-eval gate, a 200-transcript longitudinal human-eval loop, and a universal typed trend-analysis pipeline with run/step lineage.

@@ -5,9 +5,11 @@ import sqlite3
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Query
@@ -35,6 +37,8 @@ MEMORY_TTL_DAYS = {
 }
 ALLOWED_QUERY_TABLES = {
     "agent_run_log",
+    "analysis_run",
+    "analysis_step",
     "audio_note",
     "device",
     "hr_sample",
@@ -46,6 +50,19 @@ ALLOWED_QUERY_TABLES = {
     "report_artifact",
     "service_heartbeat",
     "transcript",
+}
+TREND_OPERATION_TYPES = {"pearson", "mean_delta_by_flag", "slope_by_time"}
+NUMERIC_FIELD_ALIASES = {
+    "sleep_h": {"sleep", "sleep hours", "hours slept"},
+    "mood": {"mood"},
+    "stress": {"stress"},
+    "pain": {"pain", "back pain", "lower-back pain"},
+    "exercise_min": {"exercise", "movement", "activity"},
+    "wakeups": {"wakeups", "wake-ups", "wake ups"},
+}
+BINARY_FIELD_ALIASES = {
+    "caffeine_late": {"caffeine", "late caffeine"},
+    "weekend": {"weekend", "weekends", "weekday weekend"},
 }
 
 FORBIDDEN_SQL_PATTERN = re.compile(
@@ -136,6 +153,34 @@ class AudioTranscribeRequest(BaseModel):
 class ReportGenerateRequest(BaseModel):
     date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
     caller: str = Field(default="local_ui", min_length=1, max_length=64)
+
+
+class TrendMetricSpec(BaseModel):
+    name: str = Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_.:-]+$")
+    operation: Literal["pearson", "mean_delta_by_flag", "slope_by_time"]
+    x_field: str | None = Field(default=None, min_length=1, max_length=64)
+    y_field: str | None = Field(default=None, min_length=1, max_length=64)
+    value_field: str | None = Field(default=None, min_length=1, max_length=64)
+    flag_field: str | None = Field(default=None, min_length=1, max_length=64)
+    target_field: str | None = Field(default=None, min_length=1, max_length=64)
+
+
+class TrendDirectionCheck(BaseModel):
+    name: str = Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_.:-]+$")
+    metric: str = Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_.:-]+$")
+    expected_sign: Literal["positive", "negative", "nonzero"]
+
+
+class TrendAnalysisRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=4000)
+    caller: str = Field(default="local_ui", min_length=1, max_length=64)
+    text_filter: str | None = Field(default=None, max_length=128)
+    created_from: str | None = Field(default=None, max_length=64)
+    created_to: str | None = Field(default=None, max_length=64)
+    limit: int = Field(default=500, ge=10, le=5000)
+    metrics: list[TrendMetricSpec] = Field(default_factory=list, max_length=32)
+    direction_checks: list[TrendDirectionCheck] = Field(default_factory=list, max_length=32)
+    include_llm_summary: bool = Field(default=False)
 
 
 class SQLValidationError(Exception):
@@ -291,6 +336,41 @@ def _init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS analysis_run (
+                id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL,
+                caller TEXT NOT NULL,
+                status TEXT NOT NULL,
+                prompt TEXT NOT NULL,
+                request_json TEXT NOT NULL,
+                response_json TEXT,
+                error TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS analysis_step (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id TEXT NOT NULL,
+                step_name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                ended_at TEXT,
+                input_json TEXT,
+                output_json TEXT,
+                error TEXT,
+                FOREIGN KEY(run_id) REFERENCES analysis_run(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_analysis_step_run_id ON analysis_step(run_id)
+            """
+        )
         conn.commit()
 
 
@@ -429,6 +509,585 @@ def _run_readonly_sql(query: str, params: list[str | int | float | None]) -> tup
             suggestion="select fewer columns or reduce LIMIT",
         )
     return result_rows, payload_size
+
+
+def _analysis_run_start(caller: str, prompt: str, request_payload: dict) -> str:
+    run_id = str(uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            """
+            INSERT INTO analysis_run(id, created_at, caller, status, prompt, request_json)
+            VALUES(?, ?, ?, 'running', ?, ?)
+            """,
+            (run_id, now, caller, prompt, json.dumps(request_payload, sort_keys=True, default=str)),
+        )
+        conn.commit()
+    return run_id
+
+
+def _analysis_run_finish(run_id: str, status: str, response_payload: dict | None, error: str | None) -> None:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            """
+            UPDATE analysis_run
+            SET status = ?, response_json = ?, error = ?
+            WHERE id = ?
+            """,
+            (
+                status,
+                json.dumps(response_payload, sort_keys=True, default=str) if response_payload is not None else None,
+                error,
+                run_id,
+            ),
+        )
+        conn.commit()
+
+
+def _analysis_step_start(run_id: str, step_name: str, step_input: dict | None) -> int:
+    started_at = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO analysis_step(run_id, step_name, status, started_at, input_json)
+            VALUES(?, ?, 'running', ?, ?)
+            """,
+            (
+                run_id,
+                step_name,
+                started_at,
+                json.dumps(step_input, sort_keys=True, default=str) if step_input is not None else None,
+            ),
+        )
+        conn.commit()
+        return int(cur.lastrowid)
+
+
+def _analysis_step_finish(step_id: int, status: str, step_output: dict | None, error: str | None) -> None:
+    ended_at = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            """
+            UPDATE analysis_step
+            SET status = ?, ended_at = ?, output_json = ?, error = ?
+            WHERE id = ?
+            """,
+            (
+                status,
+                ended_at,
+                json.dumps(step_output, sort_keys=True, default=str) if step_output is not None else None,
+                error,
+                step_id,
+            ),
+        )
+        conn.commit()
+
+
+def _analysis_step_execute(run_id: str, step_name: str, step_input: dict, worker) -> dict:
+    step_id = _analysis_step_start(run_id, step_name, step_input)
+    try:
+        output = worker()
+    except Exception as exc:  # noqa: BLE001
+        _analysis_step_finish(step_id, "failed", None, str(exc))
+        raise
+    _analysis_step_finish(step_id, "completed", output, None)
+    return output
+
+
+def _extract_prompt_run_id(prompt: str) -> str | None:
+    match = re.search(r"run_id\s*[:=]\s*([A-Za-z0-9._:-]+)", prompt, flags=re.IGNORECASE)
+    if not match:
+        return None
+    return match.group(1).strip().rstrip(".,;:)]}!?")
+
+
+def _fetch_transcript_rows(req: TrendAnalysisRequest) -> list[sqlite3.Row]:
+    run_id = _extract_prompt_run_id(req.prompt)
+    where_parts: list[str] = []
+    params: list[str | int] = []
+
+    if req.text_filter:
+        where_parts.append("text LIKE ?")
+        params.append(f"%{req.text_filter.strip()}%")
+    if run_id:
+        where_parts.append("text LIKE ?")
+        params.append(f"%run_id={run_id}%")
+    if req.created_from:
+        where_parts.append("created_at >= ?")
+        params.append(req.created_from)
+    if req.created_to:
+        where_parts.append("created_at <= ?")
+        params.append(req.created_to)
+
+    where_clause = f"WHERE {' AND '.join(where_parts)}" if where_parts else ""
+    query = (
+        "SELECT audio_id, text, created_at FROM transcript "
+        f"{where_clause} "
+        "ORDER BY created_at ASC LIMIT ?"
+    )
+    params.append(req.limit)
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(query, tuple(params)).fetchall()
+    return rows
+
+
+def _parse_boolish(value: str) -> int | None:
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "y"}:
+        return 1
+    if normalized in {"0", "false", "no", "n"}:
+        return 0
+    return None
+
+
+def _safe_float(value: str) -> float | None:
+    try:
+        return float(value.strip())
+    except ValueError:
+        return None
+
+
+def _extract_feature_record(text: str, created_at: str) -> dict[str, float]:
+    record: dict[str, float] = {}
+
+    metadata_matches = re.findall(r"\[([^\[\]]+)\]", text)
+    if metadata_matches:
+        key_map = {
+            "sleep_h": "sleep_h",
+            "sleep": "sleep_h",
+            "mood": "mood",
+            "stress": "stress",
+            "pain": "pain",
+            "exercise_min": "exercise_min",
+            "exercise": "exercise_min",
+            "caffeine_late": "caffeine_late",
+            "late_caffeine": "caffeine_late",
+            "weekend": "weekend",
+            "wakeups": "wakeups",
+        }
+        for token in metadata_matches[-1].split(";"):
+            if "=" not in token:
+                continue
+            raw_key, raw_value = token.split("=", 1)
+            key = key_map.get(raw_key.strip().lower())
+            if not key:
+                continue
+            boolish = _parse_boolish(raw_value)
+            if boolish is not None:
+                record[key] = float(boolish)
+                continue
+            as_float = _safe_float(raw_value)
+            if as_float is not None:
+                record[key] = as_float
+
+    sleep_match = re.search(r"slept\s+([0-9]+(?:\.[0-9]+)?)\s+hours", text, flags=re.IGNORECASE)
+    if sleep_match and "sleep_h" not in record:
+        record["sleep_h"] = float(sleep_match.group(1))
+
+    mood_match = re.search(r"mood\s+was\s+([0-9]+(?:\.[0-9]+)?)\s*/\s*10", text, flags=re.IGNORECASE)
+    if mood_match and "mood" not in record:
+        record["mood"] = float(mood_match.group(1))
+
+    stress_match = re.search(r"stress\s+([0-9]+(?:\.[0-9]+)?)\s*/\s*10", text, flags=re.IGNORECASE)
+    if stress_match and "stress" not in record:
+        record["stress"] = float(stress_match.group(1))
+
+    pain_match = re.search(r"pain\s+(?:reached|was|is)?\s*([0-9]+(?:\.[0-9]+)?)\s*/\s*10", text, flags=re.IGNORECASE)
+    if pain_match and "pain" not in record:
+        record["pain"] = float(pain_match.group(1))
+
+    exercise_match = re.search(r"([0-9]+(?:\.[0-9]+)?)\s+minutes", text, flags=re.IGNORECASE)
+    if exercise_match and "exercise_min" not in record:
+        record["exercise_min"] = float(exercise_match.group(1))
+
+    caffeine_match = re.search(r"late caffeine\s*:\s*(yes|no|true|false|1|0)", text, flags=re.IGNORECASE)
+    if caffeine_match and "caffeine_late" not in record:
+        parsed = _parse_boolish(caffeine_match.group(1))
+        if parsed is not None:
+            record["caffeine_late"] = float(parsed)
+
+    wakeups_match = re.search(r"([0-9]+)\s+wake[- ]?ups", text, flags=re.IGNORECASE)
+    if wakeups_match and "wakeups" not in record:
+        record["wakeups"] = float(wakeups_match.group(1))
+
+    if "weekend" not in record:
+        try:
+            day = datetime.fromisoformat(created_at).astimezone(timezone.utc).weekday()
+            record["weekend"] = 1.0 if day >= 5 else 0.0
+        except ValueError:
+            pass
+
+    try:
+        ts = datetime.fromisoformat(created_at).astimezone(timezone.utc).timestamp()
+    except ValueError:
+        ts = 0.0
+    record["_ts_epoch"] = float(ts)
+    return record
+
+
+def _extract_records(rows: list[sqlite3.Row]) -> list[dict[str, float]]:
+    records: list[dict[str, float]] = []
+    for row in rows:
+        extracted = _extract_feature_record(str(row["text"]), str(row["created_at"]))
+        extracted["_audio_id"] = str(row["audio_id"])
+        records.append(extracted)
+    return records
+
+
+def _field_available(records: list[dict[str, float]], field: str) -> bool:
+    return sum(1 for record in records if field in record) >= 3
+
+
+def _alias_present(prompt_lower: str, aliases: set[str]) -> bool:
+    return any(alias in prompt_lower for alias in aliases)
+
+
+def _infer_prompt_metrics(prompt: str, records: list[dict[str, float]]) -> list[TrendMetricSpec]:
+    prompt_lower = prompt.lower()
+    metrics: list[TrendMetricSpec] = []
+    seen: set[str] = set()
+
+    def add(metric: TrendMetricSpec) -> None:
+        if metric.name in seen:
+            return
+        seen.add(metric.name)
+        metrics.append(metric)
+
+    numeric_mentions = {
+        field: _alias_present(prompt_lower, aliases)
+        for field, aliases in NUMERIC_FIELD_ALIASES.items()
+        if _field_available(records, field)
+    }
+    binary_mentions = {
+        field: _alias_present(prompt_lower, aliases)
+        for field, aliases in BINARY_FIELD_ALIASES.items()
+        if _field_available(records, field)
+    }
+
+    numeric_fields = [field for field, present in numeric_mentions.items() if present]
+    binary_fields = [field for field, present in binary_mentions.items() if present]
+
+    connector_tokens = (" vs ", " versus ", " correlation", " relationship", " related", " linked", " trend")
+    for idx, left in enumerate(numeric_fields):
+        for right in numeric_fields[idx + 1 :]:
+            left_aliases = NUMERIC_FIELD_ALIASES[left]
+            right_aliases = NUMERIC_FIELD_ALIASES[right]
+            has_explicit_vs = any(
+                (f"{left_alias} vs {right_alias}" in prompt_lower) or (f"{right_alias} vs {left_alias}" in prompt_lower)
+                for left_alias in left_aliases
+                for right_alias in right_aliases
+            )
+            if has_explicit_vs:
+                add(
+                    TrendMetricSpec(
+                        name=f"corr_{left}_{right}",
+                        operation="pearson",
+                        x_field=left,
+                        y_field=right,
+                    )
+                )
+                continue
+            if any(token in prompt_lower for token in connector_tokens) and numeric_mentions.get(left, False) and numeric_mentions.get(right, False):
+                add(
+                    TrendMetricSpec(
+                        name=f"corr_{left}_{right}",
+                        operation="pearson",
+                        x_field=left,
+                        y_field=right,
+                    )
+                )
+
+    for flag_field in binary_fields:
+        for value_field in numeric_fields:
+            if flag_field == value_field:
+                continue
+            if f"effect of {flag_field.replace('_', ' ')} on {value_field.replace('_', ' ')}" in prompt_lower:
+                add(
+                    TrendMetricSpec(
+                        name=f"delta_{value_field}_by_{flag_field}",
+                        operation="mean_delta_by_flag",
+                        value_field=value_field,
+                        flag_field=flag_field,
+                    )
+                )
+                continue
+            if (
+                "effect" in prompt_lower
+                or "impact" in prompt_lower
+                or "difference" in prompt_lower
+                or "delta" in prompt_lower
+                or "when" in prompt_lower
+            ) and numeric_mentions.get(value_field, False) and binary_mentions.get(flag_field, False):
+                add(
+                    TrendMetricSpec(
+                        name=f"delta_{value_field}_by_{flag_field}",
+                        operation="mean_delta_by_flag",
+                        value_field=value_field,
+                        flag_field=flag_field,
+                    )
+                )
+
+    if "over time" in prompt_lower or "monthly trend" in prompt_lower or "slope" in prompt_lower:
+        for field in numeric_fields:
+            add(
+                TrendMetricSpec(
+                    name=f"slope_{field}",
+                    operation="slope_by_time",
+                    target_field=field,
+                )
+            )
+
+    return metrics
+
+
+def _validate_metric_spec(metric: TrendMetricSpec, records: list[dict[str, float]]) -> None:
+    if metric.operation not in TREND_OPERATION_TYPES:
+        raise ValueError(f"unsupported metric operation: {metric.operation}")
+
+    def require_field(field_name: str | None, usage: str) -> str:
+        if not field_name:
+            raise ValueError(f"{metric.name} requires field `{usage}`")
+        if not _field_available(records, field_name):
+            raise ValueError(f"{metric.name} references unavailable field `{field_name}`")
+        return field_name
+
+    if metric.operation == "pearson":
+        require_field(metric.x_field, "x_field")
+        require_field(metric.y_field, "y_field")
+    elif metric.operation == "mean_delta_by_flag":
+        value_field = require_field(metric.value_field, "value_field")
+        flag_field = require_field(metric.flag_field, "flag_field")
+        values = {int(record[flag_field]) for record in records if flag_field in record}
+        if not values.issubset({0, 1}):
+            raise ValueError(f"{metric.name} flag field `{flag_field}` must be binary (0/1)")
+        if value_field == flag_field:
+            raise ValueError(f"{metric.name} cannot compare field `{value_field}` against itself")
+    elif metric.operation == "slope_by_time":
+        require_field(metric.target_field, "target_field")
+
+
+def _pearson(xs: list[float], ys: list[float]) -> float:
+    if len(xs) < 2 or len(xs) != len(ys):
+        return 0.0
+    mean_x = sum(xs) / len(xs)
+    mean_y = sum(ys) / len(ys)
+    numerator = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
+    denom_x = sum((x - mean_x) ** 2 for x in xs) ** 0.5
+    denom_y = sum((y - mean_y) ** 2 for y in ys) ** 0.5
+    if denom_x == 0.0 or denom_y == 0.0:
+        return 0.0
+    return numerator / denom_x / denom_y
+
+
+def _linear_slope(xs: list[float], ys: list[float]) -> float:
+    if len(xs) < 2 or len(xs) != len(ys):
+        return 0.0
+    mean_x = sum(xs) / len(xs)
+    mean_y = sum(ys) / len(ys)
+    numerator = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
+    denominator = sum((x - mean_x) ** 2 for x in xs)
+    if denominator == 0.0:
+        return 0.0
+    return numerator / denominator
+
+
+def _compute_metric(metric: TrendMetricSpec, records: list[dict[str, float]]) -> dict:
+    if metric.operation == "pearson":
+        points = [(record[metric.x_field], record[metric.y_field]) for record in records if metric.x_field in record and metric.y_field in record]
+        xs = [float(point[0]) for point in points]
+        ys = [float(point[1]) for point in points]
+        return {
+            "name": metric.name,
+            "operation": metric.operation,
+            "fields": {"x_field": metric.x_field, "y_field": metric.y_field},
+            "sample_count": len(points),
+            "value": round(_pearson(xs, ys), 6),
+        }
+
+    if metric.operation == "mean_delta_by_flag":
+        ones = [float(record[metric.value_field]) for record in records if metric.value_field in record and metric.flag_field in record and int(record[metric.flag_field]) == 1]
+        zeros = [float(record[metric.value_field]) for record in records if metric.value_field in record and metric.flag_field in record and int(record[metric.flag_field]) == 0]
+        mean_ones = (sum(ones) / len(ones)) if ones else 0.0
+        mean_zeros = (sum(zeros) / len(zeros)) if zeros else 0.0
+        delta = mean_ones - mean_zeros
+        return {
+            "name": metric.name,
+            "operation": metric.operation,
+            "fields": {"value_field": metric.value_field, "flag_field": metric.flag_field},
+            "sample_count": len(ones) + len(zeros),
+            "group_one_count": len(ones),
+            "group_zero_count": len(zeros),
+            "value": round(delta, 6),
+            "group_one_mean": round(mean_ones, 6),
+            "group_zero_mean": round(mean_zeros, 6),
+        }
+
+    points = [(record["_ts_epoch"], record[metric.target_field]) for record in records if "_ts_epoch" in record and metric.target_field in record]
+    xs = [float(point[0]) for point in points]
+    ys = [float(point[1]) for point in points]
+    return {
+        "name": metric.name,
+        "operation": metric.operation,
+        "fields": {"target_field": metric.target_field},
+        "sample_count": len(points),
+        "value": round(_linear_slope(xs, ys), 10),
+    }
+
+
+def _compute_metrics_parallel(metric_specs: list[TrendMetricSpec], records: list[dict[str, float]]) -> dict:
+    if not metric_specs:
+        return {"metrics": []}
+    max_workers = min(8, len(metric_specs))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        results = list(executor.map(lambda spec: _compute_metric(spec, records), metric_specs))
+    return {"metrics": results}
+
+
+def _metric_sign(value: float) -> str:
+    if value > 0:
+        return "positive"
+    if value < 0:
+        return "negative"
+    return "zero"
+
+
+def _evaluate_direction_checks(direction_checks: list[TrendDirectionCheck], metric_results: list[dict]) -> list[dict]:
+    metric_map = {metric["name"]: metric for metric in metric_results}
+    results: list[dict] = []
+    for check in direction_checks:
+        metric = metric_map.get(check.metric)
+        if not metric:
+            results.append(
+                {
+                    "name": check.name,
+                    "metric": check.metric,
+                    "expected_sign": check.expected_sign,
+                    "actual_sign": None,
+                    "pass": False,
+                    "reason": "metric_not_found",
+                }
+            )
+            continue
+        value = float(metric["value"])
+        actual_sign = _metric_sign(value)
+        if check.expected_sign == "nonzero":
+            passed = actual_sign != "zero"
+        else:
+            passed = actual_sign == check.expected_sign
+        results.append(
+            {
+                "name": check.name,
+                "metric": check.metric,
+                "expected_sign": check.expected_sign,
+                "actual_sign": actual_sign,
+                "pass": passed,
+            }
+        )
+    return results
+
+
+def _summarize_trend_metrics(prompt: str, metric_results: list[dict], direction_results: list[dict]) -> str:
+    summary_prompt = (
+        "You are summarizing deterministic metric outputs from a local trend-analysis pipeline.\n"
+        "Respond with 4-8 concise bullet points, plain text only.\n\n"
+        f"User request: {prompt}\n\n"
+        f"Metrics: {json.dumps(metric_results, sort_keys=True)}\n"
+        f"Direction checks: {json.dumps(direction_results, sort_keys=True)}"
+    )
+    return _ollama_generate(summary_prompt)
+
+
+def _execute_trend_analysis(req: TrendAnalysisRequest) -> dict:
+    request_payload = req.model_dump()
+    run_id = _analysis_run_start(req.caller, req.prompt, request_payload)
+    try:
+        select_output = _analysis_step_execute(
+            run_id,
+            "select_transcripts",
+            {"limit": req.limit, "text_filter": req.text_filter, "created_from": req.created_from, "created_to": req.created_to},
+            lambda: {"rows": [dict(row) for row in _fetch_transcript_rows(req)]},
+        )
+        row_dicts = select_output["rows"]
+        if not row_dicts:
+            raise ValueError("no transcripts matched analysis scope")
+
+        extract_output = _analysis_step_execute(
+            run_id,
+            "extract_features",
+            {"row_count": len(row_dicts)},
+            lambda: {"records": _extract_records(row_dicts)},
+        )
+        records = extract_output["records"]
+        if not records:
+            raise ValueError("no structured records extracted from transcripts")
+
+        plan_output = _analysis_step_execute(
+            run_id,
+            "plan_metrics",
+            {"provided_metrics": len(req.metrics), "prompt": req.prompt},
+            lambda: {
+                "metrics": [metric.model_dump() for metric in (req.metrics if req.metrics else _infer_prompt_metrics(req.prompt, records))]
+            },
+        )
+        metric_specs = [TrendMetricSpec(**metric) for metric in plan_output["metrics"]]
+        if not metric_specs:
+            raise ValueError("no trend metrics could be inferred from the prompt; provide explicit metric specs")
+        for metric in metric_specs:
+            _validate_metric_spec(metric, records)
+
+        compute_output = _analysis_step_execute(
+            run_id,
+            "compute_metrics",
+            {"metric_count": len(metric_specs)},
+            lambda: _compute_metrics_parallel(metric_specs, records),
+        )
+        metric_results = compute_output["metrics"]
+
+        direction_checks = req.direction_checks
+        if not direction_checks:
+            auto_checks: list[TrendDirectionCheck] = []
+            for metric in metric_specs:
+                if metric.operation == "pearson":
+                    auto_checks.append(
+                        TrendDirectionCheck(
+                            name=f"sign_{metric.name}",
+                            metric=metric.name,
+                            expected_sign="nonzero",
+                        )
+                    )
+            direction_checks = auto_checks
+
+        direction_output = _analysis_step_execute(
+            run_id,
+            "evaluate_directions",
+            {"check_count": len(direction_checks)},
+            lambda: {"direction_results": _evaluate_direction_checks(direction_checks, metric_results)},
+        )
+
+        llm_summary = None
+        if req.include_llm_summary:
+            llm_output = _analysis_step_execute(
+                run_id,
+                "llm_summary",
+                {"metric_count": len(metric_results)},
+                lambda: {"summary": _summarize_trend_metrics(req.prompt, metric_results, direction_output["direction_results"])},
+            )
+            llm_summary = llm_output["summary"]
+
+        response = {
+            "status": "ok",
+            "run_id": run_id,
+            "record_count": len(records),
+            "metrics": metric_results,
+            "direction_results": direction_output["direction_results"],
+            "llm_summary": llm_summary,
+        }
+        _analysis_run_finish(run_id, "completed", response, None)
+        return response
+    except Exception as exc:  # noqa: BLE001
+        _analysis_run_finish(run_id, "failed", None, str(exc))
+        raise
 
 
 def _required_citation_count(memory_type: str) -> int:
@@ -1310,6 +1969,18 @@ def report_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict:
             (limit,),
         ).fetchall()
     return {"status": "ok", "entries": [dict(row) for row in rows]}
+
+
+@app.post("/analysis/trends")
+def analysis_trends(req: TrendAnalysisRequest) -> dict:
+    try:
+        return _execute_trend_analysis(req)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"trend analysis failed: {exc}") from exc
 
 
 @app.post("/analyze")

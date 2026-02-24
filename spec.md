@@ -96,6 +96,7 @@ Notes:
 - `analysis_service`:
   - Handles SQL generation/execution pipeline with read-only policy.
   - Produces structured outputs for UI/report generation.
+  - Runs typed trend-analysis DAG tasks with deterministic metric operators and optional LLM narrative synthesis.
 
 ### 5.3 Tooling Contract (v0.x)
 - Tools are first-class runtime functions, not user-installable skill packs.
@@ -120,6 +121,7 @@ Notes:
   - `GET /tools/report_recent`
   - `POST /pipeline/audio/transcribe`
   - `GET /tools/transcript/recent`
+  - `POST /analysis/trends`
 - Why: explicit local endpoints keep tool behavior inspectable and testable during the closed E2E loop.
 
 ### 5.4 Agent Data-Analysis Flow
@@ -129,6 +131,29 @@ Notes:
 - Query executes against local SQLite.
 - Result set returned as structured table payload.
 - Agent generates narrative summary with linked evidence/citations.
+
+### 5.8 Typed Trend Analysis Pipeline (Locked)
+- A dedicated trend-analysis pipeline is available at `POST /analysis/trends`.
+- Pipeline stages:
+  - transcript selection from local SQLite scope,
+  - structured feature extraction from transcript artifacts,
+  - typed metric planning (explicit specs or prompt-inferred),
+  - deterministic metric computation,
+  - optional narrative synthesis by local LLM.
+- Supported metric operators (v0.x):
+  - `pearson`,
+  - `mean_delta_by_flag`,
+  - `slope_by_time`.
+- Execution model:
+  - task graph with per-step status tracking,
+  - automatic parallel metric computation for independent operations,
+  - deterministic numeric outputs separated from stochastic narrative outputs.
+- Lineage and checkpointing:
+  - each run is persisted in `analysis_run`,
+  - each stage writes status/input/output in `analysis_step`.
+- Failure behavior:
+  - step failures are explicit and recorded; no silent substitution path.
+- Why: agent trend requests must be reproducible and auditable, not pure prompt-only generation.
 
 ### 5.7 Memory Retrieval Policy (Locked)
 - Retrieval ranking order:
@@ -414,6 +439,9 @@ MYNAH uses these agentic memory principles for an offline personal system.
 - Memory write audit:
   - `memory_write_audit` table capturing attempted writes, governance pass/fail status, rejection reason, and source context.
   - Why: write-path auditability is required to control memory quality over long-lived operation.
+- Analysis lineage audit:
+  - `analysis_run` and `analysis_step` tables capturing run-level and stage-level state, inputs, outputs, and failures.
+  - Why: lineage-backed analysis runs provide checkpoint visibility and recovery diagnostics.
 - Migration strategy:
   - Raw SQL versioned migration files.
   - Why: keeps schema evolution transparent, tool-light, and aligned with minimal-stack principles.
@@ -428,8 +456,9 @@ MYNAH uses these agentic memory principles for an offline personal system.
     on the internal runtime network.
   - agent exposes:
     - `POST /tools/report_generate`,
-    - `GET /tools/report_recent`
-    for local report artifact generation/listing.
+    - `GET /tools/report_recent`,
+    - `POST /analysis/trends`
+    for local report generation and deterministic trend-analysis tasks.
   - Why: deterministic fixture ingestion and summary inspection are required to keep the E2E debug loop fast and transparent.
 
 ## 10. BLE Sync Contract (Solution-Level)
@@ -663,10 +692,11 @@ MYNAH uses these agentic memory principles for an offline personal system.
 - A dataset-driven quality gate is required for merge candidates:
   - 100-transcript evaluation corpus via `compute/scripts/quality-eval.sh` or `compute/scripts/quality-eval.ps1`,
   - 200-transcript longitudinal human-style corpus via `compute/scripts/human-transcript-eval.sh` or `compute/scripts/human-transcript-eval.ps1`,
+  - universal agent-tool trend request validation through `POST /analysis/trends` with script-to-agent metric comparison,
   - thresholds for precision, recall, citation-validity, false-insight rate, and stale-memory leakage,
   - trend-extraction checks over sleep/pain/mood/stress/exercise/caffeine signals with LLM interpretation,
   - mandatory post-run cleanup of inserted evaluation rows/artifacts,
-  - JSON run artifact persisted under `artifacts/reports/quality`.
+  - JSON/Markdown run artifacts persisted under `artifacts/reports/quality`.
 - Why: functional E2E pass criteria are not sufficient to detect memory/retrieval quality regressions.
 
 ## 16. Documentation Contract

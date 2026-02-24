@@ -167,6 +167,19 @@ Thresholds are initial defaults and should be tightened as the system matures.
   - writes one Markdown report to `reports/human-transcript-trend-report.md`,
   - cleans inserted DB rows and artifacts after run.
 
+### 7.11 Universal Agent Tool-Pipeline Cycle (200 Transcripts, Blind Prompt)
+- Purpose:
+  - validate that the agent can process open human trend prompts through its own typed tool pipeline rather than direct prompt-only generation.
+- Agent path under test:
+  - `POST /analysis/trends`
+- Run contract:
+  - ingest + transcribe + memory-upsert 200 longitudinal transcripts,
+  - send human prompt requesting trend detection with no embedded expected values,
+  - agent infers/executes metric plan via typed operators and returns deterministic metrics,
+  - compare agent metrics against script-derived ground truth with tolerance gates,
+  - write Markdown report to `reports/human-transcript-trend-report.md`,
+  - cleanup run rows/artifacts (`audio_note`, `transcript`, `memory_item`, `memory_citation`, `analysis_run`, `analysis_step`).
+
 ## 8. Transparency Requirements
 - Test outputs must be explicit and traceable:
   - scenario ID
@@ -207,6 +220,7 @@ Thresholds are initial defaults and should be tightened as the system matures.
 | QLT-003 | Citation-validity quality gate | Quality Eval | Passing | 2026-02-24 | `citation_validity >= 0.98` enforced by quality harness |
 | QLT-004 | False-insight and leakage gate | Quality Eval | Passing | 2026-02-24 | `false_insight_rate <= 0.10` and `stale_memory_leakage_rate == 0.00` |
 | QLT-005 | 200 transcript longitudinal trend extraction | Quality Eval | Passing | 2026-02-24 | `human-transcript-eval.*` validates month-scale trends, LLM extraction, and cleanup |
+| QLT-006 | Universal blind prompt trend analysis | Quality Eval | Passing | 2026-02-24 | `/analysis/trends` typed DAG output matches script ground truth on new trend set |
 | HW-001 | BLE encrypted transfer on device | Hardware | Blocked | - | Awaiting connected wearable |
 
 Status values:
