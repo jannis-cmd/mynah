@@ -46,6 +46,8 @@ Smoke coverage currently includes:
 - HR summary visibility through daemon and UI status,
 - SQL tool guardrails (`sql_query_readonly`) with accept/reject path checks,
 - query audit visibility for accepted and rejected SQL requests,
+- memory tool governance checks (`memory_upsert`) including citation minimum enforcement,
+- memory verification/supersession path (`memory_verify`, `memory_search`),
 - agent analyze round-trip against local Ollama.
 
 Stop:
@@ -105,4 +107,4 @@ mynah/
 - Freshness policy: stale/unverified memory is downgraded or expired.
 
 ## Project Status
-This repository now has a runnable compute runtime skeleton with vertical slices for simulated HR ingest/UI summary and agent SQL guardrail + audit paths.
+This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, agent SQL guardrails/audit, and memory governance/verification/supersession.

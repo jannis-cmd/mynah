@@ -112,6 +112,9 @@ Notes:
 - Internal runtime API exposure for tools:
   - `POST /tools/sql_query_readonly`
   - `GET /tools/query_audit/recent`
+  - `POST /tools/memory_upsert`
+  - `POST /tools/memory_search`
+  - `GET /tools/memory_verify/{memory_id}`
 - Why: explicit local endpoints keep tool behavior inspectable and testable during the closed E2E loop.
 
 ### 5.4 Agent Data-Analysis Flow

@@ -107,6 +107,132 @@ assert sum(1 for entry in entries if entry["status"] == "rejected") >= 2, audit
 print("query audit entries", entries[:3])
 '@ | docker compose exec -T mynah_ui python -
 
+Write-Host "== memory tool governance/verify/supersession =="
+@'
+import json
+import urllib.error
+import urllib.request
+
+invalid_req = urllib.request.Request(
+    "http://mynah_agent:8002/tools/memory_upsert",
+    data=json.dumps(
+        {
+            "type": "insight",
+            "title": "Insufficient citations",
+            "summary": "This should fail because it has only one citation.",
+            "tags": ["hr"],
+            "sensitivity": "personal",
+            "salience_score": 0.8,
+            "confidence_score": 0.9,
+            "caller": "e2e_smoke",
+            "citations": [
+                {
+                    "source_type": "hr_sample",
+                    "source_ref": "fixture_wearable_01|2026-02-24T00:00:01+00:00",
+                    "content_hash": "11111111aaaaaaaa",
+                    "schema_version": 1,
+                    "snapshot_ref": "2026-02-24",
+                }
+            ],
+        }
+    ).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+try:
+    urllib.request.urlopen(invalid_req, timeout=10)
+    raise AssertionError("insight upsert should have been rejected")
+except urllib.error.HTTPError as exc:
+    assert exc.code == 400, exc.code
+    payload = json.loads(exc.read().decode("utf-8"))
+    assert payload["detail"]["code"] == "MEMORY_CITATION_MIN_NOT_MET", payload
+    print("memory rejected", payload["detail"]["code"])
+
+first_req = urllib.request.Request(
+    "http://mynah_agent:8002/tools/memory_upsert",
+    data=json.dumps(
+        {
+            "type": "fact",
+            "title": "Morning resting HR",
+            "summary": "Typical resting HR is low 60s.",
+            "tags": ["hr", "resting"],
+            "sensitivity": "personal",
+            "salience_score": 0.8,
+            "confidence_score": 0.9,
+            "caller": "e2e_smoke",
+            "citations": [
+                {
+                    "source_type": "hr_sample",
+                    "source_ref": "fixture_wearable_01|2026-02-24T00:00:01+00:00",
+                    "content_hash": "22222222bbbbbbbb",
+                    "schema_version": 1,
+                    "snapshot_ref": "2026-02-24",
+                }
+            ],
+        }
+    ).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(first_req, timeout=10) as resp:
+    first = json.loads(resp.read().decode("utf-8"))
+first_id = first["memory_id"]
+print("memory accepted first", first)
+
+second_req = urllib.request.Request(
+    "http://mynah_agent:8002/tools/memory_upsert",
+    data=json.dumps(
+        {
+            "type": "fact",
+            "title": "Morning resting HR",
+            "summary": "Updated resting HR baseline is mid 60s.",
+            "tags": ["hr", "resting"],
+            "sensitivity": "personal",
+            "salience_score": 0.82,
+            "confidence_score": 0.93,
+            "caller": "e2e_smoke",
+            "supersedes_memory_id": first_id,
+            "citations": [
+                {
+                    "source_type": "hr_sample",
+                    "source_ref": "fixture_wearable_01|2026-02-24T00:00:02+00:00",
+                    "content_hash": "33333333cccccccc",
+                    "schema_version": 1,
+                    "snapshot_ref": "2026-02-24",
+                }
+            ],
+        }
+    ).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(second_req, timeout=10) as resp:
+    second = json.loads(resp.read().decode("utf-8"))
+second_id = second["memory_id"]
+print("memory accepted second", second)
+
+with urllib.request.urlopen(f"http://mynah_agent:8002/tools/memory_verify/{first_id}", timeout=5) as resp:
+    first_verify = json.loads(resp.read().decode("utf-8"))
+with urllib.request.urlopen(f"http://mynah_agent:8002/tools/memory_verify/{second_id}", timeout=5) as resp:
+    second_verify = json.loads(resp.read().decode("utf-8"))
+assert first_verify["active"] is False and first_verify["superseded_by"] == second_id, first_verify
+assert second_verify["active"] is True and second_verify["verified"] is True, second_verify
+print("memory verify", {"first": first_verify, "second": second_verify})
+
+search_req = urllib.request.Request(
+    "http://mynah_agent:8002/tools/memory_search",
+    data=json.dumps({"query": "resting", "limit": 10, "verified_only": True}).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(search_req, timeout=10) as resp:
+    search = json.loads(resp.read().decode("utf-8"))
+assert len(search["entries"]) >= 1, search
+assert any(entry["id"] == second_id for entry in search["entries"]), search
+assert all(entry["id"] != first_id for entry in search["entries"]), search
+print("memory search", search["entries"][:2])
+'@ | docker compose exec -T mynah_ui python -
+
 Write-Host "== agent analyze =="
 @'
 import json

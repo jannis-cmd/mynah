@@ -1,16 +1,17 @@
-import json
+﻿import json
 import os
 import re
 import sqlite3
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 SERVICE = os.getenv("MYNAH_SERVICE_NAME", "mynah_agent")
 DB_PATH = Path(os.getenv("MYNAH_DB_PATH", "/data/db/mynah.db"))
@@ -19,7 +20,22 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 MAX_QUERY_RUNTIME_MS = 5000
 MAX_QUERY_ROWS = 10_000
 MAX_QUERY_PAYLOAD_BYTES = 5 * 1024 * 1024
-ALLOWED_QUERY_TABLES = {"hr_sample", "device", "query_audit", "service_heartbeat", "agent_run_log"}
+MEMORY_TYPES = {"fact", "event", "note", "insight", "procedure"}
+MEMORY_SENSITIVITY_LEVELS = {"low", "personal", "sensitive"}
+MIN_MEMORY_SALIENCE = 0.50
+MIN_MEMORY_CONFIDENCE = 0.70
+MAX_MEMORY_WRITES_PER_HOUR = 120
+ALLOWED_QUERY_TABLES = {
+    "agent_run_log",
+    "device",
+    "hr_sample",
+    "memory_citation",
+    "memory_item",
+    "memory_revision",
+    "memory_write_audit",
+    "query_audit",
+    "service_heartbeat",
+}
 
 FORBIDDEN_SQL_PATTERN = re.compile(
     r"\b(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|ATTACH|DETACH|PRAGMA|VACUUM|REINDEX|TRIGGER|REPLACE)\b",
@@ -43,7 +59,73 @@ class SqlQueryReadonlyRequest(BaseModel):
     caller: str = Field(default="local_ui", min_length=1, max_length=64)
 
 
+class MemoryCitationIn(BaseModel):
+    source_type: str = Field(min_length=1, max_length=32, pattern=r"^[a-z_]+$")
+    source_ref: str = Field(min_length=1, max_length=256)
+    content_hash: str = Field(min_length=8, max_length=128)
+    schema_version: int = Field(default=1, ge=1, le=10_000)
+    snapshot_ref: str = Field(min_length=1, max_length=128)
+
+
+class MemoryUpsertRequest(BaseModel):
+    type: str = Field(min_length=1, max_length=32)
+    title: str = Field(min_length=1, max_length=200)
+    summary: str = Field(min_length=1, max_length=2000)
+    tags: list[str] = Field(default_factory=list, max_length=32)
+    sensitivity: str = Field(default="personal")
+    salience_score: float = Field(ge=0.0, le=1.0)
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    citations: list[MemoryCitationIn] = Field(min_length=1, max_length=20)
+    caller: str = Field(default="local_ui", min_length=1, max_length=64)
+    supersedes_memory_id: str | None = Field(default=None, min_length=8, max_length=64)
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, value: str) -> str:
+        value = value.lower().strip()
+        if value not in MEMORY_TYPES:
+            raise ValueError(f"invalid memory type: {value}")
+        return value
+
+    @field_validator("sensitivity")
+    @classmethod
+    def validate_sensitivity(cls, value: str) -> str:
+        value = value.lower().strip()
+        if value not in MEMORY_SENSITIVITY_LEVELS:
+            raise ValueError(f"invalid sensitivity level: {value}")
+        return value
+
+    @field_validator("tags")
+    @classmethod
+    def normalize_tags(cls, value: list[str]) -> list[str]:
+        normalized = []
+        seen = set()
+        for tag in value:
+            t = tag.strip().lower()
+            if not t:
+                continue
+            if t not in seen:
+                normalized.append(t)
+                seen.add(t)
+        return normalized
+
+
+class MemorySearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=200)
+    limit: int = Field(default=20, ge=1, le=100)
+    verified_only: bool = Field(default=True)
+
+
 class SQLValidationError(Exception):
+    def __init__(self, code: str, reason: str, suggestion: str, retryable: bool = False):
+        super().__init__(reason)
+        self.code = code
+        self.reason = reason
+        self.suggestion = suggestion
+        self.retryable = retryable
+
+
+class MemoryGovernanceError(Exception):
     def __init__(self, code: str, reason: str, suggestion: str, retryable: bool = False):
         super().__init__(reason)
         self.code = code
@@ -79,6 +161,71 @@ def _init_db() -> None:
                 status TEXT NOT NULL,
                 denial_reason TEXT,
                 result_hash TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_item (
+                id TEXT PRIMARY KEY,
+                type TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                title TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                tags_json TEXT NOT NULL,
+                sensitivity TEXT NOT NULL,
+                dedupe_hash TEXT NOT NULL,
+                superseded_by TEXT,
+                is_deleted INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_item_dedupe_hash ON memory_item(dedupe_hash)
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_citation (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                memory_id TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                source_ref TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                schema_version INTEGER NOT NULL,
+                snapshot_ref TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(memory_id) REFERENCES memory_item(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_revision (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                memory_id TEXT NOT NULL,
+                revision INTEGER NOT NULL,
+                reason TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(memory_id) REFERENCES memory_item(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_write_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                caller TEXT NOT NULL,
+                status TEXT NOT NULL,
+                memory_id TEXT,
+                reason TEXT,
+                salience_score REAL NOT NULL,
+                confidence_score REAL NOT NULL,
+                dedupe_hash TEXT NOT NULL
             )
             """
         )
@@ -161,6 +308,10 @@ def _validate_readonly_query(query: str) -> str:
     return normalized
 
 
+def _sql_error(code: str, reason: str, suggestion: str, retryable: bool = False) -> dict:
+    return {"code": code, "reason": reason, "retryable": retryable, "suggestion": suggestion}
+
+
 def _audit_query(
     *,
     caller: str,
@@ -195,10 +346,6 @@ def _audit_query(
         conn.commit()
 
 
-def _sql_error(code: str, reason: str, suggestion: str, retryable: bool = False) -> dict:
-    return {"code": code, "reason": reason, "retryable": retryable, "suggestion": suggestion}
-
-
 def _run_readonly_sql(query: str, params: list[str | int | float | None]) -> tuple[list[dict], int]:
     db_uri = f"file:{DB_PATH.as_posix()}?mode=ro"
     with sqlite3.connect(db_uri, uri=True, timeout=MAX_QUERY_RUNTIME_MS / 1000) as conn:
@@ -220,6 +367,329 @@ def _run_readonly_sql(query: str, params: list[str | int | float | None]) -> tup
             suggestion="select fewer columns or reduce LIMIT",
         )
     return result_rows, payload_size
+
+
+def _required_citation_count(memory_type: str) -> int:
+    return 2 if memory_type == "insight" else 1
+
+
+def _memory_error(code: str, reason: str, suggestion: str, retryable: bool = False) -> dict:
+    return {"code": code, "reason": reason, "retryable": retryable, "suggestion": suggestion}
+
+
+def _record_memory_write_audit(
+    *,
+    caller: str,
+    status: str,
+    memory_id: str | None,
+    reason: str | None,
+    salience_score: float,
+    confidence_score: float,
+    dedupe_hash: str,
+) -> None:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            """
+            INSERT INTO memory_write_audit(
+                created_at, caller, status, memory_id, reason, salience_score, confidence_score, dedupe_hash
+            )
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                datetime.now(timezone.utc).isoformat(),
+                caller,
+                status,
+                memory_id,
+                reason,
+                salience_score,
+                confidence_score,
+                dedupe_hash,
+            ),
+        )
+        conn.commit()
+
+
+def _check_memory_rate_limit(conn: sqlite3.Connection, caller: str) -> None:
+    window_start = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    row = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM memory_write_audit
+        WHERE caller = ? AND status = 'accepted' AND created_at >= ?
+        """,
+        (caller, window_start),
+    ).fetchone()
+    if int(row[0] if row else 0) >= MAX_MEMORY_WRITES_PER_HOUR:
+        raise MemoryGovernanceError(
+            code="MEMORY_WRITE_RATE_LIMITED",
+            reason=f"memory write rate exceeded ({MAX_MEMORY_WRITES_PER_HOUR}/hour)",
+            suggestion="retry later or lower write frequency",
+            retryable=True,
+        )
+
+
+def _citation_exists(source_type: str, source_ref: str) -> bool:
+    if source_type == "hr_sample":
+        if "|" not in source_ref:
+            return False
+        device_id, ts = source_ref.split("|", 1)
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT 1 FROM hr_sample WHERE device_id = ? AND ts = ? LIMIT 1",
+                (device_id, ts),
+            ).fetchone()
+        return row is not None
+    if source_type == "transcript":
+        path = Path(source_ref)
+        if not path.is_absolute():
+            path = Path("/home/appuser/data/artifacts/transcripts") / path
+        return path.exists()
+    return False
+
+
+def _verify_memory(memory_id: str) -> dict:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        memory = conn.execute(
+            """
+            SELECT id, type, title, superseded_by, is_deleted
+            FROM memory_item
+            WHERE id = ?
+            """,
+            (memory_id,),
+        ).fetchone()
+        if not memory:
+            return {
+                "status": "not_found",
+                "memory_id": memory_id,
+                "verified": False,
+                "required_citations": 0,
+                "valid_citations": 0,
+                "total_citations": 0,
+            }
+        citations = conn.execute(
+            """
+            SELECT source_type, source_ref
+            FROM memory_citation
+            WHERE memory_id = ?
+            """,
+            (memory_id,),
+        ).fetchall()
+
+    required = _required_citation_count(memory["type"])
+    valid = 0
+    for citation in citations:
+        if _citation_exists(citation["source_type"], citation["source_ref"]):
+            valid += 1
+
+    active = memory["superseded_by"] is None and int(memory["is_deleted"]) == 0
+    verified = active and valid >= required and len(citations) >= required
+    return {
+        "status": "ok",
+        "memory_id": memory["id"],
+        "type": memory["type"],
+        "title": memory["title"],
+        "active": active,
+        "verified": verified,
+        "required_citations": required,
+        "valid_citations": valid,
+        "total_citations": len(citations),
+        "superseded_by": memory["superseded_by"],
+    }
+
+
+def _memory_dedupe_hash(memory_type: str, title: str, summary: str, tags: list[str]) -> str:
+    payload = {
+        "type": memory_type,
+        "title": title.strip().lower(),
+        "summary": summary.strip().lower(),
+        "tags": sorted(tags),
+    }
+    return _hash_payload(payload)
+
+
+def _next_memory_revision(conn: sqlite3.Connection, memory_id: str) -> int:
+    row = conn.execute(
+        "SELECT COALESCE(MAX(revision), 0) FROM memory_revision WHERE memory_id = ?",
+        (memory_id,),
+    ).fetchone()
+    return int(row[0] if row else 0) + 1
+
+
+def _create_memory(req: MemoryUpsertRequest) -> dict:
+    if req.salience_score < MIN_MEMORY_SALIENCE:
+        raise MemoryGovernanceError(
+            code="MEMORY_SALIENCE_TOO_LOW",
+            reason=f"salience_score must be >= {MIN_MEMORY_SALIENCE}",
+            suggestion="raise salience threshold before writing memory",
+        )
+    if req.confidence_score < MIN_MEMORY_CONFIDENCE:
+        raise MemoryGovernanceError(
+            code="MEMORY_CONFIDENCE_TOO_LOW",
+            reason=f"confidence_score must be >= {MIN_MEMORY_CONFIDENCE}",
+            suggestion="raise confidence or avoid writing low-trust memory",
+        )
+
+    required_citations = _required_citation_count(req.type)
+    if len(req.citations) < required_citations:
+        raise MemoryGovernanceError(
+            code="MEMORY_CITATION_MIN_NOT_MET",
+            reason=f"{req.type} requires at least {required_citations} citation(s)",
+            suggestion="add sufficient citations before upsert",
+        )
+
+    for citation in req.citations:
+        if not _citation_exists(citation.source_type, citation.source_ref):
+            raise MemoryGovernanceError(
+                code="MEMORY_CITATION_INVALID_REF",
+                reason=f"citation source reference not found: {citation.source_type}:{citation.source_ref}",
+                suggestion="use source references that exist in local storage",
+            )
+
+    dedupe_hash = _memory_dedupe_hash(req.type, req.title, req.summary, req.tags)
+    now = datetime.now(timezone.utc).isoformat()
+    memory_id = str(uuid4())
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        _check_memory_rate_limit(conn, req.caller)
+
+        dup = conn.execute(
+            """
+            SELECT id
+            FROM memory_item
+            WHERE dedupe_hash = ? AND is_deleted = 0 AND superseded_by IS NULL
+            LIMIT 1
+            """,
+            (dedupe_hash,),
+        ).fetchone()
+        if dup:
+            raise MemoryGovernanceError(
+                code="MEMORY_DEDUPE_REJECTED",
+                reason=f"duplicate active memory exists: {dup['id']}",
+                suggestion="update/supersede existing memory instead of duplicating",
+            )
+
+        superseded_id = None
+        if req.supersedes_memory_id:
+            current = conn.execute(
+                """
+                SELECT id, superseded_by
+                FROM memory_item
+                WHERE id = ? AND is_deleted = 0
+                LIMIT 1
+                """,
+                (req.supersedes_memory_id,),
+            ).fetchone()
+            if not current:
+                raise MemoryGovernanceError(
+                    code="MEMORY_SUPERSEDES_TARGET_NOT_FOUND",
+                    reason=f"supersedes target not found: {req.supersedes_memory_id}",
+                    suggestion="supply a valid active memory id",
+                )
+            if current["superseded_by"] is not None:
+                raise MemoryGovernanceError(
+                    code="MEMORY_SUPERSEDES_TARGET_INACTIVE",
+                    reason=f"supersedes target already inactive: {req.supersedes_memory_id}",
+                    suggestion="use an active memory as supersession target",
+                )
+            superseded_id = req.supersedes_memory_id
+
+        conn.execute(
+            """
+            INSERT INTO memory_item(
+                id, type, created_at, updated_at, title, summary, tags_json, sensitivity, dedupe_hash, superseded_by
+            )
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+            """,
+            (
+                memory_id,
+                req.type,
+                now,
+                now,
+                req.title.strip(),
+                req.summary.strip(),
+                json.dumps(req.tags),
+                req.sensitivity,
+                dedupe_hash,
+            ),
+        )
+
+        for citation in req.citations:
+            conn.execute(
+                """
+                INSERT INTO memory_citation(
+                    memory_id, source_type, source_ref, content_hash, schema_version, snapshot_ref, created_at
+                )
+                VALUES(?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    memory_id,
+                    citation.source_type,
+                    citation.source_ref,
+                    citation.content_hash,
+                    citation.schema_version,
+                    citation.snapshot_ref,
+                    now,
+                ),
+            )
+
+        created_payload = {
+            "type": req.type,
+            "title": req.title,
+            "summary": req.summary,
+            "tags": req.tags,
+            "sensitivity": req.sensitivity,
+            "citations": [citation.model_dump() for citation in req.citations],
+            "supersedes_memory_id": superseded_id,
+        }
+        conn.execute(
+            """
+            INSERT INTO memory_revision(memory_id, revision, reason, payload_json, created_at)
+            VALUES(?, 1, 'created', ?, ?)
+            """,
+            (memory_id, json.dumps(created_payload, sort_keys=True), now),
+        )
+
+        if superseded_id:
+            conn.execute(
+                """
+                UPDATE memory_item
+                SET superseded_by = ?, updated_at = ?
+                WHERE id = ? AND superseded_by IS NULL
+                """,
+                (memory_id, now, superseded_id),
+            )
+            conn.execute(
+                """
+                INSERT INTO memory_revision(memory_id, revision, reason, payload_json, created_at)
+                VALUES(?, ?, 'superseded', ?, ?)
+                """,
+                (
+                    superseded_id,
+                    _next_memory_revision(conn, superseded_id),
+                    json.dumps({"superseded_by": memory_id}, sort_keys=True),
+                    now,
+                ),
+            )
+        conn.commit()
+
+    _record_memory_write_audit(
+        caller=req.caller,
+        status="accepted",
+        memory_id=memory_id,
+        reason=None,
+        salience_score=req.salience_score,
+        confidence_score=req.confidence_score,
+        dedupe_hash=dedupe_hash,
+    )
+    return {
+        "status": "ok",
+        "memory_id": memory_id,
+        "supersedes_memory_id": superseded_id,
+        "required_citations": required_citations,
+        "provided_citations": len(req.citations),
+    }
 
 
 @app.on_event("startup")
@@ -326,6 +796,92 @@ def query_audit_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict:
             (limit,),
         ).fetchall()
     return {"status": "ok", "entries": [dict(row) for row in rows]}
+
+
+@app.post("/tools/memory_upsert")
+def memory_upsert(req: MemoryUpsertRequest) -> dict:
+    dedupe_hash = _memory_dedupe_hash(req.type, req.title, req.summary, req.tags)
+    try:
+        return _create_memory(req)
+    except MemoryGovernanceError as exc:
+        _record_memory_write_audit(
+            caller=req.caller,
+            status="rejected",
+            memory_id=None,
+            reason=f"{exc.code}: {exc.reason}",
+            salience_score=req.salience_score,
+            confidence_score=req.confidence_score,
+            dedupe_hash=dedupe_hash,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=_memory_error(exc.code, exc.reason, exc.suggestion, exc.retryable),
+        ) from exc
+    except sqlite3.Error as exc:
+        _record_memory_write_audit(
+            caller=req.caller,
+            status="rejected",
+            memory_id=None,
+            reason=f"MEMORY_DB_WRITE_FAILED: {exc}",
+            salience_score=req.salience_score,
+            confidence_score=req.confidence_score,
+            dedupe_hash=dedupe_hash,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=_memory_error(
+                "MEMORY_DB_WRITE_FAILED",
+                f"memory write failed: {exc}",
+                "inspect database integrity and retry",
+                True,
+            ),
+        ) from exc
+
+
+@app.get("/tools/memory_verify/{memory_id}")
+def memory_verify(memory_id: str) -> dict:
+    return _verify_memory(memory_id)
+
+
+@app.post("/tools/memory_search")
+def memory_search(req: MemorySearchRequest) -> dict:
+    pattern = f"%{req.query.strip()}%"
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT id, type, title, summary, tags_json, sensitivity, created_at, updated_at
+            FROM memory_item
+            WHERE is_deleted = 0
+              AND superseded_by IS NULL
+              AND (title LIKE ? OR summary LIKE ? OR tags_json LIKE ?)
+            ORDER BY updated_at DESC
+            LIMIT ?
+            """,
+            (pattern, pattern, pattern, req.limit),
+        ).fetchall()
+
+    result = []
+    for row in rows:
+        verification = _verify_memory(row["id"])
+        if req.verified_only and not verification["verified"]:
+            continue
+        result.append(
+            {
+                "id": row["id"],
+                "type": row["type"],
+                "title": row["title"],
+                "summary": row["summary"],
+                "tags": json.loads(row["tags_json"]),
+                "sensitivity": row["sensitivity"],
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+                "verified": verification["verified"],
+                "valid_citations": verification["valid_citations"],
+                "required_citations": verification["required_citations"],
+            }
+        )
+    return {"status": "ok", "entries": result}
 
 
 @app.post("/analyze")
