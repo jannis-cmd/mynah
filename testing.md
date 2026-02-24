@@ -7,6 +7,7 @@ This document defines how MINAH testing is performed and how status is tracked o
 - Protect data integrity across interrupted sessions.
 - Validate Linux runtime behavior while keeping dev workflow usable on Windows.
 - Ensure regressions are detected early with automated tests.
+- Ensure agentic memory behavior is evidence-backed, verifiable, and auditable.
 
 ## 2. Test Levels
 
@@ -16,6 +17,8 @@ Scope:
 - Object integrity/hash checks.
 - Memory item normalization and linking helpers.
 - Report generation logic and SQL guardrails.
+- Citation parser/validator behavior.
+- Memory freshness/expiry policy logic.
 
 Primary environment:
 - Linux and Windows (where runtime dependencies allow).
@@ -26,6 +29,8 @@ Scope:
 - Manifest/chunk/commit behavior.
 - SQLite and filesystem writes.
 - Agent ingest from daemon-emitted events.
+- Just-in-time memory verification against local evidence.
+- Memory supersession (self-healing) on contradiction.
 
 Primary environment:
 - Linux (required), Windows optional via mocks/stubs.
@@ -61,6 +66,8 @@ This allows compute, storage, agent, and UI behavior to progress before full har
 - No wearable object is marked wiped before commit confirmation path is complete.
 - Ingested artifacts are queryable from SQLite and visible to downstream report logic.
 - Linux-targeted services execute in automated CI.
+- Memory-backed outputs include valid citations to local evidence.
+- Unverified/stale memories are excluded from trusted output paths.
 
 ## 5. Test Matrix
 
@@ -82,6 +89,9 @@ Use this table to track test implementation and execution status.
 | T-003 | Resume after interruption | End-to-End | Planned | - | Simulated drop/reconnect |
 | T-004 | BLE encrypted transfer | Hardware | Blocked | - | Awaiting connected device |
 | T-005 | Voice ingest to transcript | Integration | Planned | - | Local pipeline |
+| T-006 | Citation verification path | Integration | Planned | - | Retrieval vs trust checks |
+| T-007 | Memory freshness/expiry | Unit | Planned | - | Stale memory handling |
+| T-008 | Self-healing supersession | Integration | Planned | - | Contradiction correction |
 
 Status values:
 - Planned

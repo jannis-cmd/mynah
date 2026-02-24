@@ -7,6 +7,7 @@ Core principle: personal data stays local by default. There is no cloud dependen
 ## Documentation
 - Project specification: [spec.md](spec.md)
 - Testing strategy and tracking: [testing.md](testing.md)
+- Agentic memory concepts: [docs/agentic-memory.md](docs/agentic-memory.md)
 
 ## Current Direction
 - Runtime target is Linux for compute services.
@@ -43,6 +44,13 @@ minah/
 - Compute daemon performs secure BLE sync and durability checks.
 - Agent builds searchable memory and report artifacts.
 - UI presents status, notes, trends, and report generation locally.
+
+## Agentic Memory Concepts
+- Evidence-backed memory: memories include citations to local source artifacts.
+- Just-in-time verification: memory is re-validated before being used in analysis/output.
+- Scoped memory: memory remains local to this MINAH instance unless explicitly exported.
+- Self-healing updates: contradicted memories are corrected with provenance preserved.
+- Freshness policy: stale/unverified memory is downgraded or expired.
 
 ## Project Status
 This repository is currently in initial setup and specification phase.

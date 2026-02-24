@@ -1,0 +1,42 @@
+# Agentic Memory Concepts
+
+MINAH defines these agentic memory concepts for a local, offline personal intelligence product.
+
+## 1. Memory Model
+- Memories are explicit records, not hidden prompt state.
+- A memory has:
+  - Assertion (fact/insight/procedure).
+  - Context.
+  - Evidence citations.
+  - Confidence.
+  - Freshness metadata.
+
+## 2. Evidence and Citations
+- Every non-trivial memory should cite local evidence:
+  - SQLite object identifiers.
+  - Audio/transcript artifacts.
+  - Derived report sections.
+- Citations allow direct re-checking and auditability.
+
+## 3. Retrieval vs Trust
+- Retrieval finds candidate memories.
+- Trust is granted only after just-in-time verification against cited evidence.
+- If evidence is missing or contradictory, memory is downgraded or rejected.
+
+## 4. Scope
+- Memory scope is local-instance by default.
+- Memory is not automatically shared with other systems or users.
+- Exporting memory is explicit and user-controlled.
+
+## 5. Freshness and Decay
+- Memories have bounded validity windows.
+- Stale memories are deprioritized and can expire.
+- Re-validated memories are refreshed and remain active.
+
+## 6. Self-Healing
+- When new evidence contradicts old memory, MINAH updates or supersedes the memory.
+- Supersession history is retained so corrections are traceable.
+
+## 7. Offline Adaptation Notes
+- Verification and citation checks are fully local.
+- No external network lookup is required for memory trust decisions.
