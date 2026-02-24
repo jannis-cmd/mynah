@@ -1,13 +1,17 @@
 import os
 import sqlite3
+from base64 import b64decode
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
+from uuid import uuid4
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
 SERVICE = os.getenv("MYNAH_SERVICE_NAME", "mynahd")
 DB_PATH = Path(os.getenv("MYNAH_DB_PATH", "/data/db/mynah.db"))
+ARTIFACTS_PATH = Path(os.getenv("MYNAH_ARTIFACTS_PATH", "/home/appuser/data/artifacts"))
 
 app = FastAPI(title="mynahd", version="0.1.0")
 
@@ -32,8 +36,26 @@ class HrIngestRequest(BaseModel):
     source: str = Field(default="simulated", max_length=32)
 
 
+class AudioIngestRequest(BaseModel):
+    note_id: str | None = Field(default=None, min_length=4, max_length=80, pattern=r"^[A-Za-z0-9._:-]+$")
+    device_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._:-]+$")
+    start_ts: datetime
+    end_ts: datetime
+    audio_b64: str = Field(min_length=8, max_length=1_500_000)
+    transcript_hint: str | None = Field(default=None, max_length=20_000)
+    source: str = Field(default="simulated", max_length=32)
+
+    @field_validator("start_ts", "end_ts")
+    @classmethod
+    def normalize_ts(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            raise ValueError("timestamp must include timezone information")
+        return value.astimezone(timezone.utc)
+
+
 def _init_db() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    ARTIFACTS_PATH.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
             """
@@ -72,6 +94,40 @@ def _init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_hr_sample_ts ON hr_sample(ts)
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audio_note (
+                id TEXT PRIMARY KEY,
+                device_id TEXT NOT NULL,
+                start_ts TEXT NOT NULL,
+                end_ts TEXT NOT NULL,
+                audio_path TEXT NOT NULL,
+                audio_sha256 TEXT NOT NULL,
+                audio_bytes INTEGER NOT NULL,
+                transcript_hint_path TEXT,
+                source TEXT NOT NULL,
+                transcription_state TEXT NOT NULL DEFAULT 'pending',
+                ingested_at TEXT NOT NULL,
+                FOREIGN KEY(device_id) REFERENCES device(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_audio_note_start_ts ON audio_note(start_ts)
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS transcript (
+                audio_id TEXT PRIMARY KEY,
+                text TEXT NOT NULL,
+                model TEXT NOT NULL,
+                path TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
         conn.commit()
 
 
@@ -99,6 +155,14 @@ def _ensure_device(conn: sqlite3.Connection, device_id: str) -> None:
         """,
         (device_id, datetime.now(timezone.utc).isoformat()),
     )
+
+
+def _audio_artifact_paths(note_id: str, start_ts: datetime) -> tuple[Path, Path]:
+    audio_dir = ARTIFACTS_PATH / "audio" / start_ts.strftime("%Y") / start_ts.strftime("%m")
+    transcript_fixture_dir = ARTIFACTS_PATH / "transcript_fixtures"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    transcript_fixture_dir.mkdir(parents=True, exist_ok=True)
+    return audio_dir / f"{note_id}.wav", transcript_fixture_dir / f"{note_id}.txt"
 
 
 @app.on_event("startup")
@@ -156,6 +220,75 @@ def ingest_hr(payload: HrIngestRequest) -> dict:
     }
 
 
+@app.post("/ingest/audio")
+def ingest_audio(payload: AudioIngestRequest) -> dict:
+    if payload.end_ts <= payload.start_ts:
+        raise HTTPException(status_code=422, detail="end_ts must be later than start_ts")
+    try:
+        audio_bytes = b64decode(payload.audio_b64, validate=True)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=422, detail="audio_b64 must be valid base64") from exc
+    if not audio_bytes:
+        raise HTTPException(status_code=422, detail="decoded audio payload is empty")
+
+    note_id = payload.note_id or str(uuid4())
+    audio_sha = sha256(audio_bytes).hexdigest()
+    audio_path, transcript_fixture_path = _audio_artifact_paths(note_id, payload.start_ts)
+    audio_path.write_bytes(audio_bytes)
+
+    transcript_hint_path_str = None
+    if payload.transcript_hint:
+        transcript_fixture_path.write_text(payload.transcript_hint.strip(), encoding="utf-8")
+        transcript_hint_path_str = str(transcript_fixture_path)
+
+    ingested_at = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        _ensure_device(conn, payload.device_id)
+        conn.execute(
+            """
+            INSERT INTO audio_note(
+                id, device_id, start_ts, end_ts, audio_path, audio_sha256, audio_bytes,
+                transcript_hint_path, source, transcription_state, ingested_at
+            )
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+            ON CONFLICT(id) DO UPDATE SET
+                device_id=excluded.device_id,
+                start_ts=excluded.start_ts,
+                end_ts=excluded.end_ts,
+                audio_path=excluded.audio_path,
+                audio_sha256=excluded.audio_sha256,
+                audio_bytes=excluded.audio_bytes,
+                transcript_hint_path=excluded.transcript_hint_path,
+                source=excluded.source,
+                transcription_state='pending',
+                ingested_at=excluded.ingested_at
+            """,
+            (
+                note_id,
+                payload.device_id,
+                payload.start_ts.isoformat(),
+                payload.end_ts.isoformat(),
+                str(audio_path),
+                audio_sha,
+                len(audio_bytes),
+                transcript_hint_path_str,
+                payload.source,
+                ingested_at,
+            ),
+        )
+        conn.commit()
+
+    return {
+        "status": "ok",
+        "audio_id": note_id,
+        "device_id": payload.device_id,
+        "audio_bytes": len(audio_bytes),
+        "audio_sha256": audio_sha,
+        "transcript_hint_available": bool(transcript_hint_path_str),
+        "ingested_at": ingested_at,
+    }
+
+
 @app.get("/summary/hr/today")
 def summary_hr_today(
     date: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
@@ -197,6 +330,30 @@ def summary_hr_today(
     }
 
 
+@app.get("/summary/audio/recent")
+def summary_audio_recent(limit: int = Query(default=10, ge=1, le=100)) -> dict:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT
+                a.id,
+                a.device_id,
+                a.start_ts,
+                a.end_ts,
+                a.transcription_state,
+                a.audio_bytes,
+                CASE WHEN t.audio_id IS NULL THEN 0 ELSE 1 END AS transcript_ready
+            FROM audio_note a
+            LEFT JOIN transcript t ON t.audio_id = a.id
+            ORDER BY a.start_ts DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return {"status": "ok", "entries": [dict(row) for row in rows]}
+
+
 @app.get("/status")
 def status() -> dict:
     with sqlite3.connect(DB_PATH) as conn:
@@ -205,8 +362,10 @@ def status() -> dict:
             (SERVICE,),
         ).fetchone()
         hr_count = conn.execute("SELECT COUNT(*) FROM hr_sample").fetchone()
+        audio_count = conn.execute("SELECT COUNT(*) FROM audio_note").fetchone()
     return {
         "service": SERVICE,
         "last_heartbeat": row[0] if row else None,
         "hr_sample_count_total": int(hr_count[0] if hr_count else 0),
+        "audio_note_count_total": int(audio_count[0] if audio_count else 0),
     }

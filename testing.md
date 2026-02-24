@@ -168,7 +168,7 @@ Thresholds are initial defaults and should be tightened as the system matures.
 | ID | Scenario | Type | Status | Last Run | Notes |
 |---|---|---|---|---|---|
 | E2E-001 | HR ingest to UI summary | End-to-End | Passing | 2026-02-24 | `POST /ingest/hr` -> `GET /summary/hr/today` -> UI `/status` `hr_today` |
-| E2E-002 | Audio ingest to transcript/memory | End-to-End | Planned | - | Simulated audio fixture |
+| E2E-002 | Audio ingest to transcript/memory | End-to-End | Passing | 2026-02-24 | `POST /ingest/audio` -> `POST /pipeline/audio/transcribe` -> transcript + note memory + UI `audio_recent` |
 | E2E-003 | Report generation artifact path | End-to-End | Planned | - | Report visible in UI |
 | E2E-004 | Agent SQL analysis path | End-to-End | Passing | 2026-02-24 | `POST /tools/sql_query_readonly` read path over `hr_sample` |
 | E2E-005 | Citation verification gate | End-to-End | Passing | 2026-02-24 | `memory_upsert` citation minimum + `memory_verify` trusted-active checks |

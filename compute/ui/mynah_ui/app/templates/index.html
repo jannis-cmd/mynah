@@ -78,6 +78,21 @@
           <code>{{ hr_today.avg_bpm if hr_today else "n/a" }}</code>
         </p>
       </section>
+
+      <section class="panel">
+        <h2>Recent Voice Notes</h2>
+        <p>Count: <code>{{ audio_recent.entries|length if audio_recent and audio_recent.entries else 0 }}</code></p>
+        <p>
+          Latest transcript-ready:
+          <code>
+            {% if audio_recent and audio_recent.entries %}
+              {{ audio_recent.entries[0].transcript_ready }}
+            {% else %}
+              n/a
+            {% endif %}
+          </code>
+        </p>
+      </section>
     </main>
   </body>
 </html>

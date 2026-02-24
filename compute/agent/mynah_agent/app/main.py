@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field, field_validator
 
 SERVICE = os.getenv("MYNAH_SERVICE_NAME", "mynah_agent")
 DB_PATH = Path(os.getenv("MYNAH_DB_PATH", "/data/db/mynah.db"))
+ARTIFACTS_PATH = Path(os.getenv("MYNAH_ARTIFACTS_PATH", "/home/appuser/data/artifacts"))
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 MAX_QUERY_RUNTIME_MS = 5000
@@ -27,6 +28,7 @@ MIN_MEMORY_CONFIDENCE = 0.70
 MAX_MEMORY_WRITES_PER_HOUR = 120
 ALLOWED_QUERY_TABLES = {
     "agent_run_log",
+    "audio_note",
     "device",
     "hr_sample",
     "memory_citation",
@@ -35,6 +37,7 @@ ALLOWED_QUERY_TABLES = {
     "memory_write_audit",
     "query_audit",
     "service_heartbeat",
+    "transcript",
 }
 
 FORBIDDEN_SQL_PATTERN = re.compile(
@@ -116,6 +119,12 @@ class MemorySearchRequest(BaseModel):
     verified_only: bool = Field(default=True)
 
 
+class AudioTranscribeRequest(BaseModel):
+    audio_id: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9._:-]+$")
+    caller: str = Field(default="local_ui", min_length=1, max_length=64)
+    force: bool = Field(default=False)
+
+
 class SQLValidationError(Exception):
     def __init__(self, code: str, reason: str, suggestion: str, retryable: bool = False):
         super().__init__(reason)
@@ -166,6 +175,34 @@ def _init_db() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS audio_note (
+                id TEXT PRIMARY KEY,
+                device_id TEXT NOT NULL,
+                start_ts TEXT NOT NULL,
+                end_ts TEXT NOT NULL,
+                audio_path TEXT NOT NULL,
+                audio_sha256 TEXT NOT NULL,
+                audio_bytes INTEGER NOT NULL,
+                transcript_hint_path TEXT,
+                source TEXT NOT NULL,
+                transcription_state TEXT NOT NULL DEFAULT 'pending',
+                ingested_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS transcript (
+                audio_id TEXT PRIMARY KEY,
+                text TEXT NOT NULL,
+                model TEXT NOT NULL,
+                path TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS memory_item (
                 id TEXT PRIMARY KEY,
                 type TEXT NOT NULL,
@@ -181,9 +218,10 @@ def _init_db() -> None:
             )
             """
         )
+        conn.execute("DROP INDEX IF EXISTS idx_memory_item_dedupe_hash")
         conn.execute(
             """
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_item_dedupe_hash ON memory_item(dedupe_hash)
+            CREATE INDEX IF NOT EXISTS idx_memory_item_dedupe_hash ON memory_item(dedupe_hash)
             """
         )
         conn.execute(
@@ -442,8 +480,12 @@ def _citation_exists(source_type: str, source_ref: str) -> bool:
     if source_type == "transcript":
         path = Path(source_ref)
         if not path.is_absolute():
-            path = Path("/home/appuser/data/artifacts/transcripts") / path
+            path = ARTIFACTS_PATH / "transcripts" / path
         return path.exists()
+    if source_type == "audio_note":
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute("SELECT 1 FROM audio_note WHERE id = ? LIMIT 1", (source_ref,)).fetchone()
+        return row is not None
     return False
 
 
@@ -692,6 +734,152 @@ def _create_memory(req: MemoryUpsertRequest) -> dict:
     }
 
 
+def _find_memory_by_transcript_ref(transcript_ref: str) -> str | None:
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            """
+            SELECT m.id
+            FROM memory_item m
+            JOIN memory_citation c ON c.memory_id = m.id
+            WHERE m.is_deleted = 0
+              AND m.superseded_by IS NULL
+              AND c.source_type = 'transcript'
+              AND c.source_ref = ?
+            ORDER BY m.updated_at DESC
+            LIMIT 1
+            """,
+            (transcript_ref,),
+        ).fetchone()
+    return row[0] if row else None
+
+
+def _transcribe_audio_fixture(req: AudioTranscribeRequest) -> dict:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        audio = conn.execute(
+            """
+            SELECT id, transcript_hint_path, transcription_state
+            FROM audio_note
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (req.audio_id,),
+        ).fetchone()
+        if not audio:
+            raise MemoryGovernanceError(
+                code="AUDIO_NOTE_NOT_FOUND",
+                reason=f"audio note not found: {req.audio_id}",
+                suggestion="ingest audio note before transcription",
+            )
+
+        existing_transcript = conn.execute(
+            """
+            SELECT audio_id, text, path
+            FROM transcript
+            WHERE audio_id = ?
+            LIMIT 1
+            """,
+            (req.audio_id,),
+        ).fetchone()
+        if existing_transcript and not req.force:
+            transcript_ref = Path(existing_transcript["path"]).name
+            existing_memory_id = _find_memory_by_transcript_ref(transcript_ref)
+            return {
+                "status": "ok",
+                "audio_id": req.audio_id,
+                "transcript_created": False,
+                "memory_created": False,
+                "memory_id": existing_memory_id,
+                "transcript_ref": transcript_ref,
+            }
+
+    hint_path = Path(audio["transcript_hint_path"]) if audio["transcript_hint_path"] else None
+    if not hint_path or not hint_path.exists():
+        raise MemoryGovernanceError(
+            code="TRANSCRIPT_HINT_MISSING",
+            reason=f"no transcript fixture available for audio note {req.audio_id}",
+            suggestion="ingest audio with transcript_hint for deterministic no-wearable E2E runs",
+        )
+
+    transcript_text = hint_path.read_text(encoding="utf-8").strip()
+    if not transcript_text:
+        raise MemoryGovernanceError(
+            code="TRANSCRIPT_HINT_EMPTY",
+            reason=f"transcript fixture is empty for audio note {req.audio_id}",
+            suggestion="provide non-empty transcript_hint during audio ingest",
+        )
+
+    transcripts_dir = ARTIFACTS_PATH / "transcripts"
+    transcripts_dir.mkdir(parents=True, exist_ok=True)
+    transcript_path = transcripts_dir / f"{req.audio_id}.txt"
+    transcript_path.write_text(transcript_text, encoding="utf-8")
+    now = datetime.now(timezone.utc).isoformat()
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            """
+            INSERT INTO transcript(audio_id, text, model, path, created_at)
+            VALUES(?, ?, 'fixture_transcript_v1', ?, ?)
+            ON CONFLICT(audio_id) DO UPDATE SET
+                text=excluded.text,
+                model=excluded.model,
+                path=excluded.path,
+                created_at=excluded.created_at
+            """,
+            (req.audio_id, transcript_text, str(transcript_path), now),
+        )
+        conn.execute(
+            """
+            UPDATE audio_note
+            SET transcription_state = 'completed'
+            WHERE id = ?
+            """,
+            (req.audio_id,),
+        )
+        conn.commit()
+
+    transcript_ref = transcript_path.name
+    existing_memory_id = _find_memory_by_transcript_ref(transcript_ref)
+    if existing_memory_id:
+        return {
+            "status": "ok",
+            "audio_id": req.audio_id,
+            "transcript_created": True,
+            "memory_created": False,
+            "memory_id": existing_memory_id,
+            "transcript_ref": transcript_ref,
+        }
+
+    memory_req = MemoryUpsertRequest(
+        type="note",
+        title=f"Voice note {req.audio_id[:8]}",
+        summary=transcript_text[:1200],
+        tags=["voice_note", "transcript"],
+        sensitivity="personal",
+        salience_score=0.80,
+        confidence_score=0.90,
+        caller=req.caller,
+        citations=[
+            MemoryCitationIn(
+                source_type="transcript",
+                source_ref=transcript_ref,
+                content_hash=sha256(transcript_text.encode("utf-8")).hexdigest(),
+                schema_version=1,
+                snapshot_ref=now,
+            )
+        ],
+    )
+    memory_result = _create_memory(memory_req)
+    return {
+        "status": "ok",
+        "audio_id": req.audio_id,
+        "transcript_created": True,
+        "memory_created": True,
+        "memory_id": memory_result["memory_id"],
+        "transcript_ref": transcript_ref,
+    }
+
+
 @app.on_event("startup")
 def startup() -> None:
     _init_db()
@@ -882,6 +1070,33 @@ def memory_search(req: MemorySearchRequest) -> dict:
             }
         )
     return {"status": "ok", "entries": result}
+
+
+@app.post("/pipeline/audio/transcribe")
+def pipeline_audio_transcribe(req: AudioTranscribeRequest) -> dict:
+    try:
+        return _transcribe_audio_fixture(req)
+    except MemoryGovernanceError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=_memory_error(exc.code, exc.reason, exc.suggestion, exc.retryable),
+        ) from exc
+
+
+@app.get("/tools/transcript/recent")
+def transcript_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT audio_id, model, created_at, path, SUBSTR(text, 1, 160) AS preview
+            FROM transcript
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return {"status": "ok", "entries": [dict(row) for row in rows]}
 
 
 @app.post("/analyze")

@@ -63,6 +63,69 @@ assert ui_status.get("hr_today") is not None, ui_status
 print("ui status", ui_status)
 PY
 
+echo "== ingest fixture audio and transcribe =="
+docker compose exec -T mynah_ui python - <<'PY'
+import base64
+import json
+import urllib.request
+from datetime import datetime, timezone
+
+day = datetime.now(timezone.utc).date().isoformat()
+audio_payload = {
+    "note_id": "e2e_note_01",
+    "device_id": "fixture_wearable_01",
+    "start_ts": f"{day}T10:00:00+00:00",
+    "end_ts": f"{day}T10:00:08+00:00",
+    "audio_b64": base64.b64encode(b"RIFF_E2E_NOTE").decode("ascii"),
+    "transcript_hint": "I walked outside today and felt better afterwards.",
+    "source": "e2e_smoke",
+}
+ingest_req = urllib.request.Request(
+    "http://mynahd:8001/ingest/audio",
+    data=json.dumps(audio_payload).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(ingest_req, timeout=10) as resp:
+    ingest = json.loads(resp.read().decode("utf-8"))
+assert ingest["audio_id"] == "e2e_note_01", ingest
+print("audio ingest", ingest)
+
+transcribe_req = urllib.request.Request(
+    "http://mynah_agent:8002/pipeline/audio/transcribe",
+    data=json.dumps({"audio_id": "e2e_note_01", "caller": "e2e_smoke", "force": True}).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(transcribe_req, timeout=20) as resp:
+    transcribed = json.loads(resp.read().decode("utf-8"))
+assert transcribed["audio_id"] == "e2e_note_01", transcribed
+print("audio transcribe", transcribed)
+
+with urllib.request.urlopen("http://mynah_agent:8002/tools/transcript/recent?limit=10", timeout=5) as resp:
+    transcripts = json.loads(resp.read().decode("utf-8"))
+assert any(item["audio_id"] == "e2e_note_01" for item in transcripts["entries"]), transcripts
+print("transcript recent", transcripts["entries"][:2])
+
+memory_search_req = urllib.request.Request(
+    "http://mynah_agent:8002/tools/memory_search",
+    data=json.dumps({"query": "walked outside", "limit": 10, "verified_only": True}).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(memory_search_req, timeout=10) as resp:
+    memory_search = json.loads(resp.read().decode("utf-8"))
+assert any(entry["type"] == "note" for entry in memory_search["entries"]), memory_search
+print("memory search note", memory_search["entries"][:2])
+
+with urllib.request.urlopen("http://mynah_ui:8000/status", timeout=5) as resp:
+    ui_status = json.loads(resp.read().decode("utf-8"))
+audio_recent = ui_status.get("audio_recent", {})
+entries = audio_recent.get("entries", [])
+assert any(entry["id"] == "e2e_note_01" and int(entry["transcript_ready"]) == 1 for entry in entries), ui_status
+print("ui audio status", entries[:2])
+PY
+
 echo "== sql tool accept/reject/audit =="
 docker compose exec -T mynah_ui python - <<'PY'
 import json
@@ -113,8 +176,11 @@ PY
 echo "== memory tool governance/verify/supersession =="
 docker compose exec -T mynah_ui python - <<'PY'
 import json
+import time
 import urllib.error
 import urllib.request
+
+run_id = int(time.time())
 
 invalid_req = urllib.request.Request(
     "http://mynah_agent:8002/tools/memory_upsert",
@@ -156,8 +222,8 @@ first_req = urllib.request.Request(
     data=json.dumps(
         {
             "type": "fact",
-            "title": "Morning resting HR",
-            "summary": "Typical resting HR is low 60s.",
+            "title": f"Morning resting HR {run_id}",
+            "summary": f"Typical resting HR is low 60s. run={run_id}",
             "tags": ["hr", "resting"],
             "sensitivity": "personal",
             "salience_score": 0.8,
@@ -187,8 +253,8 @@ second_req = urllib.request.Request(
     data=json.dumps(
         {
             "type": "fact",
-            "title": "Morning resting HR",
-            "summary": "Updated resting HR baseline is mid 60s.",
+            "title": f"Morning resting HR {run_id}",
+            "summary": f"Updated resting HR baseline is mid 60s. run={run_id}",
             "tags": ["hr", "resting"],
             "sensitivity": "personal",
             "salience_score": 0.82,

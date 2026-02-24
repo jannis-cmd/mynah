@@ -44,6 +44,9 @@ Smoke coverage currently includes:
 - health checks for daemon/agent/ui,
 - simulated HR ingest into `mynahd`,
 - HR summary visibility through daemon and UI status,
+- simulated audio ingest into `mynahd` with fixture transcript,
+- audio transcription pipeline (`/pipeline/audio/transcribe`) and transcript visibility checks,
+- note-memory creation from transcript and UI recent-note visibility,
 - SQL tool guardrails (`sql_query_readonly`) with accept/reject path checks,
 - query audit visibility for accepted and rejected SQL requests,
 - memory tool governance checks (`memory_upsert`) including citation minimum enforcement,
@@ -107,4 +110,4 @@ mynah/
 - Freshness policy: stale/unverified memory is downgraded or expired.
 
 ## Project Status
-This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, agent SQL guardrails/audit, and memory governance/verification/supersession.
+This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, audio fixture ingest/transcript/memory flow, agent SQL guardrails/audit, and memory governance/verification/supersession.
