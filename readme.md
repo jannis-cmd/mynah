@@ -53,6 +53,7 @@ Smoke coverage currently includes:
 - query audit visibility for accepted and rejected SQL requests,
 - memory tool governance checks (`memory_upsert`) including citation minimum enforcement,
 - memory verification/supersession path (`memory_verify`, `memory_search`),
+- stale-memory exclusion checks with explicit reverification (`memory_reverify`),
 - agent analyze round-trip against local Ollama.
 
 Stop:
@@ -112,4 +113,4 @@ mynah/
 - Freshness policy: stale/unverified memory is downgraded or expired.
 
 ## Project Status
-This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, audio fixture ingest/transcript/memory flow, report artifact generation/listing, agent SQL guardrails/audit, and memory governance/verification/supersession.
+This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, audio fixture ingest/transcript/memory flow, report artifact generation/listing, agent SQL guardrails/audit, and memory governance/verification/supersession/freshness.

@@ -115,6 +115,7 @@ Notes:
   - `POST /tools/memory_upsert`
   - `POST /tools/memory_search`
   - `GET /tools/memory_verify/{memory_id}`
+  - `POST /tools/memory_reverify/{memory_id}`
   - `POST /tools/report_generate`
   - `GET /tools/report_recent`
   - `POST /pipeline/audio/transcribe`

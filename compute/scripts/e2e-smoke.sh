@@ -333,6 +333,85 @@ assert all(entry["id"] != first_id for entry in search["entries"]), search
 print("memory search", search["entries"][:2])
 PY
 
+echo "== stale memory exclusion and reverification =="
+docker compose exec -T mynah_ui python - <<'PY'
+import json
+import sqlite3
+import time
+import urllib.request
+
+run_id = int(time.time())
+create_req = urllib.request.Request(
+    "http://mynah_agent:8002/tools/memory_upsert",
+    data=json.dumps(
+        {
+            "type": "fact",
+            "title": f"Freshness baseline {run_id}",
+            "summary": f"Freshness test memory run={run_id}",
+            "tags": ["freshness", "hr"],
+            "sensitivity": "personal",
+            "salience_score": 0.8,
+            "confidence_score": 0.9,
+            "caller": "e2e_smoke",
+            "citations": [
+                {
+                    "source_type": "hr_sample",
+                    "source_ref": "fixture_wearable_01|2026-02-24T00:00:01+00:00",
+                    "content_hash": "freshnessaaaa1111",
+                    "schema_version": 1,
+                    "snapshot_ref": "2026-02-24",
+                }
+            ],
+        }
+    ).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(create_req, timeout=10) as resp:
+    created = json.loads(resp.read().decode("utf-8"))
+memory_id = created["memory_id"]
+print("freshness memory created", created)
+
+with sqlite3.connect("/home/appuser/data/db/mynah.db") as conn:
+    conn.execute(
+        "UPDATE memory_item SET updated_at = ? WHERE id = ?",
+        ("2020-01-01T00:00:00+00:00", memory_id),
+    )
+    conn.commit()
+
+with urllib.request.urlopen(f"http://mynah_agent:8002/tools/memory_verify/{memory_id}", timeout=5) as resp:
+    stale_verify = json.loads(resp.read().decode("utf-8"))
+assert stale_verify["stale"] is True and stale_verify["verified"] is False, stale_verify
+print("stale verify", stale_verify)
+
+search_stale_req = urllib.request.Request(
+    "http://mynah_agent:8002/tools/memory_search",
+    data=json.dumps({"query": str(run_id), "limit": 10, "verified_only": True}).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(search_stale_req, timeout=10) as resp:
+    search_stale = json.loads(resp.read().decode("utf-8"))
+assert all(entry["id"] != memory_id for entry in search_stale["entries"]), search_stale
+print("stale search excluded", search_stale["entries"][:2])
+
+reverify_req = urllib.request.Request(
+    f"http://mynah_agent:8002/tools/memory_reverify/{memory_id}",
+    data=b"",
+    method="POST",
+)
+with urllib.request.urlopen(reverify_req, timeout=10) as resp:
+    reverified = json.loads(resp.read().decode("utf-8"))
+assert reverified["verification"]["verified"] is True, reverified
+assert reverified["verification"]["stale"] is False, reverified
+print("reverified", reverified)
+
+with urllib.request.urlopen(f"http://mynah_agent:8002/tools/memory_verify/{memory_id}", timeout=5) as resp:
+    fresh_verify = json.loads(resp.read().decode("utf-8"))
+assert fresh_verify["verified"] is True and fresh_verify["stale"] is False, fresh_verify
+print("fresh verify", fresh_verify)
+PY
+
 echo "== agent analyze =="
 docker compose exec -T mynah_ui python - <<'PY'
 import json

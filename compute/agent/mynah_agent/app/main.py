@@ -26,6 +26,13 @@ MEMORY_SENSITIVITY_LEVELS = {"low", "personal", "sensitive"}
 MIN_MEMORY_SALIENCE = 0.50
 MIN_MEMORY_CONFIDENCE = 0.70
 MAX_MEMORY_WRITES_PER_HOUR = 120
+MEMORY_TTL_DAYS = {
+    "fact": 365,
+    "event": 30,
+    "note": 30,
+    "insight": 14,
+    "procedure": 90,
+}
 ALLOWED_QUERY_TABLES = {
     "agent_run_log",
     "audio_note",
@@ -428,6 +435,16 @@ def _required_citation_count(memory_type: str) -> int:
     return 2 if memory_type == "insight" else 1
 
 
+def _memory_stale_state(memory_type: str, updated_at: str) -> tuple[bool, int]:
+    ttl_days = MEMORY_TTL_DAYS.get(memory_type, 30)
+    try:
+        updated_ts = datetime.fromisoformat(updated_at)
+    except ValueError:
+        return True, ttl_days
+    age_days = (datetime.now(timezone.utc) - updated_ts.astimezone(timezone.utc)).days
+    return age_days > ttl_days, ttl_days
+
+
 def _memory_error(code: str, reason: str, suggestion: str, retryable: bool = False) -> dict:
     return {"code": code, "reason": reason, "retryable": retryable, "suggestion": suggestion}
 
@@ -511,7 +528,7 @@ def _verify_memory(memory_id: str) -> dict:
         conn.row_factory = sqlite3.Row
         memory = conn.execute(
             """
-            SELECT id, type, title, superseded_by, is_deleted
+            SELECT id, type, title, superseded_by, is_deleted, updated_at
             FROM memory_item
             WHERE id = ?
             """,
@@ -542,7 +559,8 @@ def _verify_memory(memory_id: str) -> dict:
             valid += 1
 
     active = memory["superseded_by"] is None and int(memory["is_deleted"]) == 0
-    verified = active and valid >= required and len(citations) >= required
+    stale, ttl_days = _memory_stale_state(memory["type"], memory["updated_at"])
+    verified = active and not stale and valid >= required and len(citations) >= required
     return {
         "status": "ok",
         "memory_id": memory["id"],
@@ -550,6 +568,8 @@ def _verify_memory(memory_id: str) -> dict:
         "title": memory["title"],
         "active": active,
         "verified": verified,
+        "stale": stale,
+        "ttl_days": ttl_days,
         "required_citations": required,
         "valid_citations": valid,
         "total_citations": len(citations),
@@ -768,6 +788,53 @@ def _find_memory_by_transcript_ref(transcript_ref: str) -> str | None:
             (transcript_ref,),
         ).fetchone()
     return row[0] if row else None
+
+
+def _reverify_memory(memory_id: str) -> dict:
+    verification = _verify_memory(memory_id)
+    if verification["status"] != "ok":
+        raise MemoryGovernanceError(
+            code="MEMORY_NOT_FOUND",
+            reason=f"memory not found: {memory_id}",
+            suggestion="use an existing memory id",
+        )
+    if not verification["active"]:
+        raise MemoryGovernanceError(
+            code="MEMORY_NOT_ACTIVE",
+            reason=f"memory is not active: {memory_id}",
+            suggestion="reverify active non-superseded memory items only",
+        )
+    if verification["valid_citations"] < verification["required_citations"]:
+        raise MemoryGovernanceError(
+            code="MEMORY_REVERIFY_CITATION_FAILED",
+            reason="memory citations did not pass reverification",
+            suggestion="repair citation links before reverification",
+        )
+
+    now = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            """
+            UPDATE memory_item
+            SET updated_at = ?
+            WHERE id = ?
+            """,
+            (now, memory_id),
+        )
+        conn.execute(
+            """
+            INSERT INTO memory_revision(memory_id, revision, reason, payload_json, created_at)
+            VALUES(?, ?, 'reverified', ?, ?)
+            """,
+            (
+                memory_id,
+                _next_memory_revision(conn, memory_id),
+                json.dumps({"reverified_at": now}, sort_keys=True),
+                now,
+            ),
+        )
+        conn.commit()
+    return _verify_memory(memory_id)
 
 
 def _transcribe_audio_fixture(req: AudioTranscribeRequest) -> dict:
@@ -1142,6 +1209,18 @@ def memory_verify(memory_id: str) -> dict:
     return _verify_memory(memory_id)
 
 
+@app.post("/tools/memory_reverify/{memory_id}")
+def memory_reverify(memory_id: str) -> dict:
+    try:
+        verification = _reverify_memory(memory_id)
+    except MemoryGovernanceError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=_memory_error(exc.code, exc.reason, exc.suggestion, exc.retryable),
+        ) from exc
+    return {"status": "ok", "memory_id": memory_id, "verification": verification}
+
+
 @app.post("/tools/memory_search")
 def memory_search(req: MemorySearchRequest) -> dict:
     pattern = f"%{req.query.strip()}%"
@@ -1176,6 +1255,8 @@ def memory_search(req: MemorySearchRequest) -> dict:
                 "created_at": row["created_at"],
                 "updated_at": row["updated_at"],
                 "verified": verification["verified"],
+                "stale": verification["stale"],
+                "ttl_days": verification["ttl_days"],
                 "valid_citations": verification["valid_citations"],
                 "required_citations": verification["required_citations"],
             }
