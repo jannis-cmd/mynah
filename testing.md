@@ -81,7 +81,7 @@ Current priority is a tight debug loop on compute-side components, excluding wea
 - Nightly/on-demand:
   - extended resilience reruns and log review
 
-## 7. Dataset-Driven Evaluation Cycle (100 Transcripts)
+## 7. Dataset-Driven Evaluation Cycles
 
 ### 7.1 Purpose
 - Validate analytical quality and memory behavior beyond pass/fail functional checks.
@@ -154,6 +154,19 @@ Thresholds are initial defaults and should be tightened as the system matures.
   - writes JSON report to `/home/appuser/data/artifacts/reports/quality/<run_id>.json`,
   - exits non-zero if any threshold gate fails.
 
+### 7.10 Longitudinal Human-Transcript Cycle (200 Transcripts)
+- Purpose:
+  - validate month-scale trend extraction on realistic human-style transcripts with feelings, memory context, sleep/pain/stress, and activity details.
+- Commands:
+  - Linux/macOS shell: `sh compute/scripts/human-transcript-eval.sh`
+  - Windows PowerShell: `./compute/scripts/human-transcript-eval.ps1`
+- Run contract:
+  - ingests 200 day-spaced transcript fixtures over multiple months,
+  - transcribes and upserts note memories through the production pipeline,
+  - evaluates seeded numeric trends plus LLM trend extraction checks,
+  - writes one Markdown report to `reports/human-transcript-trend-report.md`,
+  - cleans inserted DB rows and artifacts after run.
+
 ## 8. Transparency Requirements
 - Test outputs must be explicit and traceable:
   - scenario ID
@@ -193,6 +206,7 @@ Thresholds are initial defaults and should be tightened as the system matures.
 | QLT-002 | Correlation quality metrics gate | Quality Eval | Passing | 2026-02-24 | Precision/recall thresholds enforced by non-zero exit on failure |
 | QLT-003 | Citation-validity quality gate | Quality Eval | Passing | 2026-02-24 | `citation_validity >= 0.98` enforced by quality harness |
 | QLT-004 | False-insight and leakage gate | Quality Eval | Passing | 2026-02-24 | `false_insight_rate <= 0.10` and `stale_memory_leakage_rate == 0.00` |
+| QLT-005 | 200 transcript longitudinal trend extraction | Quality Eval | Passing | 2026-02-24 | `human-transcript-eval.*` validates month-scale trends, LLM extraction, and cleanup |
 | HW-001 | BLE encrypted transfer on device | Hardware | Blocked | - | Awaiting connected wearable |
 
 Status values:

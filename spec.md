@@ -662,7 +662,10 @@ MYNAH uses these agentic memory principles for an offline personal system.
 - Testing output and status reporting must be explicit and transparent.
 - A dataset-driven quality gate is required for merge candidates:
   - 100-transcript evaluation corpus via `compute/scripts/quality-eval.sh` or `compute/scripts/quality-eval.ps1`,
+  - 200-transcript longitudinal human-style corpus via `compute/scripts/human-transcript-eval.sh` or `compute/scripts/human-transcript-eval.ps1`,
   - thresholds for precision, recall, citation-validity, false-insight rate, and stale-memory leakage,
+  - trend-extraction checks over sleep/pain/mood/stress/exercise/caffeine signals with LLM interpretation,
+  - mandatory post-run cleanup of inserted evaluation rows/artifacts,
   - JSON run artifact persisted under `artifacts/reports/quality`.
 - Why: functional E2E pass criteria are not sufficient to detect memory/retrieval quality regressions.
 

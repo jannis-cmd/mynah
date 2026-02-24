@@ -50,6 +50,16 @@ Windows PowerShell:
 ./compute/scripts/quality-eval.ps1
 ```
 
+Longitudinal human-transcript evaluation (200 notes across multiple months):
+```bash
+sh compute/scripts/human-transcript-eval.sh
+```
+
+Windows PowerShell:
+```powershell
+./compute/scripts/human-transcript-eval.ps1
+```
+
 Smoke coverage currently includes:
 - health checks for daemon/agent/ui,
 - simulated HR ingest into `mynahd`,
@@ -75,6 +85,13 @@ Quality-eval coverage includes:
 - false-insight rate gate,
 - stale-memory leakage gate,
 - JSON report artifact output at `/home/appuser/data/artifacts/reports/quality/<run_id>.json`.
+
+Longitudinal human-transcript eval coverage includes:
+- 200 human-like daily transcripts (memories, feelings, sleep, pain, stress, exercise) over multiple months,
+- seeded long-range trends and numeric-correlation checks,
+- LLM trend extraction pass/fail checks,
+- guaranteed cleanup of inserted DB rows/artifacts after run,
+- Markdown report output at `reports/human-transcript-trend-report.md`.
 
 Stop:
 ```bash
@@ -133,4 +150,4 @@ mynah/
 - Freshness policy: stale/unverified memory is downgraded or expired.
 
 ## Project Status
-This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, chunked audio resume/restart durability, audio fixture ingest/transcript/memory flow, report artifact generation/listing, agent SQL guardrails/audit, memory governance/verification/supersession/freshness, and a 100-transcript quality-eval gate.
+This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, chunked audio resume/restart durability, audio fixture ingest/transcript/memory flow, report artifact generation/listing, agent SQL guardrails/audit, memory governance/verification/supersession/freshness, a 100-transcript quality-eval gate, and a 200-transcript longitudinal human-eval loop.
