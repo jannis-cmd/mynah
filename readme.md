@@ -40,6 +40,16 @@ Windows PowerShell:
 ./compute/scripts/e2e-smoke.ps1
 ```
 
+Quality evaluation (100 transcript cycle):
+```bash
+sh compute/scripts/quality-eval.sh
+```
+
+Windows PowerShell:
+```powershell
+./compute/scripts/quality-eval.ps1
+```
+
 Smoke coverage currently includes:
 - health checks for daemon/agent/ui,
 - simulated HR ingest into `mynahd`,
@@ -57,6 +67,14 @@ Smoke coverage currently includes:
 - memory verification/supersession path (`memory_verify`, `memory_search`),
 - stale-memory exclusion checks with explicit reverification (`memory_reverify`),
 - agent analyze round-trip against local Ollama.
+
+Quality-eval coverage includes:
+- 100 synthetic transcript ingest/transcribe/memory writes,
+- theme correlation precision/recall gate,
+- citation-validity gate,
+- false-insight rate gate,
+- stale-memory leakage gate,
+- JSON report artifact output at `/home/appuser/data/artifacts/reports/quality/<run_id>.json`.
 
 Stop:
 ```bash
@@ -115,4 +133,4 @@ mynah/
 - Freshness policy: stale/unverified memory is downgraded or expired.
 
 ## Project Status
-This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, chunked audio resume/restart durability, audio fixture ingest/transcript/memory flow, report artifact generation/listing, agent SQL guardrails/audit, and memory governance/verification/supersession/freshness.
+This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, chunked audio resume/restart durability, audio fixture ingest/transcript/memory flow, report artifact generation/listing, agent SQL guardrails/audit, memory governance/verification/supersession/freshness, and a 100-transcript quality-eval gate.

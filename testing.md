@@ -144,6 +144,16 @@ Thresholds are initial defaults and should be tightened as the system matures.
   - block merge for affected changes unless explicitly waived,
   - log root cause and corrective action.
 
+### 7.9 Execution Command
+- Linux/macOS shell:
+  - `sh compute/scripts/quality-eval.sh`
+- Windows PowerShell:
+  - `./compute/scripts/quality-eval.ps1`
+- Output contract:
+  - prints metrics and thresholds,
+  - writes JSON report to `/home/appuser/data/artifacts/reports/quality/<run_id>.json`,
+  - exits non-zero if any threshold gate fails.
+
 ## 8. Transparency Requirements
 - Test outputs must be explicit and traceable:
   - scenario ID
@@ -179,10 +189,10 @@ Thresholds are initial defaults and should be tightened as the system matures.
 | E2E-010 | Interrupted ingest recovery | End-to-End | Passing | 2026-02-24 | `POST /ingest/audio_chunk` resume + duplicate chunk idempotency + status inspection |
 | E2E-011 | Restart durability recovery | End-to-End | Passing | 2026-02-24 | daemon restart between chunk uploads still completes persisted `sync_object` |
 | E2E-012 | Stale memory exclusion | End-to-End | Passing | 2026-02-24 | stale memory blocked from trusted search until `POST /tools/memory_reverify/{memory_id}` |
-| QLT-001 | 100 transcript corpus ingest/run | Quality Eval | Planned | - | Dataset-driven evaluation |
-| QLT-002 | Correlation quality metrics gate | Quality Eval | Planned | - | Precision/recall thresholds |
-| QLT-003 | Citation-validity quality gate | Quality Eval | Planned | - | Trusted output citation check |
-| QLT-004 | False-insight and leakage gate | Quality Eval | Planned | - | Hallucination/stale-memory control |
+| QLT-001 | 100 transcript corpus ingest/run | Quality Eval | Passing | 2026-02-24 | `compute/scripts/quality-eval.*` ingests and transcribes 100 themed fixtures |
+| QLT-002 | Correlation quality metrics gate | Quality Eval | Passing | 2026-02-24 | Precision/recall thresholds enforced by non-zero exit on failure |
+| QLT-003 | Citation-validity quality gate | Quality Eval | Passing | 2026-02-24 | `citation_validity >= 0.98` enforced by quality harness |
+| QLT-004 | False-insight and leakage gate | Quality Eval | Passing | 2026-02-24 | `false_insight_rate <= 0.10` and `stale_memory_leakage_rate == 0.00` |
 | HW-001 | BLE encrypted transfer on device | Hardware | Blocked | - | Awaiting connected wearable |
 
 Status values:

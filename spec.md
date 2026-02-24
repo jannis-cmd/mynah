@@ -660,6 +660,11 @@ MYNAH uses these agentic memory principles for an offline personal system.
 - Automated tests use `pytest`.
 - Focus on unit + integration coverage for sync, data integrity, memory verification, and SQL guardrails.
 - Testing output and status reporting must be explicit and transparent.
+- A dataset-driven quality gate is required for merge candidates:
+  - 100-transcript evaluation corpus via `compute/scripts/quality-eval.sh` or `compute/scripts/quality-eval.ps1`,
+  - thresholds for precision, recall, citation-validity, false-insight rate, and stale-memory leakage,
+  - JSON run artifact persisted under `artifacts/reports/quality`.
+- Why: functional E2E pass criteria are not sufficient to detect memory/retrieval quality regressions.
 
 ## 16. Documentation Contract
 The project maintains the following canonical docs:
