@@ -1,97 +1,189 @@
 # Testing Strategy and Tracking
 
-This document defines how MINAH testing is performed and how status is tracked over time.
+This document defines the active MINAH testing concept for implementation.
+Current priority is a tight debug loop on compute-side components, excluding wearable hardware.
 
-## 1. Testing Goals
-- Verify correctness of offline sync and storage behavior.
-- Protect data integrity across interrupted sessions.
-- Validate Linux runtime behavior while keeping dev workflow usable on Windows.
-- Ensure regressions are detected early with automated tests.
-- Ensure agentic memory behavior is evidence-backed, verifiable, and auditable.
+## 1. Current Testing Scope
+- In scope now:
+  - `mynahd` (compute daemon)
+  - `mynah_agent` (agent runtime)
+  - `mynah_ui` (local UI)
+  - local Ollama integration
+  - SQLite + artifact storage behavior
+- Out of scope for this phase:
+  - physical wearable firmware/hardware validation
+  - BLE radio behavior on real wearable
 
-## 2. Test Levels
+## 2. E2E-First Development Policy
+- E2E tests are the primary gate for feature progress in this phase.
+- Unit and integration tests support E2E but do not replace it.
+- A feature is considered complete only when its E2E path is passing.
 
-### 2.1 Unit Tests
-Scope:
-- Data model validation.
-- Object integrity/hash checks.
-- Memory item normalization and linking helpers.
-- Report generation logic and SQL guardrails.
-- Citation parser/validator behavior.
-- Memory freshness/expiry policy logic.
+## 3. Runtime Test Environment (On Device)
 
-Primary environment:
-- Linux and Windows (where runtime dependencies allow).
+### 3.1 Deployment Mode
+- Run compute services in Docker on Linux target device.
+- Use local Docker networking only.
+- No external network dependencies for E2E tests.
 
-### 2.2 Integration Tests
-Scope:
-- Daemon sync session lifecycle.
-- Manifest/chunk/commit behavior.
-- SQLite and filesystem writes.
-- Agent ingest from daemon-emitted events.
-- Just-in-time memory verification against local evidence.
-- Memory supersession (self-healing) on contradiction.
+### 3.2 Database and Storage (Current Decision)
+- Use local SQLite DB inside Docker-managed storage for now.
+- External SSD is deferred for a later phase.
+- Use dedicated Docker volumes:
+  - `db`
+  - `artifacts`
+  - `logs`
 
-Primary environment:
-- Linux (required), Windows optional via mocks/stubs.
+### 3.3 Test Data Sources
+- Wearable data is simulated using deterministic fixtures:
+  - HR fixture streams
+  - audio note fixture files
+  - manifest/chunk fixture payloads
 
-### 2.3 End-to-End Tests
-Scope:
-- Simulated wearable data to final UI/report artifacts.
-- HR + voice-note ingest to transcript + memory records.
-- Recovery from interrupted transfer and resume.
+## 4. E2E Test Scenarios (No Wearable Hardware)
 
-Primary environment:
-- Linux.
+### 4.1 Core Pipeline
+- E2E-001: Simulated HR ingest -> DB persistence -> UI summary visible.
+- E2E-002: Simulated audio ingest -> transcription -> memory creation -> UI note visibility.
+- E2E-003: Report generation from local DB -> report artifact saved and listed.
 
-### 2.4 Hardware-Dependent Tests
-Scope:
-- BLE pairing and encrypted transfer on physical device.
-- Sensor fidelity and timing behavior.
-- Power-cycle behavior and buffer durability.
+### 4.2 Agent and Memory Trust Path
+- E2E-004: Agent query -> `sql_query_readonly` -> deterministic result + narrative output.
+- E2E-005: Citation verification at read-time blocks unverified memory from trusted output.
+- E2E-006: Supersession flow updates conflicting memory and preserves revision history.
 
-Primary environment:
-- Linux with connected ESP-IDF target hardware.
+### 4.3 Safety and Guardrail Path
+- E2E-007: Write-like SQL attempt is rejected by SQL safety policy.
+- E2E-008: Query without `LIMIT` is rejected.
+- E2E-009: Query audit record is written for accepted and rejected requests.
 
-## 3. Non-Hardware Early Testing Approach
-Until hardware is connected, use:
-- Protocol simulators/mocks for wearable manifests and chunk responses.
-- Fixture-based HR/audio payloads.
-- Deterministic transcript/memory test doubles.
+### 4.4 Resilience Path
+- E2E-010: Interrupted ingest session resumes and completes idempotently.
+- E2E-011: Service restart during processing preserves durable state and recovers cleanly.
+- E2E-012: Stale memory excluded from trusted output until reverification.
 
-This allows compute, storage, agent, and UI behavior to progress before full hardware validation.
+## 5. Debug Loop (Mandatory During Development)
+- Loop target:
+  - modify code -> run focused E2E scenario -> inspect logs/state -> fix -> rerun.
+- Each implementation PR should include:
+  - scenario IDs executed,
+  - pass/fail outcomes,
+  - failure notes and fixes if applicable.
+- Fast loop expectation:
+  - at least one relevant E2E scenario run per substantial change.
 
-## 4. Minimum Acceptance Criteria (Current)
-- Sync pipeline handles partial transfer and successful resume.
-- No wearable object is marked wiped before commit confirmation path is complete.
-- Ingested artifacts are queryable from SQLite and visible to downstream report logic.
-- Linux-targeted services execute in automated CI.
-- Memory-backed outputs include valid citations to local evidence.
-- Unverified/stale memories are excluded from trusted output paths.
+## 6. Test Execution Cadence
+- Per commit (local/dev):
+  - relevant focused E2E scenario(s)
+  - impacted unit/integration tests
+- Per merge candidate:
+  - full E2E set (E2E-001..E2E-012)
+- Nightly/on-demand:
+  - extended resilience reruns and log review
 
-## 5. Test Matrix
+## 7. Dataset-Driven Evaluation Cycle (100 Transcripts)
 
-| Area | Linux | Windows Dev | Hardware Required |
-|---|---|---|---|
-| Unit tests | Required | Recommended | No |
-| Integration tests | Required | Optional | No |
-| End-to-end (simulated) | Required | Optional | No |
-| BLE/device validation | Required | N/A | Yes |
+### 7.1 Purpose
+- Validate analytical quality and memory behavior beyond pass/fail functional checks.
+- Measure whether the agent can discover meaningful correlations with verified evidence.
 
-## 6. Tracking
+### 7.2 Corpus Definition
+- Evaluation corpus size: 100 transcript fixtures.
+- Corpus composition:
+  - varied topics, routines, activities, and time spans,
+  - controlled overlap themes to enable correlation testing,
+  - noise/ambiguity cases to test false insight resistance.
+- Data source policy:
+  - anonymized or synthetic text only for shared/committed fixtures.
 
-Use this table to track test implementation and execution status.
+### 7.3 Gold Expectations
+- Maintain expected labels for each transcript:
+  - entities,
+  - tags/themes,
+  - time context.
+- Maintain expected cross-item relations:
+  - known correlations,
+  - known non-correlations (negative controls).
+- Maintain expected citation coverage:
+  - each accepted derived insight should map to valid citations.
 
-| ID | Test Area | Type | Status | Last Run | Notes |
+### 7.4 Evaluation Workflow
+- Ingest all 100 transcripts through the same production ingestion path.
+- Run memory enrichment and linking.
+- Execute predefined analysis prompts/questions.
+- Compare outputs to gold expectations and record metrics.
+
+### 7.5 Quality Metrics
+- Correlation precision.
+- Correlation recall.
+- False-insight rate.
+- Citation-validity rate.
+- Stale-memory leakage rate.
+- End-to-end runtime for corpus pass.
+
+### 7.6 Threshold Template (Initial)
+- Correlation precision: target >= 0.75
+- Correlation recall: target >= 0.70
+- False-insight rate: target <= 0.10
+- Citation-validity rate: target >= 0.98
+- Stale-memory leakage rate: target = 0.00 in trusted outputs
+
+Thresholds are initial defaults and should be tightened as the system matures.
+
+### 7.7 Execution Cadence
+- Not required for every local commit.
+- Required on:
+  - merge-candidate validation,
+  - nightly scheduled run,
+  - model/version changes,
+  - memory/ranking/governance logic changes.
+
+### 7.8 Regression Policy
+- If any metric falls below threshold:
+  - mark evaluation run as failing,
+  - block merge for affected changes unless explicitly waived,
+  - log root cause and corrective action.
+
+## 8. Transparency Requirements
+- Test outputs must be explicit and traceable:
+  - scenario ID
+  - execution time
+  - result (pass/fail)
+  - failure reason (if fail)
+- No silent fallback behavior in test harnesses.
+- Regressions must be recorded and remain visible until resolved.
+
+## 9. Exit Criteria for This Phase
+- All no-wearable E2E scenarios passing on Linux device.
+- SQL safety constraints proven in E2E path.
+- Memory trust/citation/supersession path passing.
+- Restart/resume behavior stable under repeated runs.
+
+## 10. Deferred Hardware Phase
+- Hardware BLE/firmware tests are tracked separately and activated when wearable is connected.
+- Existing E2E fixtures remain as regression baseline even after hardware integration begins.
+
+## 11. Tracking Table
+
+| ID | Scenario | Type | Status | Last Run | Notes |
 |---|---|---|---|---|---|
-| T-001 | Data integrity checks | Unit | Planned | - | Hash/commit logic |
-| T-002 | Sync session lifecycle | Integration | Planned | - | Manifest/chunk/commit |
-| T-003 | Resume after interruption | End-to-End | Planned | - | Simulated drop/reconnect |
-| T-004 | BLE encrypted transfer | Hardware | Blocked | - | Awaiting connected device |
-| T-005 | Voice ingest to transcript | Integration | Planned | - | Local pipeline |
-| T-006 | Citation verification path | Integration | Planned | - | Retrieval vs trust checks |
-| T-007 | Memory freshness/expiry | Unit | Planned | - | Stale memory handling |
-| T-008 | Self-healing supersession | Integration | Planned | - | Contradiction correction |
+| E2E-001 | HR ingest to UI summary | End-to-End | Planned | - | Simulated fixture stream |
+| E2E-002 | Audio ingest to transcript/memory | End-to-End | Planned | - | Simulated audio fixture |
+| E2E-003 | Report generation artifact path | End-to-End | Planned | - | Report visible in UI |
+| E2E-004 | Agent SQL analysis path | End-to-End | Planned | - | `sql_query_readonly` |
+| E2E-005 | Citation verification gate | End-to-End | Planned | - | Unverified memory rejected |
+| E2E-006 | Memory supersession path | End-to-End | Planned | - | Revision lineage preserved |
+| E2E-007 | SQL write-attempt rejection | End-to-End | Planned | - | Guardrail enforcement |
+| E2E-008 | SQL no-LIMIT rejection | End-to-End | Planned | - | Policy enforcement |
+| E2E-009 | Query audit persistence | End-to-End | Planned | - | Accept/reject audit entries |
+| E2E-010 | Interrupted ingest recovery | End-to-End | Planned | - | Idempotent resume |
+| E2E-011 | Restart durability recovery | End-to-End | Planned | - | Durable state restore |
+| E2E-012 | Stale memory exclusion | End-to-End | Planned | - | Reverify required |
+| QLT-001 | 100 transcript corpus ingest/run | Quality Eval | Planned | - | Dataset-driven evaluation |
+| QLT-002 | Correlation quality metrics gate | Quality Eval | Planned | - | Precision/recall thresholds |
+| QLT-003 | Citation-validity quality gate | Quality Eval | Planned | - | Trusted output citation check |
+| QLT-004 | False-insight and leakage gate | Quality Eval | Planned | - | Hallucination/stale-memory control |
+| HW-001 | BLE encrypted transfer on device | Hardware | Blocked | - | Awaiting connected wearable |
 
 Status values:
 - Planned
@@ -99,8 +191,3 @@ Status values:
 - Passing
 - Failing
 - Blocked
-
-## 7. Reporting Expectations
-- Every substantial change should include corresponding test updates.
-- New behaviors should add or update at least one test case.
-- Failures should be recorded in the tracking table until resolved.

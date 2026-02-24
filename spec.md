@@ -106,6 +106,7 @@ Notes:
   - network/web tools,
   - shell execution tools,
   - generic external integrations.
+- `memory_upsert` is governance-gated and may reject low-quality writes.
 
 ### 5.4 Agent Data-Analysis Flow
 - User request -> analysis planner.
@@ -114,6 +115,18 @@ Notes:
 - Query executes against local SQLite.
 - Result set returned as structured table payload.
 - Agent generates narrative summary with linked evidence/citations.
+
+### 5.7 Memory Retrieval Policy (Locked)
+- Retrieval ranking order:
+  - verified citation validity,
+  - freshness status,
+  - semantic relevance score,
+  - recency weight.
+- Prompt budget control:
+  - retrieved memory payload is bounded by token budget, preferring higher-ranked verified items.
+- Insight generation rule:
+  - derived insights must rely on memories that pass citation verification at read time.
+- Why: deterministic ranking and bounded context are required to prevent retrieval drift and low-value memory pollution.
 
 ### 5.5 SQL Safety Policy (Locked)
 - Read-only enforcement uses a dual gate:
@@ -255,7 +268,11 @@ MINAH uses these agentic memory principles for an offline personal system.
 - Each memory item stores:
   - Subject/fact.
   - Why it matters.
-  - Citations to source evidence in local storage (for example: DB row IDs, file paths, transcript offsets, report sections).
+  - Citations to source evidence in local storage.
+  - Immutable citation anchors:
+    - `content_hash`,
+    - `schema_version`,
+    - `snapshot_ref` (timestamp or revision id).
 - Memories without valid evidence are not trusted for downstream reasoning.
 
 ### 8.2 Just-in-Time Verification
@@ -285,8 +302,8 @@ MINAH uses these agentic memory principles for an offline personal system.
   - raw audio may be deleted after successful transcription and integrity verification.
   - Why: transcripts and structured memory become the durable source while reducing storage growth.
 - Transcript artifact retention:
-  - transcript files may be deleted after compaction into canonical DB/memory records with citations.
-  - Why: canonical structured records preserve meaning/provenance with lower long-term storage overhead.
+  - transcript files are retained for 180 days, then eligible for deletion after compaction into canonical DB/memory records with citations.
+  - Why: fixed retention preserves recheck/contestability window while still controlling long-term storage growth.
 - Citation requirement for trusted output:
   - derived insights require at least 2 valid citations; direct facts require at least 1 valid citation.
   - Why: stronger citation thresholds reduce hallucinated conclusions in analytical output.
@@ -308,6 +325,24 @@ MINAH uses these agentic memory principles for an offline personal system.
 - Reverification cadence:
   - verification on read plus periodic daily background reverification.
   - Why: combines low-latency trust checks with continuous memory hygiene.
+
+### 8.8 Memory Write Governance (Locked)
+- Memory writes (`memory_upsert`) require:
+  - salience threshold,
+  - confidence floor,
+  - dedupe check against recent/semantically similar memories,
+  - per-period write rate limits.
+- Writes failing governance checks are rejected and recorded in audit state.
+- Why: governance gates reduce accumulation of low-quality or duplicate local-model memory artifacts.
+
+### 8.9 Sensitivity and User Control (Locked)
+- Memory items are classified by sensitivity level (`low`, `personal`, `sensitive`).
+- User controls apply per class:
+  - export allow/deny,
+  - visibility controls,
+  - deletion/forget actions.
+- Forget actions create tombstones with audit metadata.
+- Why: indefinite semantic retention requires explicit user-governed privacy controls.
 
 ### 8.7 Freshness TTL Values (Locked)
 - Facts TTL: 365 days.
@@ -348,6 +383,7 @@ MINAH uses these agentic memory principles for an offline personal system.
   - Why: normalized data supports robust querying while JSON cache keeps common reads simple.
 - Citation model:
   - Normalized `memory_citation` table.
+  - Citation rows must store immutable anchors (`content_hash`, `schema_version`, `snapshot_ref`) in addition to relational references.
   - Why: explicit citations are required for verification, auditability, and referential integrity.
 - Memory revision model:
   - Append-only `memory_revision` table with current-item pointer.
@@ -358,6 +394,9 @@ MINAH uses these agentic memory principles for an offline personal system.
 - SQL analysis audit:
   - `query_audit` table capturing query, caller, latency, row count, result hash, and denial reason.
   - Why: audit records are needed to enforce safe SQL behavior and make agent analysis traceable.
+- Memory write audit:
+  - `memory_write_audit` table capturing attempted writes, governance pass/fail status, rejection reason, and source context.
+  - Why: write-path auditability is required to control memory quality over long-lived operation.
 - Migration strategy:
   - Raw SQL versioned migration files.
   - Why: keeps schema evolution transparent, tool-light, and aligned with minimal-stack principles.
