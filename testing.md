@@ -1,6 +1,6 @@
 # Testing Strategy and Tracking
 
-This document defines the active MINAH testing concept for implementation.
+This document defines the active MYNAH testing concept for implementation.
 Current priority is a tight debug loop on compute-side components, excluding wearable hardware.
 
 ## 1. Current Testing Scope

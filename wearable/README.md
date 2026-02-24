@@ -1,6 +1,6 @@
-# MINAH Wearable
+# MYNAH Wearable
 
-This directory contains wearable hardware and firmware assets for the MINAH offline personal intelligence project.
+This directory contains wearable hardware and firmware assets for the MYNAH offline personal intelligence project.
 
 ## Hardware Target
 - MCU board: Seeed Studio XIAO ESP32-C3

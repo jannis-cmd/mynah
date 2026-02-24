@@ -1,0 +1,123 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    command: ["serve"]
+    networks:
+      - mynah_internal
+    volumes:
+      - ollama_models:/root/.ollama
+      - logs:/data/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  mynahd:
+    build:
+      context: ./compute/daemon/mynahd
+    networks:
+      - mynah_internal
+    environment:
+      MYNAH_DB_PATH: /home/appuser/data/db/mynah.db
+      MYNAH_SERVICE_NAME: mynahd
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - db:/home/appuser/data/db
+      - artifacts:/home/appuser/data/artifacts
+      - logs:/home/appuser/data/logs
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mynah_agent:
+    build:
+      context: ./compute/agent/mynah_agent
+    networks:
+      - mynah_internal
+    environment:
+      MYNAH_DB_PATH: /home/appuser/data/db/mynah.db
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen2.5:7b
+      MYNAH_SERVICE_NAME: mynah_agent
+    depends_on:
+      ollama:
+        condition: service_healthy
+      mynahd:
+        condition: service_healthy
+    volumes:
+      - db:/home/appuser/data/db
+      - artifacts:/home/appuser/data/artifacts
+      - logs:/home/appuser/data/logs
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mynah_ui:
+    build:
+      context: ./compute/ui/mynah_ui
+    networks:
+      - mynah_internal
+    environment:
+      MYNAH_DAEMON_URL: http://mynahd:8001
+      MYNAH_AGENT_URL: http://mynah_agent:8002
+      MYNAH_SERVICE_NAME: mynah_ui
+    depends_on:
+      mynahd:
+        condition: service_healthy
+      mynah_agent:
+        condition: service_healthy
+    volumes:
+      - db:/home/appuser/data/db
+      - artifacts:/home/appuser/data/artifacts
+      - logs:/home/appuser/data/logs
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+networks:
+  mynah_internal:
+    internal: true
+
+volumes:
+  db:
+  artifacts:
+  logs:
+  ollama_models:

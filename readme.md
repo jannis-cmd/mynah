@@ -1,6 +1,6 @@
-# MINAH
+# MYNAH
 
-MINAH is an open-source, offline-first personal intelligence system for wearable health and voice-note capture, local sync, persistent memory, and local reporting.
+MYNAH is an open-source, offline-first personal intelligence system for wearable health and voice-note capture, local sync, persistent memory, and local reporting.
 
 Core principle: personal data stays local by default. There is no cloud dependency in the core workflow.
 
@@ -8,6 +8,47 @@ Core principle: personal data stays local by default. There is no cloud dependen
 - Project specification: [spec.md](spec.md)
 - Testing strategy and tracking: [testing.md](testing.md)
 - Agentic memory concepts: [docs/agentic-memory.md](docs/agentic-memory.md)
+
+## Local Runtime (Docker)
+
+MYNAH now includes a runtime skeleton with:
+- `mynahd` (daemon service)
+- `mynah_agent` (agent service, Ollama-backed)
+- `mynah_ui` (local UI service)
+- `ollama` (local model server)
+
+Default topology uses an internal Docker network with no published ports.
+
+Quick start:
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+Windows PowerShell:
+```powershell
+./compute/scripts/stack-up.ps1
+```
+
+Smoke test:
+```bash
+sh compute/scripts/e2e-smoke.sh
+```
+
+Windows PowerShell:
+```powershell
+./compute/scripts/e2e-smoke.ps1
+```
+
+Stop:
+```bash
+docker compose down
+```
+
+Windows PowerShell:
+```powershell
+./compute/scripts/stack-down.ps1
+```
 
 ## Current Direction
 - Runtime target is Linux for compute services.
@@ -17,7 +58,7 @@ Core principle: personal data stays local by default. There is no cloud dependen
 ## Repository Structure
 
 ```text
-minah/
+mynah/
   readme.md
   spec.md
   testing.md
@@ -29,10 +70,13 @@ minah/
     firmware/              # ESP-IDF project(s)
 
   compute/
-    daemon/                # Local sync/orchestration service
-    agent/                 # Memory + transcript/insight pipeline
-    ui/                    # Local dashboard/report interface
-    scripts/               # Dev/install helpers
+    daemon/
+      mynahd/              # Daemon runtime service (Dockerized)
+    agent/
+      mynah_agent/         # Agent runtime service (Dockerized)
+    ui/
+      mynah_ui/            # Local UI runtime service (Dockerized)
+    scripts/               # Runtime helper scripts (up/down/smoke)
 
   storage/                 # DB schema, migrations, sample fixtures
   tools/                   # Optional CLI/test harnesses
@@ -48,7 +92,7 @@ minah/
 ## Agentic Memory Concepts
 - Evidence-backed memory: memories include citations to local source artifacts.
 - Just-in-time verification: memory is re-validated before being used in analysis/output.
-- Scoped memory: memory remains local to this MINAH instance unless explicitly exported.
+- Scoped memory: memory remains local to this MYNAH instance unless explicitly exported.
 - Self-healing updates: contradicted memories are corrected with provenance preserved.
 - Freshness policy: stale/unverified memory is downgraded or expired.
 

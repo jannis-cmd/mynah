@@ -1,10 +1,10 @@
-# MINAH Specification
+# MYNAH Specification
 
 Version: 0.2 (Draft baseline)
 Status: Active
 
 ## 1. One-line Definition
-MINAH is an open-source, offline-first personal intelligence system that captures wearable health and voice-note data, syncs it locally to a Linux compute node, builds persistent memory and insights, and presents results on a local display.
+MYNAH is an open-source, offline-first personal intelligence system that captures wearable health and voice-note data, syncs it locally to a Linux compute node, builds persistent memory and insights, and presents results on a local display.
 
 ## 2. Product Scope
 
@@ -68,7 +68,7 @@ Notes:
 ## 5. Agent Runtime Scaffold (mynah_agent)
 
 ### 5.1 Design Goals
-- Local-first agent runtime for MINAH-specific tasks.
+- Local-first agent runtime for MYNAH-specific tasks.
 - Deterministic tool execution with explicit guardrails.
 - Clear separation between:
   - LLM provider,
@@ -81,7 +81,7 @@ Notes:
   - Stops on final answer or max-iteration limit.
 - `provider`:
   - Single LLM provider implementation backed by local Ollama.
-  - Normalizes tool-call responses to MINAH internal response objects.
+  - Normalizes tool-call responses to MYNAH internal response objects.
 - `tool_registry`:
   - Registers tool schemas and dispatch handlers.
   - Validates parameters before execution.
@@ -168,7 +168,7 @@ Notes:
 
 ### 6.1 Provider Scope
 - Only local models served through Ollama are supported.
-- No cloud provider routing in the MINAH agent runtime.
+- No cloud provider routing in the MYNAH agent runtime.
 - Baseline v0.x model: `qwen2.5:7b-instruct`.
 - Fallback model behavior is disabled by default (fail explicitly on model failure).
 
@@ -208,7 +208,7 @@ Notes:
 - Default container policy is least-privilege:
   - non-root runtime user,
   - read-only root filesystem where feasible,
-  - explicit volume mounts only for required MINAH data paths,
+  - explicit volume mounts only for required MYNAH data paths,
   - no privileged mode,
   - no host PID/IPC namespace sharing.
 - Network access is restricted to local services required for operation.
@@ -262,7 +262,7 @@ Notes:
 - Hardware acceleration is optional optimization, not a functional requirement.
 
 ## 8. Agentic Memory Principles
-MINAH uses these agentic memory principles for an offline personal system.
+MYNAH uses these agentic memory principles for an offline personal system.
 
 ### 8.1 Evidence-Backed Memories
 - Each memory item stores:
@@ -281,7 +281,7 @@ MINAH uses these agentic memory principles for an offline personal system.
 - Verification is based on lightweight local reads to keep latency low.
 
 ### 8.3 Scoped Memory Boundaries
-- Memories are scoped to this local MINAH instance and are never globally shared by default.
+- Memories are scoped to this local MYNAH instance and are never globally shared by default.
 - Exported data does not implicitly include full memory history.
 - Any cross-context sharing is explicit and user-initiated.
 

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MYNAH UI</title>
+    <style>
+      :root {
+        --bg: #f2f4f1;
+        --surface: #ffffff;
+        --ink: #121814;
+        --muted: #5a675f;
+        --ok: #2a8f47;
+        --down: #9b2c2c;
+        --line: #dde3de;
+      }
+      body {
+        margin: 0;
+        background: radial-gradient(circle at 20% 20%, #e9efe9, var(--bg));
+        color: var(--ink);
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      }
+      main {
+        max-width: 860px;
+        margin: 2rem auto;
+        padding: 1rem;
+      }
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      h1, h2 {
+        margin-top: 0;
+      }
+      .state-up { color: var(--ok); font-weight: 700; }
+      .state-down { color: var(--down); font-weight: 700; }
+      .muted { color: var(--muted); }
+      code {
+        background: #f6f8f7;
+        border: 1px solid var(--line);
+        padding: 0.1rem 0.3rem;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="panel">
+        <h1>MYNAH Local UI Skeleton</h1>
+        <p class="muted">Service: <code>{{ service }}</code></p>
+        <p class="muted">UTC: {{ timestamp }}</p>
+      </section>
+
+      <section class="panel">
+        <h2>Runtime Health</h2>
+        <p>
+          Daemon:
+          <span class="state-{{ daemon_state }}">{{ daemon_state }}</span>
+          (<code>{{ daemon_detail }}</code>)
+        </p>
+        <p>
+          Agent:
+          <span class="state-{{ agent_state }}">{{ agent_state }}</span>
+          (<code>{{ agent_detail }}</code>)
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

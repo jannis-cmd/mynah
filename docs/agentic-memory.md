@@ -1,6 +1,6 @@
 # Agentic Memory Concepts
 
-MINAH defines these agentic memory concepts for a local, offline personal intelligence product.
+MYNAH defines these agentic memory concepts for a local, offline personal intelligence product.
 
 ## 1. Memory Model
 - Memories are explicit records, not hidden prompt state.
@@ -34,7 +34,7 @@ MINAH defines these agentic memory concepts for a local, offline personal intell
 - Re-validated memories are refreshed and remain active.
 
 ## 6. Self-Healing
-- When new evidence contradicts old memory, MINAH updates or supersedes the memory.
+- When new evidence contradicts old memory, MYNAH updates or supersedes the memory.
 - Supersession history is retained so corrections are traceable.
 
 ## 7. Offline Adaptation Notes

@@ -1,4 +1,4 @@
-# MINAH Wearable Firmware (ESP-IDF)
+# MYNAH Wearable Firmware (ESP-IDF)
 
 Firmware project path: `wearable/firmware/mynah_wearable`
 
