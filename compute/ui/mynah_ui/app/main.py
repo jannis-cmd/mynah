@@ -47,12 +47,14 @@ def status() -> JSONResponse:
     agent_state, agent_detail = _probe(f"{AGENT_URL}/ready")
     hr_today = _fetch_json(f"{DAEMON_URL}/summary/hr/today")
     audio_recent = _fetch_json(f"{DAEMON_URL}/summary/audio/recent?limit=5")
+    reports_recent = _fetch_json(f"{AGENT_URL}/tools/report_recent?limit=5")
     payload = {
         "service": SERVICE,
         "daemon": {"state": daemon_state, "detail": daemon_detail},
         "agent": {"state": agent_state, "detail": agent_detail},
         "hr_today": hr_today,
         "audio_recent": audio_recent,
+        "reports_recent": reports_recent,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     return JSONResponse(payload)
@@ -64,6 +66,7 @@ def home(request: Request):
     agent_state, agent_detail = _probe(f"{AGENT_URL}/ready")
     hr_today = _fetch_json(f"{DAEMON_URL}/summary/hr/today") or {}
     audio_recent = _fetch_json(f"{DAEMON_URL}/summary/audio/recent?limit=5") or {"entries": []}
+    reports_recent = _fetch_json(f"{AGENT_URL}/tools/report_recent?limit=5") or {"entries": []}
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -75,6 +78,7 @@ def home(request: Request):
             "agent_detail": agent_detail,
             "hr_today": hr_today,
             "audio_recent": audio_recent,
+            "reports_recent": reports_recent,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     )

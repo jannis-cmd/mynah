@@ -36,6 +36,7 @@ ALLOWED_QUERY_TABLES = {
     "memory_revision",
     "memory_write_audit",
     "query_audit",
+    "report_artifact",
     "service_heartbeat",
     "transcript",
 }
@@ -125,6 +126,11 @@ class AudioTranscribeRequest(BaseModel):
     force: bool = Field(default=False)
 
 
+class ReportGenerateRequest(BaseModel):
+    date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    caller: str = Field(default="local_ui", min_length=1, max_length=64)
+
+
 class SQLValidationError(Exception):
     def __init__(self, code: str, reason: str, suggestion: str, retryable: bool = False):
         super().__init__(reason)
@@ -198,6 +204,17 @@ def _init_db() -> None:
                 model TEXT NOT NULL,
                 path TEXT NOT NULL,
                 created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS report_artifact (
+                report_date TEXT PRIMARY KEY,
+                path TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                generator TEXT NOT NULL,
+                note TEXT
             )
             """
         )
@@ -880,6 +897,100 @@ def _transcribe_audio_fixture(req: AudioTranscribeRequest) -> dict:
     }
 
 
+def _day_bounds(day: str) -> tuple[str, str]:
+    return f"{day}T00:00:00+00:00", f"{day}T23:59:59.999999+00:00"
+
+
+def _generate_report(req: ReportGenerateRequest) -> dict:
+    report_date = req.date or datetime.now(timezone.utc).date().isoformat()
+    start, end = _day_bounds(report_date)
+
+    with sqlite3.connect(DB_PATH) as conn:
+        hr_row = conn.execute(
+            """
+            SELECT COUNT(*), MIN(bpm), MAX(bpm), AVG(bpm)
+            FROM hr_sample
+            WHERE ts >= ? AND ts <= ?
+            """,
+            (start, end),
+        ).fetchone()
+        transcript_rows = conn.execute(
+            """
+            SELECT audio_id, SUBSTR(text, 1, 200) AS preview
+            FROM transcript
+            WHERE created_at >= ? AND created_at <= ?
+            ORDER BY created_at DESC
+            LIMIT 10
+            """,
+            (start, end),
+        ).fetchall()
+
+    sample_count = int(hr_row[0] or 0)
+    min_bpm = int(hr_row[1]) if hr_row[1] is not None else None
+    max_bpm = int(hr_row[2]) if hr_row[2] is not None else None
+    avg_bpm = round(float(hr_row[3]), 2) if hr_row[3] is not None else None
+    transcript_count = len(transcript_rows)
+
+    lines = [
+        f"# MYNAH Daily Report - {report_date}",
+        "",
+        "## HR Summary",
+        f"- Samples: {sample_count}",
+        f"- Min BPM: {min_bpm if min_bpm is not None else 'n/a'}",
+        f"- Max BPM: {max_bpm if max_bpm is not None else 'n/a'}",
+        f"- Avg BPM: {avg_bpm if avg_bpm is not None else 'n/a'}",
+        "",
+        "## Voice Notes",
+        f"- Notes transcribed today: {transcript_count}",
+    ]
+    if transcript_rows:
+        lines.append("")
+        lines.append("### Transcript Previews")
+        for row in transcript_rows:
+            lines.append(f"- `{row[0]}`: {row[1]}")
+    lines.append("")
+    lines.append("## Generator")
+    lines.append(f"- Created by: {SERVICE}")
+    lines.append(f"- Requested by: {req.caller}")
+    lines.append(f"- Created at (UTC): {datetime.now(timezone.utc).isoformat()}")
+    markdown = "\n".join(lines) + "\n"
+
+    report_dir = ARTIFACTS_PATH / "reports" / report_date
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / "report.md"
+    report_path.write_text(markdown, encoding="utf-8")
+    now = datetime.now(timezone.utc).isoformat()
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            """
+            INSERT INTO report_artifact(report_date, path, created_at, generator, note)
+            VALUES(?, ?, ?, ?, ?)
+            ON CONFLICT(report_date) DO UPDATE SET
+                path=excluded.path,
+                created_at=excluded.created_at,
+                generator=excluded.generator,
+                note=excluded.note
+            """,
+            (
+                report_date,
+                str(report_path),
+                now,
+                SERVICE,
+                f"hr_samples={sample_count};transcripts={transcript_count}",
+            ),
+        )
+        conn.commit()
+
+    return {
+        "status": "ok",
+        "report_date": report_date,
+        "path": str(report_path),
+        "hr_samples": sample_count,
+        "transcripts": transcript_count,
+    }
+
+
 @app.on_event("startup")
 def startup() -> None:
     _init_db()
@@ -1092,6 +1203,27 @@ def transcript_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict:
             SELECT audio_id, model, created_at, path, SUBSTR(text, 1, 160) AS preview
             FROM transcript
             ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return {"status": "ok", "entries": [dict(row) for row in rows]}
+
+
+@app.post("/tools/report_generate")
+def report_generate(req: ReportGenerateRequest) -> dict:
+    return _generate_report(req)
+
+
+@app.get("/tools/report_recent")
+def report_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT report_date, path, created_at, generator, note
+            FROM report_artifact
+            ORDER BY report_date DESC
             LIMIT ?
             """,
             (limit,),

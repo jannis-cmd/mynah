@@ -93,6 +93,21 @@
           </code>
         </p>
       </section>
+
+      <section class="panel">
+        <h2>Reports</h2>
+        <p>Count: <code>{{ reports_recent.entries|length if reports_recent and reports_recent.entries else 0 }}</code></p>
+        <p>
+          Latest report date:
+          <code>
+            {% if reports_recent and reports_recent.entries %}
+              {{ reports_recent.entries[0].report_date }}
+            {% else %}
+              n/a
+            {% endif %}
+          </code>
+        </p>
+      </section>
     </main>
   </body>
 </html>

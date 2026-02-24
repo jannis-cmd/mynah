@@ -115,6 +115,8 @@ Notes:
   - `POST /tools/memory_upsert`
   - `POST /tools/memory_search`
   - `GET /tools/memory_verify/{memory_id}`
+  - `POST /tools/report_generate`
+  - `GET /tools/report_recent`
   - `POST /pipeline/audio/transcribe`
   - `GET /tools/transcript/recent`
 - Why: explicit local endpoints keep tool behavior inspectable and testable during the closed E2E loop.
@@ -421,6 +423,10 @@ MYNAH uses these agentic memory principles for an offline personal system.
     - `POST /ingest/audio`,
     - `GET /summary/audio/recent`
     on the internal runtime network.
+  - agent exposes:
+    - `POST /tools/report_generate`,
+    - `GET /tools/report_recent`
+    for local report artifact generation/listing.
   - Why: deterministic fixture ingestion and summary inspection are required to keep the E2E debug loop fast and transparent.
 
 ## 10. BLE Sync Contract (Solution-Level)

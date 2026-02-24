@@ -126,6 +126,37 @@ assert any(entry["id"] == "e2e_note_01" and int(entry["transcript_ready"]) == 1 
 print("ui audio status", entries[:2])
 PY
 
+echo "== report generation and visibility =="
+docker compose exec -T mynah_ui python - <<'PY'
+import json
+import urllib.request
+from datetime import datetime, timezone
+
+day = datetime.now(timezone.utc).date().isoformat()
+generate_req = urllib.request.Request(
+    "http://mynah_agent:8002/tools/report_generate",
+    data=json.dumps({"date": day, "caller": "e2e_smoke"}).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(generate_req, timeout=15) as resp:
+    report = json.loads(resp.read().decode("utf-8"))
+assert report["report_date"] == day, report
+assert report["hr_samples"] >= 1, report
+print("report generated", report)
+
+with urllib.request.urlopen("http://mynah_agent:8002/tools/report_recent?limit=10", timeout=5) as resp:
+    recent = json.loads(resp.read().decode("utf-8"))
+assert any(item["report_date"] == day for item in recent["entries"]), recent
+print("report recent", recent["entries"][:2])
+
+with urllib.request.urlopen("http://mynah_ui:8000/status", timeout=5) as resp:
+    ui_status = json.loads(resp.read().decode("utf-8"))
+reports = ui_status.get("reports_recent", {}).get("entries", [])
+assert any(item["report_date"] == day for item in reports), ui_status
+print("ui reports status", reports[:2])
+PY
+
 echo "== sql tool accept/reject/audit =="
 docker compose exec -T mynah_ui python - <<'PY'
 import json
