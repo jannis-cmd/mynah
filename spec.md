@@ -109,6 +109,10 @@ Notes:
   - shell execution tools,
   - generic external integrations.
 - `memory_upsert` is governance-gated and may reject low-quality writes.
+- Internal runtime API exposure for tools:
+  - `POST /tools/sql_query_readonly`
+  - `GET /tools/query_audit/recent`
+- Why: explicit local endpoints keep tool behavior inspectable and testable during the closed E2E loop.
 
 ### 5.4 Agent Data-Analysis Flow
 - User request -> analysis planner.

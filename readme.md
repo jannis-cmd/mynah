@@ -44,6 +44,8 @@ Smoke coverage currently includes:
 - health checks for daemon/agent/ui,
 - simulated HR ingest into `mynahd`,
 - HR summary visibility through daemon and UI status,
+- SQL tool guardrails (`sql_query_readonly`) with accept/reject path checks,
+- query audit visibility for accepted and rejected SQL requests,
 - agent analyze round-trip against local Ollama.
 
 Stop:
@@ -103,4 +105,4 @@ mynah/
 - Freshness policy: stale/unverified memory is downgraded or expired.
 
 ## Project Status
-This repository now has a runnable compute runtime skeleton with a first vertical slice for simulated HR ingest and UI-visible daily HR summary.
+This repository now has a runnable compute runtime skeleton with vertical slices for simulated HR ingest/UI summary and agent SQL guardrail + audit paths.

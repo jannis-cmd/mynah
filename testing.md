@@ -170,12 +170,12 @@ Thresholds are initial defaults and should be tightened as the system matures.
 | E2E-001 | HR ingest to UI summary | End-to-End | Passing | 2026-02-24 | `POST /ingest/hr` -> `GET /summary/hr/today` -> UI `/status` `hr_today` |
 | E2E-002 | Audio ingest to transcript/memory | End-to-End | Planned | - | Simulated audio fixture |
 | E2E-003 | Report generation artifact path | End-to-End | Planned | - | Report visible in UI |
-| E2E-004 | Agent SQL analysis path | End-to-End | Planned | - | `sql_query_readonly` |
+| E2E-004 | Agent SQL analysis path | End-to-End | Passing | 2026-02-24 | `POST /tools/sql_query_readonly` read path over `hr_sample` |
 | E2E-005 | Citation verification gate | End-to-End | Planned | - | Unverified memory rejected |
 | E2E-006 | Memory supersession path | End-to-End | Planned | - | Revision lineage preserved |
-| E2E-007 | SQL write-attempt rejection | End-to-End | Planned | - | Guardrail enforcement |
-| E2E-008 | SQL no-LIMIT rejection | End-to-End | Planned | - | Policy enforcement |
-| E2E-009 | Query audit persistence | End-to-End | Planned | - | Accept/reject audit entries |
+| E2E-007 | SQL write-attempt rejection | End-to-End | Passing | 2026-02-24 | `DELETE ...` blocked by SQL validator |
+| E2E-008 | SQL no-LIMIT rejection | End-to-End | Passing | 2026-02-24 | `SELECT` without `LIMIT` rejected |
+| E2E-009 | Query audit persistence | End-to-End | Passing | 2026-02-24 | `GET /tools/query_audit/recent` shows accepted/rejected rows |
 | E2E-010 | Interrupted ingest recovery | End-to-End | Planned | - | Idempotent resume |
 | E2E-011 | Restart durability recovery | End-to-End | Planned | - | Durable state restore |
 | E2E-012 | Stale memory exclusion | End-to-End | Planned | - | Reverify required |
