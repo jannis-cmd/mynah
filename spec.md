@@ -1,236 +1,180 @@
 # MYNAH Specification
 
-Version: 0.3
+Version: 0.4
 Status: Active
 
 ## 1. One-Line Definition
-MYNAH is an open-source, offline-first personal intelligence system that ingests wearable and human-authored artifacts locally, structures them through a local LLM into a durable memory database, and serves local analysis/reporting on-device.
+MYNAH is an open-source, offline-first personal intelligence system that stores health time-series and compacted personal memories locally, then links them for on-device analysis.
 
 ## 2. Scope
 
-### 2.1 In Scope (Current Solution)
-- Linux-targeted local runtime for compute services.
-- Development from Linux and Windows hosts.
-- Offline-first data flow with no cloud dependency in core paths.
-- Wearable ingest placeholders for HR and voice-note audio.
-- Human input ingest (`voice_transcript`, `ME.md`, notes/doc text).
-- Local LLM processing through Ollama only.
-- Structured write pipeline:
-  - raw artifact storage,
-  - LLM write-plan proposal,
-  - deterministic validation,
-  - bounded corrective retries,
-  - transactional persistence.
-- Postgres + pgvector as primary local datastore.
-- Local UI dashboard on attached display.
+### 2.1 In Scope (Current Target)
+- Linux runtime target (development from Linux and Windows).
+- Local-only operation (no cloud dependency in core paths).
+- Wearable ingest for health signals and voice transcripts.
+- Text ingest from external sources (for example chat exports).
+- Timestamp-resolved memory compaction from raw text.
+- PostgreSQL + pgvector as local datastore.
+- Local UI for status and report output.
 - Explicit user-initiated export via USB.
 
 ### 2.2 Out of Scope (v0.x)
-- Cloud sync, accounts, telemetry, remote web access.
-- Medical diagnosis/regulated medical claims.
-- Multi-user identity and role sharing.
-- Internet-required operation.
+- Cloud sync, remote accounts, telemetry.
+- Medical diagnosis/regulated claims.
+- Multi-user identity and sharing.
 
-## 3. Platform Contract
-- Runtime target: Linux.
-- Dev host support: Linux and Windows.
-- Compute services run as Docker containers with least privilege.
-- LLM serving is local via Ollama on internal container network only.
-- No public/LAN exposure of model endpoint in default deployment.
+## 3. Core Principles
+- Keep the data model minimal and auditable.
+- LLM proposes; deterministic pipeline decides and writes.
+- Memory and conversation are separate concerns.
+- No silent fallbacks.
 
-## 4. System Components
+## 4. Architecture (Simplified)
 
-### 4.1 Wearable
-- Captures HR and voice-note audio.
-- Buffers data locally until sync commit is acknowledged.
-- Uses BLE-only sync contract.
+### 4.1 Health Store
+Stores raw time-series measurements keyed by timestamp.
 
-### 4.2 Compute Daemon (`mynahd`)
-- Accepts ingest payloads (fixture and production pathways).
-- Persists HR and audio metadata to Postgres.
-- Persists audio/transcript fixture artifacts to local artifact storage.
-- Provides summary/status endpoints for UI and test loops.
+### 4.2 Memory Store
+Stores compacted atomic memory notes as plain text plus vector embeddings.
 
-### 4.3 Agent (`mynah_agent`)
-- Stores raw artifacts exactly as received.
-- Runs LLM extraction into strict structured write plans.
-- Validates plans against schema/business rules.
-- Returns validator errors to LLM for correction (bounded retries).
-- Applies valid plans transactionally into canonical tables.
-- Audits every write-plan attempt.
-- Generates local daily reports.
+### 4.3 Link Layer
+Links memory notes to health data by timestamp alignment rules.
 
-### 4.4 UI (`mynah_ui`)
-- Appliance-style local UI.
-- Reads local daemon and agent status.
-- Shows HR summary, recent notes/transcripts, and report history.
+### 4.4 Conversational Layer
+Uses read/query tools over stored data, but does not own canonical writes.
 
-### 4.5 Model Provider (Ollama)
-- Local-only model runtime.
-- Agent uses Ollama for generation and embeddings.
-- Startup readiness requires configured model availability.
+## 5. Data Model (Minimal)
 
-## 5. Dataflow Contract
+### 5.1 `health.sample`
+- `id` (PK)
+- `ts` (`timestamptz`, required)
+- `metric` (`text`, required)  
+  examples: `hr`, `hrv`, `sweat`, `insulin`
+- `value_num` (`double precision`, nullable)
+- `value_json` (`jsonb`, nullable)
+- `unit` (`text`, nullable)
+- `quality` (`integer`, nullable)
+- `source` (`text`, required)
+- Uniqueness: `(source, metric, ts)`
 
-### 5.1 Ingestion and Raw Truth
-1. Input arrives as audio/transcript/ME.md/document text.
-2. Raw artifact is stored first in `artifacts` with hash and metadata.
-3. Raw artifact remains the reprocessable source of truth.
+### 5.2 `memory.note`
+- `id` (PK)
+- `ts` (`timestamptz`, required, single timestamp only)
+- `ts_mode` (`exact | day | inferred | upload`, required)
+- `text` (`text`, required)
+- `embedding` (`vector(N)`, required)
+- `source_artifact_id` (`text`, required)
 
-### 5.2 Structured Write Pipeline
-1. Agent retrieves artifact and semantic neighbors (`pgvector`) for context.
-2. Agent prompts LLM to output one strict JSON write plan.
-3. Validator checks structure and policy:
-  - required fields,
-  - allowed actions/types,
-  - reference integrity,
-  - link sanity.
-4. If validation fails, structured errors are fed back to LLM.
-5. LLM retries with corrected plan up to configured max attempts.
-6. If validation passes, plan is committed transactionally.
-7. If retries are exhausted, artifact is marked failed and a candidate record is created.
+Rules:
+- No `ts_end`.
+- No metadata column on `memory.note`.
+- Same memory text at different timestamps is valid and must be stored.
 
-### 5.3 Trust Rule
-- LLM proposes.
-- Validator and transaction layer decide.
-- No direct LLM DB writes.
+### 5.3 `memory.health_link`
+- `id` (PK)
+- `memory_id` (FK -> `memory.note`)
+- `health_sample_id` (FK -> `health.sample`, nullable)
+- `link_day` (`date`, nullable)
+- `relation` (`mentions | during | correlates_with`, required)
+- `confidence` (`real`, required)
+- `created_at` (`timestamptz`, required)
 
-## 6. LLM Write-Plan Contract
+## 6. Ingest Contract (Required Fields)
+Every ingest artifact must include all fields below:
+- `source_type` (for example `wearable_transcript`, `chat_export`, `manual_text`)
+- `content` (raw text)
+- `upload_ts` (`timestamptz`)
+- `source_ts` (`timestamptz` or `null`)
+- `day_scope` (`boolean`)
+- `timezone` (IANA name)
 
-### 6.1 Required Root Keys
-- `artifact_summary`
-- `new_entries`
-- `new_facts`
-- `links`
-- `dedupe_candidates`
-- `questions`
+`source_ts` is always present as a field; when unavailable it is `null`.
 
-### 6.2 Entry Taxonomy
-Allowed `entry_type` values:
-- `memory`
-- `health`
-- `preference`
-- `idea`
-- `decision`
-- `relationship`
-- `event`
-- `task`
+## 7. Timestamp Resolution Framework (Locked)
 
-### 6.3 Action Model
-Allowed actions:
-- `create`
-- `update`
-- `link`
-- `duplicate`
-- `question`
+Priority order:
+1. `source_ts` (exact source timestamp)
+2. Script extraction of explicit timestamps from content
+3. LLM temporal-hint extraction + deterministic script resolver
+4. `upload_ts` fallback
 
-### 6.4 Confidence and Sensitivity
-- Confidence is required on created/updated records.
-- Sensitive domains (`health`, `decision`) must use conservative confidence when uncertain.
+### 7.1 Day Scope
+If `day_scope = true`, all notes from that artifact use the same day anchor timestamp.
+Recommended anchor: local 12:00 for that day.
+`ts_mode = day`.
 
-## 7. Database Contract (Postgres + pgvector)
+### 7.2 Inference Rule
+When content contains relative expressions (for example "in the morning") and no exact time:
+- LLM extracts structured hint.
+- Script resolves hint against upload day/time and timezone.
+- Result stored with `ts_mode = inferred`.
 
-### 7.1 Primary Datastore
-- PostgreSQL is the canonical datastore.
-- `pgvector` extension is enabled for semantic retrieval.
-- No ORM in v0.x; direct SQL via `psycopg`.
+### 7.3 Timezone Rule
+- Store timestamps in UTC.
+- Resolve relative expressions using artifact timezone.
 
-### 7.2 Core Tables
-- `artifacts`: immutable raw textual inputs and processing state.
-- `audio_note`: audio ingest metadata and fixture transcript pointer.
-- `transcript`: transcript text artifacts.
-- `entries`: canonical structured memory/event/preference rows.
-- `entry_version`: append-only snapshots for update audit.
-- `facts`: typed structured claims with confidence and status.
-- `links`: graph edges between entries.
-- `write_plan_audit`: full audit of each LLM/validator attempt.
-- `report_artifact`: generated report records.
+## 8. Memory Note Definition and Compaction
+A memory note is one atomic compacted statement from raw text.
 
-### 7.3 Persistence Rules
-- All successful writes are transactional.
-- No silent overwrite of previous semantic state.
-- Updates create version history.
-- Audit rows are mandatory for every write-plan attempt.
+Atomic rules (v0):
+- One event/feeling/observation/decision per note.
+- Keep original meaning; no invented content.
+- Keep notes concise and plain text.
+- Do not merge unrelated topics.
+- Advanced compaction heuristics are an improvement lever for later versions.
 
-## 8. Retention and Lifecycle
+### 8.1 LLM vs Script Responsibilities
+LLM responsibilities:
+- Compact raw text into atomic notes.
+- Extract temporal hints when required.
 
-### 8.1 Long-Term Memory
-- Structured semantic memory is retained indefinitely by default.
-- Why: lifelong continuity is a core product objective.
+Script responsibilities:
+- Parse explicit timestamps.
+- Apply timestamp precedence rules.
+- Resolve inferred timestamps deterministically.
+- Validate output shape and required fields.
+- Write DB rows and embeddings.
+- Link memories to health by timestamp rules.
 
-### 8.2 Raw Audio
-- Raw audio may be deleted after successful transcription and integrity checks.
-- Why: reduce storage growth while preserving structured truth.
+## 9. Memory-to-Health Linking Rules
+- `ts_mode = exact`: link by configurable time window around `memory.note.ts`.
+- `ts_mode = inferred`: same as exact, with lower confidence default.
+- `ts_mode = day`: link by calendar day bucket.
+- `ts_mode = upload`: link by fallback time window, lowest default confidence.
 
-### 8.3 Transcript Artifacts
-- Transcript artifacts are retained for 180 days by default.
-- After retention window, deletion is allowed once compaction/citation integrity is satisfied.
-- Why: retain contestability/reprocessing window without indefinite raw-text growth.
+## 10. Model Strategy (Model-Agnostic Framework)
+Framework is model-agnostic via configuration.
 
-### 8.4 Failed Processing
-- Failed artifacts remain auditable.
-- Failed writes produce explicit candidate records instead of silent drops.
+### 10.1 Default test models
+- Generation model: `qwen3.5:35b-a3b`
+- Embedding model: `qwen3-embedding:0.6b`
 
-## 9. Security and Isolation
+### 10.2 Separation rule
+Use separate models for generation and embeddings.
 
-### 9.1 Runtime Isolation
-- Containers run as non-root with `cap_drop: [ALL]`.
-- `no-new-privileges` enabled.
-- Read-only root filesystem with explicit writable mounts only.
-- Internal Docker network marked `internal: true`.
+### 10.3 Embedding dimension lock
+- Determine embedding size once at initialization.
+- Lock `vector(N)` to that size.
+- Any future embedding model change requires re-embedding migration.
 
-### 9.2 Network Policy
-- No default host/LAN port exposure for internal services.
-- Agent-to-Ollama traffic stays inside the internal network.
+## 11. Retry and Failure Policy
+- Validation retry limit: 3 attempts.
+- If still invalid after retries: fail closed and keep artifact for review.
+- Retry strategy is an improvement lever for later versions.
 
-### 9.3 BLE Security Baseline
-- LE Secure Connections with MITM-protected pairing.
-- Bonding required; explicit physical pairing mode required.
-- Replay/downgrade protections enforced.
-- Commit/wipe flow idempotent and authenticated.
+## 12. Retention Policy
+- Raw artifact and transcript retention: TBD (keep for now).
+- Structured memory notes: retained unless user deletes.
 
-### 9.4 Export Contract (Current)
-- Export medium: user-provided USB storage.
-- Export trigger: explicit local UI confirmation.
-- Export scope: minimal selected outputs by default.
-- Export package: signed bundle with manifest/checksums.
+## 13. Security and Runtime Boundaries
+- Containers run least-privilege.
+- Internal Docker network only for inter-service traffic.
+- Model endpoint is not publicly exposed by default.
+- Conversational layer and memory-write pipeline remain separate.
 
-## 10. API Surface (Current Runtime)
+## 14. Implementation Boundary
+- Memory pipeline owns canonical writes.
+- Conversational agent reads via tools and can trigger pipeline operations, but does not write DB rows directly.
 
-### 10.1 Daemon
-- `GET /health`
-- `GET /ready`
-- `POST /ingest/hr`
-- `POST /ingest/audio`
-- `GET /summary/hr/today`
-- `GET /summary/audio/recent`
-- `GET /status`
-
-### 10.2 Agent
-- `GET /health`
-- `GET /ready`
-- `POST /pipeline/artifacts/ingest`
-- `POST /pipeline/artifacts/process/{artifact_id}`
-- `POST /pipeline/me_md/process`
-- `POST /pipeline/audio/transcribe`
-- `GET /tools/transcript/recent`
-- `POST /tools/report_generate`
-- `GET /tools/report_recent`
-- `GET /status`
-
-### 10.3 UI
-- `GET /health`
-- `GET /status`
-- `GET /`
-
-## 11. Reliability and Failure Model
-- Explicit failure is required; no silent fallback implementations.
-- Write-plan retries are bounded and auditable.
-- Partial/invalid writes do not commit.
-- Readiness fails when Postgres or required local model is unavailable.
-
-## 12. Documentation Contract
-- `readme.md`: project overview and runtime quickstart.
-- `spec.md`: architecture and behavioral contract.
-- `testing.md`: active test strategy and execution status.
-- These documents must stay synchronized in each architecture change.
+## 15. Testing State
+- Full acceptance suite for this simplified architecture is agreed but will be implemented next.
