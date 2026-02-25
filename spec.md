@@ -1,6 +1,6 @@
 # MYNAH Specification
 
-Version: 0.5
+Version: 0.6
 Status: Active
 
 ## 1. One-Line Definition
@@ -44,6 +44,9 @@ Links memory notes to health data by timestamp alignment rules.
 One service (`mynah_agent`) owns ingest, memory pipeline, and reporting APIs.
 
 ## 5. Data Model (Minimal)
+Schema source of truth:
+- `storage/schema.sql` is the single schema definition.
+- Services validate schema presence at startup; they do not create tables.
 
 ### 5.1 `health.sample`
 - `id` (PK)
@@ -171,6 +174,9 @@ Use separate models for generation and embeddings.
 - Internal Docker network only for inter-service traffic.
 - Model endpoint is not publicly exposed by default.
 - Conversational layer and memory-write pipeline remain separate.
+- Runtime readiness is split:
+  - core readiness (DB + schema)
+  - model readiness (required local models present)
 
 ## 14. Implementation Boundary
 - Memory pipeline owns canonical writes.

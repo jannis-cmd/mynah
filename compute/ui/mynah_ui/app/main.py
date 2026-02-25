@@ -22,6 +22,14 @@ def _probe(url: str) -> tuple[str, str]:
         with urllib.request.urlopen(req, timeout=3) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
         return "up", payload.get("status", "ok")
+    except urllib.error.HTTPError as exc:
+        detail = exc.reason
+        try:
+            payload = json.loads(exc.read().decode("utf-8"))
+            detail = payload.get("detail", detail)
+        except Exception:  # noqa: BLE001
+            pass
+        return "down", str(detail)
     except (urllib.error.URLError, TimeoutError):
         return "down", "unreachable"
 
@@ -43,12 +51,14 @@ def health() -> dict:
 @app.get("/status")
 def status() -> JSONResponse:
     pipeline_state, pipeline_detail = _probe(f"{AGENT_URL}/ready")
+    model_state, model_detail = _probe(f"{AGENT_URL}/ready/model")
     hr_today = _fetch_json(f"{AGENT_URL}/summary/hr/today")
     audio_recent = _fetch_json(f"{AGENT_URL}/summary/audio/recent?limit=5")
     reports_recent = _fetch_json(f"{AGENT_URL}/tools/report_recent?limit=5")
     payload = {
         "service": SERVICE,
         "pipeline": {"state": pipeline_state, "detail": pipeline_detail},
+        "model": {"state": model_state, "detail": model_detail},
         "hr_today": hr_today,
         "audio_recent": audio_recent,
         "reports_recent": reports_recent,
@@ -60,6 +70,7 @@ def status() -> JSONResponse:
 @app.get("/")
 def home(request: Request):
     pipeline_state, pipeline_detail = _probe(f"{AGENT_URL}/ready")
+    model_state, model_detail = _probe(f"{AGENT_URL}/ready/model")
     hr_today = _fetch_json(f"{AGENT_URL}/summary/hr/today") or {}
     audio_recent = _fetch_json(f"{AGENT_URL}/summary/audio/recent?limit=5") or {"entries": []}
     reports_recent = _fetch_json(f"{AGENT_URL}/tools/report_recent?limit=5") or {"entries": []}
@@ -70,6 +81,8 @@ def home(request: Request):
             "service": SERVICE,
             "pipeline_state": pipeline_state,
             "pipeline_detail": pipeline_detail,
+            "model_state": model_state,
+            "model_detail": model_detail,
             "hr_today": hr_today,
             "audio_recent": audio_recent,
             "reports_recent": reports_recent,

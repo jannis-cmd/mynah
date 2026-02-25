@@ -31,6 +31,7 @@ Out of scope for now:
 ## 4. Current Status
 - Simplified spec is locked.
 - Implemented checks in code:
+  - API contract route coverage and readiness semantics tests (`test_api_contract.py`)
   - unit tests for timestamp precedence and retry fail-closed logic (`test_pipeline_rules.py`)
   - runtime smoke checks for unified agent ingest and summary endpoints in Docker
   - runtime smoke check for artifact process fail-closed behavior when required model is missing

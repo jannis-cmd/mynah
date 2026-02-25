@@ -31,7 +31,12 @@ Priority order:
 - `mynah_agent` (ingest, compaction, timestamp resolution, linking, reports)
 - `mynah_ui` (local display)
 - `postgres` + `pgvector`
+- `db_init` (one-shot schema migration from `storage/schema.sql`)
 - `ollama`
+
+Readiness:
+- `/ready` = core runtime readiness (DB + schema).
+- `/ready/model` = strict model readiness (generation + embedding present).
 
 Defaults for testing:
 - generation: `qwen3.5:35b-a3b`

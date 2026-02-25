@@ -26,6 +26,16 @@ OLLAMA_TIMEOUT_SEC = int(os.getenv("OLLAMA_TIMEOUT_SEC", "120"))
 OLLAMA_EMBED_DIM = int(os.getenv("OLLAMA_EMBED_DIM", "1024"))
 MAX_COMPACTION_RETRIES = int(os.getenv("MYNAH_COMPACTION_MAX_RETRIES", "3"))
 EXACT_WINDOW_MIN = int(os.getenv("MYNAH_LINK_WINDOW_MIN", "90"))
+REQUIRED_TABLES = (
+    "core.ingest_artifact",
+    "core.compaction_attempt",
+    "health.sample",
+    "core.audio_note",
+    "core.transcript",
+    "memory.note",
+    "memory.health_link",
+    "core.report_artifact",
+)
 
 ISO_DATETIME_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})?\b")
 ISO_DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
@@ -182,6 +192,52 @@ def _db_conn() -> psycopg.Connection:
     return psycopg.connect(DATABASE_DSN, autocommit=False)
 
 
+def _table_exists(cur: psycopg.Cursor, full_name: str) -> bool:
+    schema_name, table_name = full_name.split(".", 1)
+    cur.execute(
+        """
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = %s AND table_name = %s
+        LIMIT 1
+        """,
+        (schema_name, table_name),
+    )
+    return cur.fetchone() is not None
+
+
+def _assert_schema_ready(cur: psycopg.Cursor) -> None:
+    missing = [name for name in REQUIRED_TABLES if not _table_exists(cur, name)]
+    if missing:
+        raise RuntimeError(
+            "schema missing required tables: "
+            + ", ".join(missing)
+            + " (run storage/schema.sql migration)"
+        )
+
+    cur.execute(
+        """
+        SELECT a.atttypmod
+        FROM pg_attribute a
+        JOIN pg_class c ON c.oid = a.attrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'memory' AND c.relname = 'note' AND a.attname = 'embedding' AND NOT a.attisdropped
+        LIMIT 1
+        """
+    )
+    row = cur.fetchone()
+    if not row:
+        raise RuntimeError("memory.note.embedding column missing")
+    raw_typmod = int(row[0])
+    accepted_dims = {raw_typmod}
+    if raw_typmod - 4 > 0:
+        accepted_dims.add(raw_typmod - 4)
+    if OLLAMA_EMBED_DIM not in accepted_dims:
+        raise RuntimeError(
+            f"embedding dimension mismatch: db_typmod={raw_typmod}, config={OLLAMA_EMBED_DIM}"
+        )
+
+
 def _init_db() -> None:
     ARTIFACTS_PATH.mkdir(parents=True, exist_ok=True)
     if OLLAMA_EMBED_DIM <= 0:
@@ -189,138 +245,7 @@ def _init_db() -> None:
 
     with _db_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            cur.execute("CREATE SCHEMA IF NOT EXISTS core")
-            cur.execute("CREATE SCHEMA IF NOT EXISTS health")
-            cur.execute("CREATE SCHEMA IF NOT EXISTS memory")
-
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS health.sample (
-                    id BIGSERIAL PRIMARY KEY,
-                    ts TIMESTAMPTZ NOT NULL,
-                    metric TEXT NOT NULL,
-                    value_num DOUBLE PRECISION,
-                    value_json JSONB,
-                    unit TEXT,
-                    quality INTEGER,
-                    source TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    UNIQUE(source, metric, ts),
-                    CHECK (value_num IS NOT NULL OR value_json IS NOT NULL)
-                )
-                """
-            )
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_health_sample_ts ON health.sample(ts)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_health_sample_metric_ts ON health.sample(metric, ts)")
-
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS core.ingest_artifact (
-                    id TEXT PRIMARY KEY,
-                    source_type TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    upload_ts TIMESTAMPTZ NOT NULL,
-                    source_ts TIMESTAMPTZ,
-                    day_scope BOOLEAN NOT NULL,
-                    timezone TEXT NOT NULL,
-                    content_hash TEXT NOT NULL,
-                    processing_state TEXT NOT NULL DEFAULT 'pending',
-                    created_at TIMESTAMPTZ NOT NULL,
-                    processed_at TIMESTAMPTZ
-                )
-                """
-            )
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_ingest_artifact_state ON core.ingest_artifact(processing_state)")
-
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS core.compaction_attempt (
-                    id BIGSERIAL PRIMARY KEY,
-                    artifact_id TEXT NOT NULL,
-                    attempt INTEGER NOT NULL,
-                    status TEXT NOT NULL,
-                    caller TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    prompt_text TEXT NOT NULL,
-                    output_text TEXT,
-                    error_text TEXT,
-                    created_at TIMESTAMPTZ NOT NULL
-                )
-                """
-            )
-
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS core.audio_note (
-                    id TEXT PRIMARY KEY,
-                    device_id TEXT NOT NULL,
-                    start_ts TIMESTAMPTZ NOT NULL,
-                    end_ts TIMESTAMPTZ NOT NULL,
-                    audio_path TEXT NOT NULL,
-                    audio_sha256 TEXT NOT NULL,
-                    audio_bytes INTEGER NOT NULL,
-                    transcript_hint_path TEXT,
-                    source TEXT NOT NULL,
-                    ingested_at TIMESTAMPTZ NOT NULL
-                )
-                """
-            )
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_audio_note_start_ts ON core.audio_note(start_ts)")
-
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS core.transcript (
-                    audio_id TEXT PRIMARY KEY,
-                    text TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    path TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL
-                )
-                """
-            )
-
-            cur.execute(
-                f"""
-                CREATE TABLE IF NOT EXISTS memory.note (
-                    id BIGSERIAL PRIMARY KEY,
-                    ts TIMESTAMPTZ NOT NULL,
-                    ts_mode TEXT NOT NULL CHECK (ts_mode IN ('exact','day','inferred','upload')),
-                    text TEXT NOT NULL,
-                    embedding VECTOR({OLLAMA_EMBED_DIM}) NOT NULL,
-                    source_artifact_id TEXT NOT NULL REFERENCES core.ingest_artifact(id) ON DELETE CASCADE,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-                """
-            )
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_memory_note_ts ON memory.note(ts)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_memory_note_source ON memory.note(source_artifact_id)")
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS memory.health_link (
-                    id BIGSERIAL PRIMARY KEY,
-                    memory_id BIGINT NOT NULL REFERENCES memory.note(id) ON DELETE CASCADE,
-                    health_sample_id BIGINT REFERENCES health.sample(id) ON DELETE CASCADE,
-                    link_day DATE,
-                    relation TEXT NOT NULL CHECK (relation IN ('mentions','during','correlates_with')),
-                    confidence REAL NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
-                    created_at TIMESTAMPTZ NOT NULL
-                )
-                """
-            )
-
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS core.report_artifact (
-                    report_date TEXT PRIMARY KEY,
-                    path TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    generator TEXT NOT NULL,
-                    note TEXT
-                )
-                """
-            )
-        conn.commit()
+            _assert_schema_ready(cur)
 
 def _model_available(model_name: str) -> bool:
     req = urllib.request.Request(f"{OLLAMA_BASE_URL}/api/tags", method="GET")
@@ -328,6 +253,25 @@ def _model_available(model_name: str) -> bool:
         tags = json.loads(resp.read().decode("utf-8"))
     models = [m.get("name") for m in tags.get("models", [])]
     return model_name in models
+
+
+def _model_state() -> dict[str, Any]:
+    try:
+        req = urllib.request.Request(f"{OLLAMA_BASE_URL}/api/tags", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            tags = json.loads(resp.read().decode("utf-8"))
+        models = {m.get("name") for m in tags.get("models", [])}
+    except urllib.error.URLError:
+        return {
+            "ollama_reachable": False,
+            "generation_model_present": False,
+            "embedding_model_present": False,
+        }
+    return {
+        "ollama_reachable": True,
+        "generation_model_present": OLLAMA_MODEL in models,
+        "embedding_model_present": OLLAMA_EMBED_MODEL in models,
+    }
 
 
 def _ollama_generate(prompt: str) -> str:
@@ -999,26 +943,37 @@ def ready() -> dict[str, Any]:
         with _db_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
+                _assert_schema_ready(cur)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=503, detail=f"postgres unavailable: {exc}") from exc
 
-    try:
-        gen_ok = _model_available(OLLAMA_MODEL)
-        embed_ok = _model_available(OLLAMA_EMBED_MODEL)
-    except urllib.error.URLError as exc:
-        raise HTTPException(status_code=503, detail=f"ollama unavailable: {exc.reason}") from exc
-
-    if not gen_ok:
-        raise HTTPException(status_code=503, detail=f"required model missing: {OLLAMA_MODEL}")
-    if not embed_ok:
-        raise HTTPException(status_code=503, detail=f"required embed model missing: {OLLAMA_EMBED_MODEL}")
+    model_state = _model_state()
 
     return {
         "status": "ready",
         "service": SERVICE,
         "database": "postgres",
-        "model": OLLAMA_MODEL,
-        "embed_model": OLLAMA_EMBED_MODEL,
+        "model": {"generation": OLLAMA_MODEL, "embedding": OLLAMA_EMBED_MODEL},
+        "model_state": model_state,
+        "embed_dim": OLLAMA_EMBED_DIM,
+    }
+
+
+@app.get("/ready/model")
+def ready_model() -> dict[str, Any]:
+    state = _model_state()
+    if not state["ollama_reachable"]:
+        raise HTTPException(status_code=503, detail="ollama unavailable")
+    if not state["generation_model_present"]:
+        raise HTTPException(status_code=503, detail=f"required model missing: {OLLAMA_MODEL}")
+    if not state["embedding_model_present"]:
+        raise HTTPException(status_code=503, detail=f"required embed model missing: {OLLAMA_EMBED_MODEL}")
+
+    return {
+        "status": "ready",
+        "service": SERVICE,
+        "model": {"generation": OLLAMA_MODEL, "embedding": OLLAMA_EMBED_MODEL},
+        "model_state": state,
         "embed_dim": OLLAMA_EMBED_DIM,
     }
 
@@ -1286,6 +1241,8 @@ def status() -> dict[str, Any]:
     return {
         "service": SERVICE,
         "database": "postgres",
+        "model": {"generation": OLLAMA_MODEL, "embedding": OLLAMA_EMBED_MODEL},
+        "model_state": _model_state(),
         "health_sample_count_total": health_count,
         "audio_note_count_total": audio_count,
         "artifact_count": artifact_count,
