@@ -27,6 +27,26 @@ Two-step resolution:
 
 LLM classifies/groups; script does timestamp math and writes.
 
+## Retrieval Engine
+Retrieval is hybrid by default:
+- lexical retrieval for exact phrase/keyword intent
+- semantic retrieval for conceptual similarity
+- deterministic score fusion
+- optional query expansion + rerank in deep mode
+
+Query modes:
+- `lexical`
+- `semantic`
+- `hybrid` (default)
+- `deep`
+
+All retrieval results are returned with citations (source row/path + chunk metadata).
+
+## Context and Trust Controls
+- Context assembly is script-owned and budgeted by profile (not model-autonomous).
+- Context slots are deterministic (policy, preferences, recent decisions, evidence, optional health context).
+- Final answers use verification-before-trust: claims without evidence are marked uncertain.
+
 ## Runtime Stack
 - `mynah_agent` (ingest, extraction orchestration, deterministic writes, reports)
 - `mynah_ui` (local display)

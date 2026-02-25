@@ -1,6 +1,6 @@
 # MYNAH Specification
 
-Version: 0.8
+Version: 0.9
 Status: Active
 
 ## 1. One-Line Definition
@@ -29,6 +29,8 @@ MYNAH is an open-source, offline-first personal intelligence system that stores 
 - `/ME` is canonical for human-governed state (values/policies/preferences/curated decisions).
 - SQL is operational truth for retrieval and analytics, derived from artifacts and `/ME`.
 - No silent fallbacks.
+- Context must be assembled by scripts with explicit budgets and slot priorities.
+- Answer claims must be evidence-backed; unsupported claims are marked uncertain.
 
 ## 4. Architecture
 
@@ -49,6 +51,18 @@ Git repo with human-readable, versioned files for long-term ownership and audit.
 
 ### 4.6 Unified Pipeline Service
 One service (`mynah_agent`) owns ingest, extraction orchestration, validation, writes, and reporting APIs.
+
+### 4.7 Retrieval Engine
+Retrieval is hybrid by default:
+- lexical search for precise keyword/phrase matching
+- vector search for semantic similarity
+- deterministic fusion and optional reranking for final ordering
+
+### 4.8 Context Assembly and Verification Layer (Use Soon)
+Script-owned layer that:
+- assembles a bounded context pack from policy, recent state, and retrieved evidence
+- enforces deterministic ordering and token budgets per context slot
+- validates answer claims against citations before returning final output
 
 ## 5. Ownership and Derivation Rules (Locked)
 1. Raw artifacts are immutable source records in SQL.
@@ -171,6 +185,16 @@ Schema source of truth:
 ### 10.7 Vector Index
 - `search.embedding_model`: embedding model registry.
 - `search.vector_index`: derived vector rows referencing SQL targets.
+- `search.vector_index` rows include chunk-level attributes for retrieval scoring.
+
+### 10.8 Retrieval Metadata (Use Soon)
+- `search.query_cache`: cache for query embeddings, query expansions, and rerank outputs.
+- `search.chunk_meta`: chunk-level metadata (`path`, `section`, `offset`, `token_count`, `content_hash`).
+- `search.retrieval_run`: optional audit record for retrieval runs and score components.
+
+### 10.9 Context and Verification (Use Soon)
+- `search.context_profile`: named context budget profiles with fixed slot limits.
+- `search.answer_verification_run`: claim-to-citation verification outcomes for returned answers.
 
 ## 11. Link and Relation Semantics
 `memory.health_link.relation` allowed values:
@@ -199,13 +223,82 @@ Separate models are preferred, but the same local model is allowed in constraine
 - Re-indexing does not require deleting source text rows.
 
 ## 14. Retrieval Contract (Use Soon)
+The retrieval contract is deterministic and script-controlled.
+
+### 14.1 Query Modes
+Supported query modes:
+- `lexical`: keyword/phrase-first retrieval.
+- `semantic`: embedding similarity-first retrieval.
+- `hybrid` (default): lexical + semantic fusion.
+- `deep`: hybrid retrieval + query expansion + reranking.
+
+### 14.2 Chunking Contract
+Text is chunked before indexing using deterministic rules:
+- preserve source boundaries (file path, section, row/document refs)
+- prefer semantic boundaries (headings, paragraphs, list items) over blind token splits
+- enforce chunk size window and overlap
+- store chunk metadata and content hash for replay/reindex
+
+### 14.3 Retrieval Pipeline
 Runtime context assembly order:
 1. policy and preference constraints (`/ME`-derived active rows)
 2. recent decisions and reviews
-3. filtered vector retrieval over relevant domains/time windows
-4. linked health context if requested
+3. candidate retrieval from lexical index and vector index
+4. deterministic score fusion
+5. optional rerank pass in `deep` mode
+6. linked health context if requested
 
-The retrieval contract is deterministic and script-controlled.
+### 14.4 Score Fusion Rule
+Hybrid retrieval must use deterministic fusion (for example rank-based reciprocal fusion).
+Script controls fusion weights and boosts; model does not choose ranking policy.
+
+### 14.5 Query Expansion Rule
+In `deep` mode, query expansion may generate additional lexical and semantic variants.
+Expansion results are validated, bounded, and deduplicated before retrieval.
+
+### 14.6 Rerank Rule
+Rerank is optional and only reorders retrieved candidates.
+Rerank never introduces new unseen candidates.
+
+### 14.7 Retrieval Output Contract
+Every retrieved item returned to the model/UI must include citation metadata:
+- source table/id
+- source path or artifact reference
+- chunk identifier and score components
+- content hash/version marker when available
+
+### 14.8 Caching Rule
+`search.query_cache` may cache:
+- query embeddings
+- expansion outputs
+- rerank outputs
+Cache entries must be invalidated on model/version change.
+
+### 14.9 Evaluation Contract
+Retrieval quality is measured with repeatable offline checks:
+- recall@k for known-answer sets
+- precision@k for high-risk domains
+- latency/cost per query mode
+- citation coverage (returned answer claims mapped to retrieved evidence)
+
+### 14.10 Context Budget Contract
+Context assembly is deterministic and profile-driven:
+- use `search.context_profile` to define slot budgets (policy, preferences, recent decisions, evidence, health context)
+- do not let the model choose token allocation strategy
+- truncate by deterministic priority rules when over budget
+
+### 14.11 Time-Aware Retrieval Rule
+Retrieval ranking must include deterministic time signals:
+- recency boost for near-term recall tasks
+- temporal overlap boost when query includes explicit/implicit time windows
+- no boost for stale candidates unless evidence score justifies inclusion
+
+### 14.12 Verification-Before-Trust Rule
+Before final response:
+- extract answer claims into atomic statements
+- require each claim to map to at least one citation from retrieved evidence
+- downgrade unmatched claims to `uncertain` instead of presenting as fact
+- record verification results for audit and evaluation
 
 ## 15. Retry and Failure Policy
 - Validation retry limit: 3 attempts.
@@ -225,3 +318,4 @@ The retrieval contract is deterministic and script-controlled.
 ## 17. Testing State
 - Core architecture and timestamp contract are implemented.
 - Candidate lifecycle, quarantine path, `/ME` sync integrity, and vector lifecycle tests are required next.
+- Context-budget determinism and verification-before-trust tests are required before production use.
