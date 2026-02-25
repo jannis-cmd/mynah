@@ -1,6 +1,6 @@
 # MYNAH Specification
 
-Version: 0.6
+Version: 0.7
 Status: Active
 
 ## 1. One-Line Definition
@@ -149,11 +149,11 @@ Script responsibilities:
 Framework is model-agnostic via configuration.
 
 ### 10.1 Default test models
-- Generation model: `qwen3.5:35b-a3b`
-- Embedding model: `qwen3-embedding:0.6b`
+- Generation model: `qwen2.5:7b`
+- Embedding model: `qwen2.5:7b` with `dimensions=1024`
 
 ### 10.2 Separation rule
-Use separate models for generation and embeddings.
+Separate models are preferred, but the same local model is allowed in constrained mode to minimize setup overhead.
 
 ### 10.3 Embedding dimension lock
 - Determine embedding size once at initialization.

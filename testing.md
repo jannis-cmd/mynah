@@ -24,7 +24,7 @@ Out of scope for now:
 - Retry policy enforces 3 attempts then fail-closed.
 
 ## 3. Model Checks
-- Generation and embedding models are separate.
+- Generation and embedding model configuration is explicit (can be same or separate).
 - Embedding dimension is stable with DB `vector(N)`.
 - Readiness fails if required configured models are unavailable.
 
