@@ -212,7 +212,7 @@ All inferred relations require a confidence score and provenance.
 Framework is model-agnostic via configuration.
 
 ### 13.1 Default test models
-- Generation model: `qwen2.5:7b`
+- Generation model: `qwen3.5:35b-a3b`
 - Embedding model: `qwen3-embedding:0.6b` with `dimensions=1024`
 
 ### 13.2 Separation rule

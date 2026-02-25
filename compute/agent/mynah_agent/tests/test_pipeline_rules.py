@@ -59,7 +59,8 @@ def test_resolve_group_hint_at_2pm_same_day() -> None:
 def test_compaction_retries_fail_closed_on_model_error(monkeypatch: pytest.MonkeyPatch) -> None:
     attempts: list[tuple[int, str]] = []
 
-    def fail_generate(_: str) -> str:
+    def fail_generate(_: str, response_format: object | None = None) -> str:
+        assert response_format is not None
         raise urllib.error.URLError("model unavailable")
 
     def record_attempt(**kwargs: object) -> None:
@@ -83,3 +84,8 @@ def test_compaction_retries_fail_closed_on_model_error(monkeypatch: pytest.Monke
 
     assert len(attempts) == main.MAX_COMPACTION_RETRIES
     assert all(status == "rejected" for _, status in attempts)
+
+
+def test_temporal_item_note_type_is_strict() -> None:
+    with pytest.raises(ValueError, match="unsupported note_type"):
+        main.TemporalItem(text="Some text", note_type="unknown")

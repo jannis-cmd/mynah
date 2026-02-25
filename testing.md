@@ -38,6 +38,7 @@ Out of scope for now:
 - Final answer claims are checked against retrieved evidence; unmatched claims are downgraded to uncertain.
 
 ## 3. Model Checks
+- Runtime default generation model is `qwen3.5:35b-a3b`.
 - Generation and embedding model configuration is explicit (can be same or separate).
 - Embedding dimension is stable with DB vector dimensions.
 - Readiness fails if required configured models are unavailable.

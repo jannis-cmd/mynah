@@ -19,8 +19,10 @@ from psycopg.rows import dict_row
 SERVICE = os.getenv("MYNAH_SERVICE_NAME", "mynah_agent")
 DATABASE_DSN = os.getenv("MYNAH_DATABASE_DSN", "postgresql://mynah:mynah@postgres:5432/mynah")
 ARTIFACTS_PATH = Path(os.getenv("MYNAH_ARTIFACTS_PATH", "/home/appuser/data/artifacts"))
+PROMPTS_PATH = Path(__file__).resolve().parent / "prompts"
+TEMPORAL_COMPACTION_PROMPT_PATH = PROMPTS_PATH / "temporal_compaction_prompt.md"
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5:35b-a3b")
 OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "qwen3-embedding:0.6b")
 OLLAMA_TIMEOUT_SEC = int(os.getenv("OLLAMA_TIMEOUT_SEC", "120"))
 OLLAMA_EMBED_DIM = int(os.getenv("OLLAMA_EMBED_DIM", "1024"))
@@ -76,6 +78,7 @@ HINT_LITERAL_SET = {
     "yesterday at time",
     "tomorrow at time",
 }
+NOTE_TYPE_SET = {"event", "fact", "observation", "feeling", "decision_context", "task"}
 
 app = FastAPI(title="mynah_agent", version="0.5.0")
 
@@ -215,9 +218,30 @@ class ReportGenerateRequest(BaseModel):
     caller: str = Field(default="local_ui", min_length=1, max_length=64)
 
 
+class TemporalItem(BaseModel):
+    text: str = Field(min_length=1, max_length=600)
+    note_type: str = Field(min_length=1, max_length=32)
+
+    @field_validator("text")
+    @classmethod
+    def normalize_text(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("item text empty")
+        return text
+
+    @field_validator("note_type")
+    @classmethod
+    def normalize_note_type(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in NOTE_TYPE_SET:
+            raise ValueError(f"unsupported note_type: {value}")
+        return normalized
+
+
 class TemporalGroup(BaseModel):
     hint: str = Field(min_length=1, max_length=64)
-    items: list[str] = Field(min_length=1, max_length=128)
+    items: list[TemporalItem] = Field(min_length=1, max_length=128)
 
     @field_validator("hint")
     @classmethod
@@ -235,15 +259,10 @@ class TemporalGroup(BaseModel):
 
     @field_validator("items")
     @classmethod
-    def normalize_items(cls, values: list[str]) -> list[str]:
-        out: list[str] = []
+    def normalize_items(cls, values: list[TemporalItem]) -> list[TemporalItem]:
+        out: list[TemporalItem] = []
         for value in values:
-            item = value.strip()
-            if not item:
-                continue
-            if len(item) > 600:
-                raise ValueError("item too long")
-            out.append(item)
+            out.append(value)
         if not out:
             raise ValueError("items must contain at least one non-empty entry")
         return out
@@ -307,6 +326,8 @@ def _init_db() -> None:
     ARTIFACTS_PATH.mkdir(parents=True, exist_ok=True)
     if OLLAMA_EMBED_DIM <= 0:
         raise RuntimeError("OLLAMA_EMBED_DIM must be positive")
+    if not TEMPORAL_COMPACTION_PROMPT_PATH.exists():
+        raise RuntimeError(f"missing prompt template: {TEMPORAL_COMPACTION_PROMPT_PATH}")
 
     with _db_conn() as conn:
         with conn.cursor() as cur:
@@ -339,8 +360,11 @@ def _model_state() -> dict[str, Any]:
     }
 
 
-def _ollama_generate(prompt: str) -> str:
-    payload = json.dumps({"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}).encode("utf-8")
+def _ollama_generate(prompt: str, response_format: str | dict[str, Any] | None = None) -> str:
+    payload_data: dict[str, Any] = {"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}
+    if response_format is not None:
+        payload_data["format"] = response_format
+    payload = json.dumps(payload_data).encode("utf-8")
     req = urllib.request.Request(
         f"{OLLAMA_BASE_URL}/api/generate",
         data=payload,
@@ -729,29 +753,20 @@ def _build_compaction_prompt(
     previous_error: str | None,
 ) -> str:
     explicit = [item.isoformat() for item in explicit_candidates[:10]]
-    prompt = (
-        "You are MYNAH temporal grouping extractor. Return ONLY one JSON object with key 'groups'.\n"
-        "Format: {\"groups\":[{\"hint\":\"default\",\"items\":[\"...\"]}]}\n"
-        "Each item must be atomic, concise, and faithful to content.\n"
-        "Do not invent facts. Do not merge unrelated actions into one item.\n"
-        "Every item must appear in exactly one group.\n"
-        "Allowed hint values: default, today, now, morning, afternoon, evening, night,\n"
-        "yesterday, yesterday morning, yesterday afternoon, yesterday evening, yesterday night, last night,\n"
-        "tomorrow, tomorrow morning, tomorrow afternoon, tomorrow evening, tomorrow night, tonight,\n"
-        "this morning, this afternoon, this evening, at H:MM, at H am/pm,\n"
-        "yesterday at H:MM, yesterday at H am/pm, tomorrow at H:MM, tomorrow at H am/pm.\n"
-        "If unsure, use hint='default'.\n\n"
-        f"source_type: {artifact['source_type']}\n"
-        f"day_scope: {artifact['day_scope']}\n"
-        f"timezone: {artifact['timezone']}\n"
-        f"source_ts: {artifact['source_ts']}\n"
-        f"upload_ts: {artifact['upload_ts']}\n"
-        f"explicit_timestamp_candidates: {json.dumps(explicit)}\n\n"
-        f"content:\n{artifact['content'][:12000]}\n"
-    )
+    template = TEMPORAL_COMPACTION_PROMPT_PATH.read_text(encoding="utf-8")
+    previous_error_block = ""
     if previous_error:
-        prompt += f"\nFix previous error exactly: {previous_error}\n"
-    return prompt
+        previous_error_block = f"\nFix previous error exactly: {previous_error}\n"
+    return template.format(
+        source_type=artifact["source_type"],
+        day_scope=artifact["day_scope"],
+        timezone=artifact["timezone"],
+        source_ts=artifact["source_ts"],
+        upload_ts=artifact["upload_ts"],
+        explicit_timestamp_candidates=json.dumps(explicit),
+        content=artifact["content"][:12000],
+        previous_error_block=previous_error_block,
+    )
 
 
 def _link_note_to_health(cur: psycopg.Cursor, note_id: int, note_ts: datetime, ts_mode: str) -> int:
@@ -807,12 +822,13 @@ def _link_note_to_health(cur: psycopg.Cursor, note_id: int, note_ts: datetime, t
 
 def _compact_with_retries(artifact: dict[str, Any], caller: str) -> CompactionOutput:
     explicit_candidates = _extract_explicit_candidates(artifact["content"], ZoneInfo(artifact["timezone"]))
+    json_schema = CompactionOutput.model_json_schema()
     previous_error = None
     for attempt in range(1, MAX_COMPACTION_RETRIES + 1):
         prompt = _build_compaction_prompt(artifact, explicit_candidates, previous_error)
         output_text = None
         try:
-            output_text = _ollama_generate(prompt)
+            output_text = _ollama_generate(prompt, response_format=json_schema)
             parsed = _extract_json_object(output_text)
             compacted = CompactionOutput.model_validate(parsed)
             _audit_compaction(
@@ -886,17 +902,18 @@ def _process_artifact(artifact_id: str, caller: str) -> dict[str, Any]:
                     tz=tz,
                 )
                 for item_text in group.items:
-                    embedding = _ollama_embed(item_text)
+                    embedding = _ollama_embed(item_text.text)
                     cur.execute(
                         """
-                        INSERT INTO memory.note(ts, ts_mode, text, embedding, source_artifact_id, created_at)
-                        VALUES(%s, %s, %s, %s::vector, %s, %s)
+                        INSERT INTO memory.note(ts, ts_mode, note_type, text, embedding, source_artifact_id, created_at)
+                        VALUES(%s, %s, %s, %s, %s::vector, %s, %s)
                         RETURNING id
                         """,
                         (
                             group_ts,
                             group_mode,
-                            item_text.strip(),
+                            item_text.note_type,
+                            item_text.text,
                             _vector_literal(embedding),
                             artifact_id,
                             datetime.now(timezone.utc),

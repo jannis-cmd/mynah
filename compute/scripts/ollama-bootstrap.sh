@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-GEN_MODEL="qwen2.5:7b"
+GEN_MODEL="qwen3.5:35b-a3b"
 EMBED_MODEL="qwen3-embedding:0.6b"
 VOLUME="mynah_ollama_models"
 

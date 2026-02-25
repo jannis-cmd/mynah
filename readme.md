@@ -59,7 +59,7 @@ Readiness:
 - `/ready/model` = strict model readiness (generation + embedding present)
 
 Defaults for testing:
-- generation: `qwen2.5:7b`
+- generation: `qwen3.5:35b-a3b`
 - embedding: `qwen3-embedding:0.6b` with `OLLAMA_EMBED_DIM=1024`
 
 ## Quick Start

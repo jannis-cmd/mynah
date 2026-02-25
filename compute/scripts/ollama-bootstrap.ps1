@@ -1,4 +1,4 @@
-$GenModel = "qwen2.5:7b"
+$GenModel = "qwen3.5:35b-a3b"
 $EmbedModel = "qwen3-embedding:0.6b"
 $Volume = "mynah_ollama_models"
 
