@@ -1,10 +1,10 @@
 # MYNAH Specification
 
-Version: 0.7
+Version: 0.8
 Status: Active
 
 ## 1. One-Line Definition
-MYNAH is an open-source, offline-first personal intelligence system that stores health time-series and compacted personal memories locally, then links them for on-device analysis.
+MYNAH is an open-source, offline-first personal intelligence system that stores health time-series and personal memory artifacts locally, and uses a deterministic pipeline for extraction, indexing, and analysis.
 
 ## 2. Scope
 
@@ -13,8 +13,8 @@ MYNAH is an open-source, offline-first personal intelligence system that stores 
 - Local-only operation (no cloud dependency in core paths).
 - Wearable ingest for health signals and voice transcripts.
 - Text ingest from external sources (for example chat exports).
-- Timestamp-resolved memory compaction from raw text.
-- PostgreSQL + pgvector as local datastore.
+- `/ME` git repository as canonical human-owned record for preferences, policies, and curated decisions.
+- PostgreSQL + pgvector as runtime query/index layer.
 - Local UI for status and report output.
 - Explicit user-initiated export via USB.
 
@@ -24,74 +24,49 @@ MYNAH is an open-source, offline-first personal intelligence system that stores 
 - Multi-user identity and sharing.
 
 ## 3. Core Principles
-- Keep the data model minimal and auditable.
-- LLM proposes; deterministic pipeline decides and writes.
-- Memory and conversation are separate concerns.
+- Keep the data model auditable and replayable.
+- LLM proposes; deterministic scripts validate and write.
+- `/ME` is canonical for human-governed state (values/policies/preferences/curated decisions).
+- SQL is operational truth for retrieval and analytics, derived from artifacts and `/ME`.
 - No silent fallbacks.
 
-## 4. Architecture (Simplified)
+## 4. Architecture
 
 ### 4.1 Health Store
 Stores raw time-series measurements keyed by timestamp.
 
 ### 4.2 Memory Store
-Stores compacted atomic memory notes as plain text plus vector embeddings.
+Stores atomic memory notes and links.
 
-### 4.3 Link Layer
-Links memory notes to health data by timestamp alignment rules.
+### 4.3 Decision and Preference Store
+Stores structured decisions, reviews, and preference lifecycle state.
 
-### 4.4 Unified Pipeline Service
-One service (`mynah_agent`) owns ingest, memory pipeline, and reporting APIs.
+### 4.4 Vector Index
+Stores embedding index rows referencing target SQL records.
 
-## 5. Data Model (Minimal)
-Schema source of truth:
-- `storage/schema.sql` is the single schema definition.
-- Services validate schema presence at startup; they do not create tables.
+### 4.5 Canonical `/ME` Repo
+Git repo with human-readable, versioned files for long-term ownership and audit.
 
-### 5.1 `health.sample`
-- `id` (PK)
-- `ts` (`timestamptz`, required)
-- `metric` (`text`, required)  
-  examples: `hr`, `hrv`, `sweat`, `insulin`
-- `value_num` (`double precision`, nullable)
-- `value_json` (`jsonb`, nullable)
-- `unit` (`text`, nullable)
-- `quality` (`integer`, nullable)
-- `source` (`text`, required)
-- Uniqueness: `(source, metric, ts)`
+### 4.6 Unified Pipeline Service
+One service (`mynah_agent`) owns ingest, extraction orchestration, validation, writes, and reporting APIs.
 
-### 5.2 `memory.note`
-- `id` (PK)
-- `ts` (`timestamptz`, required, single timestamp only)
-- `ts_mode` (`exact | day | inferred | upload`, required)
-- `text` (`text`, required)
-- `embedding` (`vector(N)`, required)
-- `source_artifact_id` (`text`, required)
-
-Rules:
-- No `ts_end`.
-- No metadata column on `memory.note`.
-- Same memory text at different timestamps is valid and must be stored.
-
-### 5.3 `memory.health_link`
-- `id` (PK)
-- `memory_id` (FK -> `memory.note`)
-- `health_sample_id` (FK -> `health.sample`, nullable)
-- `link_day` (`date`, nullable)
-- `relation` (`mentions | during | correlates_with`, required)
-- `confidence` (`real`, required)
-- `created_at` (`timestamptz`, required)
+## 5. Ownership and Derivation Rules (Locked)
+1. Raw artifacts are immutable source records in SQL.
+2. `/ME` is canonical for preferences, policies, and curated decisions.
+3. SQL rows that mirror `/ME` must keep `source_path + source_commit_hash`.
+4. Vector index is disposable/derived; it can be rebuilt from SQL text rows.
+5. LLM output never writes directly; scripts validate first.
 
 ## 6. Ingest Contract (Required Fields)
-Every ingest artifact must include all fields below:
-- `source_type` (for example `wearable_transcript`, `chat_export`, `manual_text`)
+Every ingest artifact must include:
+- `source_type` (for example `wearable_transcript`, `chat_export`, `manual_text`, `me_repo_sync`)
 - `content` (raw text)
 - `upload_ts` (`timestamptz`)
 - `source_ts` (`timestamptz` or `null`)
 - `day_scope` (`boolean`)
 - `timezone` (IANA name)
-
-`source_ts` is always present as a field; when unavailable it is `null`.
+- `extractor_version` (for replay/versioning)
+- `extraction_schema_version` (for replay/versioning)
 
 ## 7. Timestamp Resolution Framework (Locked)
 
@@ -110,8 +85,6 @@ Step B: LLM temporal grouping + deterministic script mapping:
 2. Script resolves each `hint` against `anchor_ts` to one `group_ts`.
 3. Every item in that group is written with `ts = group_ts` and mapped `ts_mode`.
 
-This keeps temporal scope consistent across all items in the same group.
-
 ### 7.1 Day Scope
 If `day_scope = true`, anchor timestamp is local 12:00 of the artifact day (`ts_mode = day`).
 Group hints may still override to inferred timestamps.
@@ -125,75 +98,122 @@ Minimum supported hints:
 - `tomorrow`, `tomorrow morning`, `tomorrow afternoon`, `tomorrow evening`, `tomorrow night`
 - `at H:MM`, `at H am/pm`, `yesterday at H:MM`, `tomorrow at H:MM`
 
-Example mapping from `anchor_ts = 2026-02-25 14:03:05.6`:
-- `today` -> `2026-02-25 14:03:05.6`
-- `morning` -> `2026-02-25 09:00:00`
-- `afternoon` -> `2026-02-25 15:00:00`
-- `evening` -> `2026-02-25 20:00:00`
-- `yesterday` -> `2026-02-24 12:00:00`
-- `tomorrow` -> `2026-02-26 12:00:00`
-- `yesterday evening` -> `2026-02-24 20:00:00`
-
 ### 7.3 Timezone Rule
 - Store timestamps in UTC.
 - Resolve relative expressions using artifact timezone.
 
-## 8. Memory Note Definition and Compaction
-A memory note is one atomic compacted statement from raw text.
+## 8. LLM vs Script Responsibilities (Locked)
 
-Atomic rules (v0):
-- One event/feeling/observation/decision per note.
-- Keep original meaning; no invented content.
-- Keep notes concise and plain text.
-- Do not merge unrelated topics.
-- Advanced compaction heuristics are an improvement lever for later versions.
-
-### 8.1 LLM vs Script Responsibilities
 LLM responsibilities:
 - Group raw text by temporal hint (`groups[].hint`).
 - Split group content into atomic memory items (`groups[].items[]`).
-- Use only allowed hint labels; use `default` when uncertain.
+- Extract structured candidates:
+  - memory notes
+  - decision candidates
+  - preference candidates
+  - unresolved questions
+- Use only allowed labels; use safe fallback labels when uncertain.
 
 Script responsibilities:
 - Parse explicit timestamps from artifact text.
 - Compute artifact anchor timestamp (`exact/day/upload`).
 - Resolve each group hint to concrete timestamp deterministically.
-- Apply group timestamp to every item in that group.
-- Validate output shape and required fields.
-- Write DB rows and embeddings.
-- Link memories to health by timestamp rules.
+- Validate JSON shape and field constraints.
+- Enforce candidate-to-canonical lifecycle rules.
+- Write SQL rows and embedding index rows.
+- Write `/ME` canonical updates and record commit references.
+- Quarantine invalid outputs instead of dropping them.
 
-## 9. Memory-to-Health Linking Rules
-- `ts_mode = exact`: link by configurable time window around `memory.note.ts`.
-- `ts_mode = inferred`: same as exact, with lower confidence default.
-- `ts_mode = day`: link by calendar day bucket.
-- `ts_mode = upload`: link by fallback time window, lowest default confidence.
+## 9. Candidate Lifecycle (Locked)
+All extracted high-impact objects must support lifecycle state:
+- `candidate` -> `active` -> `deprecated/retracted` (or `rejected`)
 
-## 10. Model Strategy (Model-Agnostic Framework)
+Applies to:
+- preference facts
+- decisions (pre-approval/approval)
+- unresolved questions
+
+## 10. Data Model
+Schema source of truth:
+- `storage/schema.sql` is the single schema definition.
+- Services validate schema presence at startup; they do not create tables.
+
+### 10.1 Core
+- `core.ingest_artifact`: immutable artifact anchor + ingestion versions.
+- `core.artifact_meta`: typed artifact metadata key/value store.
+- `core.compaction_attempt`: extraction attempt audit trail.
+- `core.extraction_failure`: quarantine table for invalid outputs.
+- `core.open_question`: unresolved question lifecycle.
+
+### 10.2 Health (Use Now + Use Soon)
+- `health.sample`: timestamped metric values (`value_num` or `value_json`).
+- `health.metric_def`: metric dictionary (`unit`, `kind`, expected range, default aggregation).
+
+### 10.3 Memory
+- `memory.note`: atomic notes with `ts`, `ts_mode`, `note_type`, and embedding.
+- `memory.health_link`: memory to health links with confidence.
+- `memory.link`: generic cross-object links (`memory`, `decision`, `entity`, etc.).
+
+`memory.note.note_type` allowed values:
+- `event`, `fact`, `observation`, `feeling`, `decision_context`, `task`
+
+### 10.4 Decision
+- `decision.entry`: decision event (context, chosen action, rationale, lifecycle status).
+- `decision.review`: later review records (outcome, self-review, notes).
+
+### 10.5 Preference
+- `preference.fact`: structured preference rows with lifecycle and `/ME` commit pointers.
+
+### 10.6 Entity (Use Soon)
+- `core.entity`: canonical people/places/projects/topics/devices.
+- `core.entity_alias`: alias mapping for extracted mentions.
+
+### 10.7 Vector Index
+- `search.embedding_model`: embedding model registry.
+- `search.vector_index`: derived vector rows referencing SQL targets.
+
+## 11. Link and Relation Semantics
+`memory.health_link.relation` allowed values:
+- `mentions`, `during`, `correlates_with`
+
+`memory.link.relation` is explicit and typed per link row.
+All inferred relations require a confidence score and provenance.
+
+## 12. Idempotency and Replay
+- Ingestion must be idempotent by artifact identity (`source_type`, `content_hash`, source timestamps).
+- Reprocessing with newer models/schemas is expected and must preserve audit history.
+- Existing canonical state must not be overwritten silently.
+
+## 13. Model Strategy (Model-Agnostic Framework)
 Framework is model-agnostic via configuration.
 
-### 10.1 Default test models
+### 13.1 Default test models
 - Generation model: `qwen2.5:7b`
 - Embedding model: `qwen3-embedding:0.6b` with `dimensions=1024`
 
-### 10.2 Separation rule
+### 13.2 Separation rule
 Separate models are preferred, but the same local model is allowed in constrained mode to minimize setup overhead.
 
-### 10.3 Embedding dimension lock
-- Determine embedding size once at initialization.
-- Lock `vector(N)` to that size.
-- Any future embedding model change requires re-embedding migration.
+### 13.3 Embedding lifecycle
+- `search.vector_index` rows carry model identity and active/invalidation state.
+- Re-indexing does not require deleting source text rows.
 
-## 11. Retry and Failure Policy
+## 14. Retrieval Contract (Use Soon)
+Runtime context assembly order:
+1. policy and preference constraints (`/ME`-derived active rows)
+2. recent decisions and reviews
+3. filtered vector retrieval over relevant domains/time windows
+4. linked health context if requested
+
+The retrieval contract is deterministic and script-controlled.
+
+## 15. Retry and Failure Policy
 - Validation retry limit: 3 attempts.
-- If still invalid after retries: fail closed and keep artifact for review.
-- Retry strategy is an improvement lever for later versions.
+- If still invalid after retries: fail closed.
+- Failed output is written to `core.extraction_failure`.
+- No silent drops.
 
-## 12. Retention Policy
-- Raw artifact and transcript retention: TBD (keep for now).
-- Structured memory notes: retained unless user deletes.
-
-## 13. Security and Runtime Boundaries
+## 16. Security and Runtime Boundaries
 - Containers run least-privilege.
 - Internal Docker network only for inter-service traffic.
 - Model endpoint is not publicly exposed by default.
@@ -202,9 +222,6 @@ Separate models are preferred, but the same local model is allowed in constraine
   - core readiness (DB + schema)
   - model readiness (required local models present)
 
-## 14. Implementation Boundary
-- Memory pipeline owns canonical writes.
-- Ingest and summary APIs are part of the same service (`mynah_agent`) to keep the stack minimal.
-
-## 15. Testing State
-- Full acceptance suite for this simplified architecture is agreed but will be implemented next.
+## 17. Testing State
+- Core architecture and timestamp contract are implemented.
+- Candidate lifecycle, quarantine path, `/ME` sync integrity, and vector lifecycle tests are required next.

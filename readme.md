@@ -1,48 +1,42 @@
 # MYNAH
 
 MYNAH is an open-source, offline-first personal intelligence system.
-It stores health time-series and compacted memory notes locally, then links them for on-device analysis.
+It stores health time-series and personal memory artifacts locally, with deterministic extraction and indexing.
 
 ## Documentation
 - Project spec: [spec.md](spec.md)
 - Testing strategy and status: [testing.md](testing.md)
 
-## Simplified System Model
-- `health.sample`: timestamped health measurements.
-- `memory.note`: plain-text atomic memories with one timestamp and embedding.
-- `memory.health_link`: links memory notes to health data by time alignment.
+## System Model (v0.8)
+- `/ME` git repo is canonical for values, policies, preferences, and curated decisions.
+- PostgreSQL stores operational rows for ingest, memory, decisions, and linking.
+- pgvector index is derived for semantic retrieval and can be rebuilt.
 
-Core simplifications:
-- single timestamp per memory note (`ts`), no `ts_end`
-- no metadata column on memory notes
-- same memory text at different timestamps is valid and kept
-- separate generation model and embedding model
+Core data layers:
+- `core.*`: artifact provenance, extraction audit, quarantine
+- `health.*`: measurements + metric definitions
+- `memory.*`: atomic notes + links
+- `decision.*`: decision entries + later reviews
+- `preference.*`: preference lifecycle with `/ME` commit references
+- `search.*`: embedding model registry + vector index rows
 
 ## Timestamp Framework
 Two-step resolution:
-1. Compute one artifact anchor timestamp (`exact/day/upload`):
-   - `source_ts` -> `exact`
-   - `day_scope=true` -> local day anchor (12:00) -> `day`
-   - explicit absolute timestamp in artifact text -> `exact`
-   - otherwise `upload_ts` -> `upload`
-2. LLM groups text by temporal hint and returns atomic items per group:
-   - each group has `hint`
-   - each group has `items[]`
-   - script resolves `hint + anchor_ts -> group_ts` deterministically
-   - all items in that group inherit `group_ts`
+1. Compute one artifact anchor timestamp (`exact/day/upload`).
+2. LLM returns temporal groups (`hint + items[]`), script maps hint to timestamp deterministically.
 
-LLM chooses hints, script does all timestamp math.
+LLM classifies/groups; script does timestamp math and writes.
 
 ## Runtime Stack
-- `mynah_agent` (ingest, compaction, timestamp resolution, linking, reports)
+- `mynah_agent` (ingest, extraction orchestration, deterministic writes, reports)
 - `mynah_ui` (local display)
 - `postgres` + `pgvector`
-- `db_init` (one-shot schema migration from `storage/schema.sql`)
+- `db_init` (schema migration from `storage/schema.sql`)
 - `ollama`
 
 Readiness:
-- `/ready` = core runtime readiness (DB + schema).
-- `/ready/model` = strict model readiness (generation + embedding present).
+- `/ready` = core runtime readiness (DB + schema)
+- `/ready/model` = strict model readiness (generation + embedding present)
 
 Defaults for testing:
 - generation: `qwen2.5:7b`
