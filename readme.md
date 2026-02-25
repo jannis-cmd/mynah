@@ -1,31 +1,33 @@
 # MYNAH
 
-MYNAH is an open-source, offline-first personal intelligence system for wearable health and voice-note capture, local sync, persistent memory, and local reporting.
+MYNAH is an open-source, offline-first personal intelligence system.
+It ingests personal artifacts locally (wearable streams, voice transcripts, ME.md-like notes), structures them through a local LLM, and stores durable memory in a local database for on-device analysis and reporting.
 
-Core principle: personal data stays local by default. There is no cloud dependency in the core workflow.
+Core rule: data stays local by default.
 
 ## Documentation
-- Project specification: [spec.md](spec.md)
-- Testing strategy and tracking: [testing.md](testing.md)
-- Agentic memory concepts: [docs/agentic-memory.md](docs/agentic-memory.md)
+- Project spec: [spec.md](spec.md)
+- Testing strategy and status: [testing.md](testing.md)
+- Agentic memory notes: [docs/agentic-memory.md](docs/agentic-memory.md)
 
-## Local Runtime (Docker)
+## Current Runtime Stack
+- `mynahd` (daemon API)
+- `mynah_agent` (artifact processing + structured writes)
+- `mynah_ui` (local display UI)
+- `postgres` (primary datastore with `pgvector`)
+- `ollama` (local model serving)
 
-MYNAH now includes a runtime skeleton with:
-- `mynahd` (daemon service)
-- `mynah_agent` (agent service, Ollama-backed)
-- `mynah_ui` (local UI service)
-- `ollama` (local model server)
+Runtime decisions:
+- Linux-targeted runtime.
+- Development from Linux and Windows hosts.
+- Local models through Ollama only.
+- Agent-to-model traffic on internal Docker network only.
 
-`mynah_agent` now includes a typed trend-analysis endpoint:
-- `POST /analysis/trends` (tool-oriented DAG pipeline over local transcripts with run/step lineage)
+## Quick Start
 
-Default topology uses an internal Docker network with no published ports.
-
-Quick start:
+Linux/macOS:
 ```bash
-docker compose up -d --build
-docker compose ps
+sh compute/scripts/stack-up.sh
 ```
 
 Windows PowerShell:
@@ -33,7 +35,21 @@ Windows PowerShell:
 ./compute/scripts/stack-up.ps1
 ```
 
-Smoke test:
+Stop stack:
+
+Linux/macOS:
+```bash
+sh compute/scripts/stack-down.sh
+```
+
+Windows PowerShell:
+```powershell
+./compute/scripts/stack-down.ps1
+```
+
+## Smoke Loop
+
+Linux/macOS:
 ```bash
 sh compute/scripts/e2e-smoke.sh
 ```
@@ -43,75 +59,26 @@ Windows PowerShell:
 ./compute/scripts/e2e-smoke.ps1
 ```
 
-Quality evaluation (100 transcript cycle):
-```bash
-sh compute/scripts/quality-eval.sh
-```
+Smoke loop currently validates:
+- service health/readiness,
+- HR ingest and daily summary,
+- audio ingest with transcript hint,
+- transcript pipeline with write-plan processing,
+- report generation and listing,
+- UI status aggregation from daemon + agent.
 
-Windows PowerShell:
-```powershell
-./compute/scripts/quality-eval.ps1
-```
+## Structured Write Pipeline
+1. Store raw artifact in `artifacts`.
+2. Retrieve semantically similar prior entries using pgvector.
+3. Ask local LLM for strict JSON write plan.
+4. Run deterministic validator.
+5. If invalid, return structured validator errors to LLM and retry (bounded).
+6. Commit validated plan transactionally.
+7. Persist full attempt lineage in `write_plan_audit`.
 
-Longitudinal human-transcript evaluation (200 notes across multiple months):
-```bash
-sh compute/scripts/human-transcript-eval.sh
-```
+This keeps the LLM as proposer and the backend as gatekeeper.
 
-Windows PowerShell:
-```powershell
-./compute/scripts/human-transcript-eval.ps1
-```
-
-Smoke coverage currently includes:
-- health checks for daemon/agent/ui,
-- simulated HR ingest into `mynahd`,
-- HR summary visibility through daemon and UI status,
-- simulated audio ingest into `mynahd` with fixture transcript,
-- chunked audio ingest (`/ingest/audio_chunk`) with idempotent resume checks,
-- daemon restart durability checks for partial chunk sessions,
-- audio transcription pipeline (`/pipeline/audio/transcribe`) and transcript visibility checks,
-- note-memory creation from transcript and UI recent-note visibility,
-- report generation (`/tools/report_generate`) with persisted markdown artifact checks,
-- report listing visibility (`/tools/report_recent`) through UI status,
-- SQL tool guardrails (`sql_query_readonly`) with accept/reject path checks,
-- query audit visibility for accepted and rejected SQL requests,
-- memory tool governance checks (`memory_upsert`) including citation minimum enforcement,
-- memory verification/supersession path (`memory_verify`, `memory_search`),
-- stale-memory exclusion checks with explicit reverification (`memory_reverify`),
-- agent analyze round-trip against local Ollama.
-
-Quality-eval coverage includes:
-- 100 synthetic transcript ingest/transcribe/memory writes,
-- theme correlation precision/recall gate,
-- citation-validity gate,
-- false-insight rate gate,
-- stale-memory leakage gate,
-- JSON report artifact output at `/home/appuser/data/artifacts/reports/quality/<run_id>.json`.
-
-Longitudinal human-transcript eval coverage includes:
-- 200 human-like daily transcripts (memories, feelings, sleep, pain, stress, exercise) over multiple months,
-- open human-prompt trend requests executed via `/analysis/trends`,
-- deterministic metric comparison against script-derived ground truth,
-- guaranteed cleanup of inserted DB rows/artifacts after run,
-- Markdown report output at `reports/human-transcript-trend-report.md`.
-
-Stop:
-```bash
-docker compose down
-```
-
-Windows PowerShell:
-```powershell
-./compute/scripts/stack-down.ps1
-```
-
-## Current Direction
-- Runtime target is Linux for compute services.
-- Development is supported from Linux and Windows hosts.
-- ESP-IDF firmware work can start as protocol and service skeletons even when hardware is not currently connected.
-
-## Repository Structure
+## Repository Layout
 
 ```text
 mynah/
@@ -119,38 +86,23 @@ mynah/
   spec.md
   testing.md
 
-  docs/                    # Architecture, threat model, protocol and design docs
-
+  docs/
   wearable/
-    hardware/              # Schematics, PCB, BOM, enclosure assets
-    firmware/              # ESP-IDF project(s)
+    hardware/
+    firmware/
 
   compute/
-    daemon/
-      mynahd/              # Daemon runtime service (Dockerized)
-    agent/
-      mynah_agent/         # Agent runtime service (Dockerized)
-    ui/
-      mynah_ui/            # Local UI runtime service (Dockerized)
-    scripts/               # Runtime helper scripts (up/down/smoke)
+    daemon/mynahd/
+    agent/mynah_agent/
+    ui/mynah_ui/
+    scripts/
 
-  storage/                 # DB schema, migrations, sample fixtures
-  tools/                   # Optional CLI/test harnesses
-  .github/workflows/       # CI pipelines
+  storage/
+  tools/
+  .github/workflows/
 ```
 
-## System Summary
-- Wearable captures HR and voice notes, buffers locally.
-- Compute daemon performs secure BLE sync and durability checks.
-- Agent builds searchable memory and report artifacts.
-- UI presents status, notes, trends, and report generation locally.
-
-## Agentic Memory Concepts
-- Evidence-backed memory: memories include citations to local source artifacts.
-- Just-in-time verification: memory is re-validated before being used in analysis/output.
-- Scoped memory: memory remains local to this MYNAH instance unless explicitly exported.
-- Self-healing updates: contradicted memories are corrected with provenance preserved.
-- Freshness policy: stale/unverified memory is downgraded or expired.
-
-## Project Status
-This repository now has a runnable compute runtime skeleton with vertical slices for HR ingest/UI summary, chunked audio resume/restart durability, audio fixture ingest/transcript/memory flow, report artifact generation/listing, agent SQL guardrails/audit, memory governance/verification/supersession/freshness, a 100-transcript quality-eval gate, a 200-transcript longitudinal human-eval loop, and a universal typed trend-analysis pipeline with run/step lineage.
+## Current Status
+- Branch includes rebuilt Postgres + pgvector foundation.
+- Agent memory writes now follow write-plan + validator-retry governance.
+- Legacy SQLite-era quality scripts/tests are being migrated to the new pipeline.

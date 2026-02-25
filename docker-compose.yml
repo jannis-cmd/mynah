@@ -1,4 +1,23 @@
 services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    networks:
+      - mynah_internal
+    environment:
+      POSTGRES_USER: mynah
+      POSTGRES_PASSWORD: mynah
+      POSTGRES_DB: mynah
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - logs:/data/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mynah -d mynah"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
   ollama:
     image: ollama/ollama:latest
     command: ["serve"]
@@ -21,13 +40,13 @@ services:
     networks:
       - mynah_internal
     environment:
-      MYNAH_DB_PATH: /home/appuser/data/db/mynah.db
+      MYNAH_DATABASE_DSN: postgresql://mynah:mynah@postgres:5432/mynah
+      MYNAH_ARTIFACTS_PATH: /home/appuser/data/artifacts
       MYNAH_SERVICE_NAME: mynahd
     depends_on:
-      ollama:
+      postgres:
         condition: service_healthy
     volumes:
-      - db:/home/appuser/data/db
       - artifacts:/home/appuser/data/artifacts
       - logs:/home/appuser/data/logs
     read_only: true
@@ -51,17 +70,19 @@ services:
     networks:
       - mynah_internal
     environment:
-      MYNAH_DB_PATH: /home/appuser/data/db/mynah.db
+      MYNAH_DATABASE_DSN: postgresql://mynah:mynah@postgres:5432/mynah
+      MYNAH_ARTIFACTS_PATH: /home/appuser/data/artifacts
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: qwen2.5:7b
       MYNAH_SERVICE_NAME: mynah_agent
     depends_on:
+      postgres:
+        condition: service_healthy
       ollama:
         condition: service_healthy
       mynahd:
         condition: service_healthy
     volumes:
-      - db:/home/appuser/data/db
       - artifacts:/home/appuser/data/artifacts
       - logs:/home/appuser/data/logs
     read_only: true
@@ -94,7 +115,6 @@ services:
       mynah_agent:
         condition: service_healthy
     volumes:
-      - db:/home/appuser/data/db
       - artifacts:/home/appuser/data/artifacts
       - logs:/home/appuser/data/logs
     read_only: true
@@ -117,7 +137,7 @@ networks:
     internal: true
 
 volumes:
-  db:
+  postgres_data:
   artifacts:
   logs:
   ollama_models:
