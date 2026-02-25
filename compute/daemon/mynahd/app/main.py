@@ -4,25 +4,25 @@ from base64 import b64decode
 from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from psycopg.rows import dict_row
 
 SERVICE = os.getenv("MYNAH_SERVICE_NAME", "mynahd")
 DATABASE_DSN = os.getenv("MYNAH_DATABASE_DSN", "postgresql://mynah:mynah@postgres:5432/mynah")
 ARTIFACTS_PATH = Path(os.getenv("MYNAH_ARTIFACTS_PATH", "/home/appuser/data/artifacts"))
 
-app = FastAPI(title="mynahd", version="0.2.0")
+app = FastAPI(title="mynahd", version="0.4.0")
 
 
 class HrSampleIn(BaseModel):
     ts: datetime
     bpm: int = Field(ge=20, le=260)
     quality: int = Field(default=100, ge=0, le=100)
-    sensor_status: str = Field(default="ok", max_length=64)
 
     @field_validator("ts")
     @classmethod
@@ -36,6 +36,34 @@ class HrIngestRequest(BaseModel):
     device_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._:-]+$")
     samples: list[HrSampleIn] = Field(min_length=1, max_length=3600)
     source: str = Field(default="simulated", max_length=64)
+
+
+class HealthSampleIn(BaseModel):
+    ts: datetime
+    metric: str = Field(min_length=1, max_length=64)
+    value_num: float | None = None
+    value_json: dict[str, Any] | None = None
+    unit: str | None = Field(default=None, max_length=32)
+    quality: int | None = Field(default=None, ge=0, le=100)
+    source: str | None = Field(default=None, max_length=64)
+
+    @field_validator("ts")
+    @classmethod
+    def normalize_ts(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            raise ValueError("ts must include timezone information")
+        return value.astimezone(timezone.utc)
+
+    @model_validator(mode="after")
+    def ensure_value(self) -> "HealthSampleIn":
+        if self.value_num is None and self.value_json is None:
+            raise ValueError("value_num or value_json is required")
+        return self
+
+
+class HealthIngestRequest(BaseModel):
+    source: str = Field(min_length=1, max_length=64)
+    samples: list[HealthSampleIn] = Field(min_length=1, max_length=3600)
 
 
 class AudioIngestRequest(BaseModel):
@@ -64,9 +92,13 @@ def _init_db() -> None:
     with _db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
+            cur.execute("CREATE SCHEMA IF NOT EXISTS core")
+            cur.execute("CREATE SCHEMA IF NOT EXISTS health")
+            cur.execute("CREATE SCHEMA IF NOT EXISTS memory")
+
             cur.execute(
                 """
-                CREATE TABLE IF NOT EXISTS service_heartbeat (
+                CREATE TABLE IF NOT EXISTS core.service_heartbeat (
                     service_name TEXT PRIMARY KEY,
                     updated_at TIMESTAMPTZ NOT NULL
                 )
@@ -74,32 +106,27 @@ def _init_db() -> None:
             )
             cur.execute(
                 """
-                CREATE TABLE IF NOT EXISTS device (
-                    id TEXT PRIMARY KEY,
-                    type TEXT NOT NULL,
-                    fw_version TEXT,
-                    added_at TIMESTAMPTZ NOT NULL
-                )
-                """
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS hr_sample (
-                    device_id TEXT NOT NULL,
+                CREATE TABLE IF NOT EXISTS health.sample (
+                    id BIGSERIAL PRIMARY KEY,
                     ts TIMESTAMPTZ NOT NULL,
-                    bpm INTEGER NOT NULL,
-                    quality INTEGER NOT NULL,
-                    sensor_status TEXT NOT NULL,
-                    ingested_at TIMESTAMPTZ NOT NULL,
-                    PRIMARY KEY(device_id, ts),
-                    FOREIGN KEY(device_id) REFERENCES device(id)
+                    metric TEXT NOT NULL,
+                    value_num DOUBLE PRECISION,
+                    value_json JSONB,
+                    unit TEXT,
+                    quality INTEGER,
+                    source TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    UNIQUE(source, metric, ts),
+                    CHECK (value_num IS NOT NULL OR value_json IS NOT NULL)
                 )
                 """
             )
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_hr_sample_ts ON hr_sample(ts)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_health_sample_ts ON health.sample(ts)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_health_sample_metric_ts ON health.sample(metric, ts)")
+
             cur.execute(
                 """
-                CREATE TABLE IF NOT EXISTS audio_note (
+                CREATE TABLE IF NOT EXISTS core.audio_note (
                     id TEXT PRIMARY KEY,
                     device_id TEXT NOT NULL,
                     start_ts TIMESTAMPTZ NOT NULL,
@@ -109,16 +136,15 @@ def _init_db() -> None:
                     audio_bytes INTEGER NOT NULL,
                     transcript_hint_path TEXT,
                     source TEXT NOT NULL,
-                    transcription_state TEXT NOT NULL DEFAULT 'pending',
-                    ingested_at TIMESTAMPTZ NOT NULL,
-                    FOREIGN KEY(device_id) REFERENCES device(id)
+                    ingested_at TIMESTAMPTZ NOT NULL
                 )
                 """
             )
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_audio_note_start_ts ON audio_note(start_ts)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_audio_note_start_ts ON core.audio_note(start_ts)")
+
             cur.execute(
                 """
-                CREATE TABLE IF NOT EXISTS transcript (
+                CREATE TABLE IF NOT EXISTS core.transcript (
                     audio_id TEXT PRIMARY KEY,
                     text TEXT NOT NULL,
                     model TEXT NOT NULL,
@@ -127,24 +153,6 @@ def _init_db() -> None:
                 )
                 """
             )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS artifacts (
-                    id TEXT PRIMARY KEY,
-                    artifact_type TEXT NOT NULL,
-                    source TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    content_text TEXT NOT NULL,
-                    content_hash TEXT NOT NULL,
-                    object_uri TEXT,
-                    metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-                    processing_state TEXT NOT NULL DEFAULT 'pending',
-                    processed_at TIMESTAMPTZ
-                )
-                """
-            )
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_created_at ON artifacts(created_at DESC)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_state ON artifacts(processing_state)")
         conn.commit()
 
 
@@ -154,7 +162,7 @@ def _heartbeat() -> str:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO service_heartbeat(service_name, updated_at)
+                INSERT INTO core.service_heartbeat(service_name, updated_at)
                 VALUES(%s, %s)
                 ON CONFLICT(service_name) DO UPDATE SET updated_at=excluded.updated_at
                 """,
@@ -162,17 +170,6 @@ def _heartbeat() -> str:
             )
         conn.commit()
     return now.isoformat()
-
-
-def _ensure_device(cur: psycopg.Cursor, device_id: str) -> None:
-    cur.execute(
-        """
-        INSERT INTO device(id, type, fw_version, added_at)
-        VALUES(%s, 'wearable', NULL, %s)
-        ON CONFLICT(id) DO NOTHING
-        """,
-        (device_id, datetime.now(timezone.utc)),
-    )
 
 
 def _audio_artifact_paths(note_id: str, start_ts: datetime) -> tuple[Path, Path]:
@@ -194,44 +191,23 @@ def _persist_audio_note(
     transcript_hint: str | None,
     source: str,
     ingested_at: datetime,
-) -> dict:
-    _ensure_device(cur, device_id)
+) -> dict[str, Any]:
     audio_sha = sha256(audio_bytes).hexdigest()
     audio_path, transcript_fixture_path = _audio_artifact_paths(note_id, start_ts)
     audio_path.write_bytes(audio_bytes)
 
     transcript_hint_path_str = None
-    artifact_id = None
     if transcript_hint:
         transcript_fixture_path.write_text(transcript_hint.strip(), encoding="utf-8")
         transcript_hint_path_str = str(transcript_fixture_path)
-        artifact_id = str(uuid4())
-        cur.execute(
-            """
-            INSERT INTO artifacts(
-                id, artifact_type, source, created_at, content_text, content_hash, object_uri, metadata_json, processing_state
-            )
-            VALUES(%s, %s, %s, %s, %s, %s, %s, %s::jsonb, 'pending')
-            """,
-            (
-                artifact_id,
-                "voice_transcript",
-                source,
-                ingested_at,
-                transcript_hint.strip(),
-                sha256(transcript_hint.strip().encode("utf-8")).hexdigest(),
-                str(transcript_fixture_path),
-                json.dumps({"audio_id": note_id, "device_id": device_id}, sort_keys=True),
-            ),
-        )
 
     cur.execute(
         """
-        INSERT INTO audio_note(
+        INSERT INTO core.audio_note(
             id, device_id, start_ts, end_ts, audio_path, audio_sha256, audio_bytes,
-            transcript_hint_path, source, transcription_state, ingested_at
+            transcript_hint_path, source, ingested_at
         )
-        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending', %s)
+        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT(id) DO UPDATE SET
             device_id=excluded.device_id,
             start_ts=excluded.start_ts,
@@ -241,7 +217,6 @@ def _persist_audio_note(
             audio_bytes=excluded.audio_bytes,
             transcript_hint_path=excluded.transcript_hint_path,
             source=excluded.source,
-            transcription_state='pending',
             ingested_at=excluded.ingested_at
         """,
         (
@@ -262,7 +237,6 @@ def _persist_audio_note(
         "audio_bytes": len(audio_bytes),
         "audio_sha256": audio_sha,
         "transcript_hint_available": bool(transcript_hint_path_str),
-        "artifact_id": artifact_id,
     }
 
 
@@ -273,54 +247,83 @@ def startup() -> None:
 
 
 @app.get("/health")
-def health() -> dict:
+def health() -> dict[str, str]:
     return {"status": "ok", "service": SERVICE}
 
 
 @app.get("/ready")
-def ready() -> dict:
+def ready() -> dict[str, str]:
     ts = _heartbeat()
     return {"status": "ready", "service": SERVICE, "database": "postgres", "heartbeat_at": ts}
 
 
 @app.post("/ingest/hr")
-def ingest_hr(payload: HrIngestRequest) -> dict:
+def ingest_hr(payload: HrIngestRequest) -> dict[str, Any]:
     ingested_at = datetime.now(timezone.utc)
+    inserted = 0
     with _db_conn() as conn:
         with conn.cursor() as cur:
-            _ensure_device(cur, payload.device_id)
             for sample in payload.samples:
                 cur.execute(
                     """
-                    INSERT INTO hr_sample(device_id, ts, bpm, quality, sensor_status, ingested_at)
-                    VALUES(%s, %s, %s, %s, %s, %s)
-                    ON CONFLICT(device_id, ts) DO UPDATE SET
-                        bpm=excluded.bpm,
-                        quality=excluded.quality,
-                        sensor_status=excluded.sensor_status,
-                        ingested_at=excluded.ingested_at
+                    INSERT INTO health.sample(ts, metric, value_num, unit, quality, source, created_at)
+                    VALUES(%s, 'hr', %s, 'bpm', %s, %s, %s)
+                    ON CONFLICT(source, metric, ts) DO UPDATE SET
+                        value_num=excluded.value_num,
+                        unit=excluded.unit,
+                        quality=excluded.quality
                     """,
-                    (
-                        payload.device_id,
-                        sample.ts,
-                        sample.bpm,
-                        sample.quality,
-                        sample.sensor_status,
-                        ingested_at,
-                    ),
+                    (sample.ts, float(sample.bpm), sample.quality, payload.device_id, ingested_at),
                 )
+                inserted += 1
         conn.commit()
+
     return {
         "status": "ok",
         "device_id": payload.device_id,
-        "accepted_samples": len(payload.samples),
+        "inserted": inserted,
         "source": payload.source,
         "ingested_at": ingested_at.isoformat(),
     }
 
 
+@app.post("/ingest/health")
+def ingest_health(payload: HealthIngestRequest) -> dict[str, Any]:
+    ingested_at = datetime.now(timezone.utc)
+    inserted = 0
+    with _db_conn() as conn:
+        with conn.cursor() as cur:
+            for sample in payload.samples:
+                source = sample.source or payload.source
+                cur.execute(
+                    """
+                    INSERT INTO health.sample(ts, metric, value_num, value_json, unit, quality, source, created_at)
+                    VALUES(%s, %s, %s, %s::jsonb, %s, %s, %s, %s)
+                    ON CONFLICT(source, metric, ts) DO UPDATE SET
+                        value_num=excluded.value_num,
+                        value_json=excluded.value_json,
+                        unit=excluded.unit,
+                        quality=excluded.quality
+                    """,
+                    (
+                        sample.ts,
+                        sample.metric,
+                        sample.value_num,
+                        json.dumps(sample.value_json) if sample.value_json is not None else None,
+                        sample.unit,
+                        sample.quality,
+                        source,
+                        ingested_at,
+                    ),
+                )
+                inserted += 1
+        conn.commit()
+
+    return {"status": "ok", "inserted": inserted, "ingested_at": ingested_at.isoformat()}
+
+
 @app.post("/ingest/audio")
-def ingest_audio(payload: AudioIngestRequest) -> dict:
+def ingest_audio(payload: AudioIngestRequest) -> dict[str, Any]:
     if payload.end_ts <= payload.start_ts:
         raise HTTPException(status_code=422, detail="end_ts must be later than start_ts")
     try:
@@ -354,55 +357,56 @@ def ingest_audio(payload: AudioIngestRequest) -> dict:
         "audio_bytes": persisted["audio_bytes"],
         "audio_sha256": persisted["audio_sha256"],
         "transcript_hint_available": persisted["transcript_hint_available"],
-        "artifact_id": persisted["artifact_id"],
         "ingested_at": ingested_at.isoformat(),
     }
 
 
 @app.get("/summary/hr/today")
-def summary_hr_today(
-    date: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
-    device_id: str | None = Query(default=None, min_length=1, max_length=64),
-) -> dict:
-    day = date or datetime.now(timezone.utc).date().isoformat()
-    start = datetime.fromisoformat(f"{day}T00:00:00+00:00")
-    end = datetime.fromisoformat(f"{day}T23:59:59.999999+00:00")
+def summary_hr_today(date: str | None = Query(default=None), device_id: str | None = Query(default=None)) -> dict[str, Any]:
+    if date:
+        try:
+            day = datetime.fromisoformat(f"{date}T00:00:00+00:00")
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD") from exc
+    else:
+        day = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    day_end = day.replace(hour=23, minute=59, second=59, microsecond=999999)
+    params: list[Any] = [day, day_end]
+    where = "metric = 'hr' AND ts >= %s AND ts <= %s"
+    if device_id:
+        where += " AND source = %s"
+        params.append(device_id)
+
     with _db_conn() as conn:
-        with conn.cursor() as cur:
-            if device_id:
-                cur.execute(
-                    """
-                    SELECT COUNT(*), MIN(bpm), MAX(bpm), AVG(bpm)
-                    FROM hr_sample
-                    WHERE ts >= %s AND ts <= %s AND device_id = %s
-                    """,
-                    (start, end, device_id),
-                )
-            else:
-                cur.execute(
-                    """
-                    SELECT COUNT(*), MIN(bpm), MAX(bpm), AVG(bpm)
-                    FROM hr_sample
-                    WHERE ts >= %s AND ts <= %s
-                    """,
-                    (start, end),
-                )
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT
+                    COUNT(*) AS sample_count,
+                    MIN(value_num) AS min_bpm,
+                    MAX(value_num) AS max_bpm,
+                    ROUND(AVG(value_num)::numeric, 2) AS avg_bpm
+                FROM health.sample
+                WHERE {where}
+                """,
+                params,
+            )
             row = cur.fetchone()
-    sample_count = int(row[0] or 0)
-    avg_bpm = round(float(row[3]), 2) if row[3] is not None else None
+
     return {
         "status": "ok",
-        "date": day,
+        "date": day.date().isoformat(),
         "device_id": device_id,
-        "sample_count": sample_count,
-        "min_bpm": int(row[1]) if row[1] is not None else None,
-        "max_bpm": int(row[2]) if row[2] is not None else None,
-        "avg_bpm": avg_bpm,
+        "sample_count": int(row["sample_count"] or 0),
+        "min_bpm": int(row["min_bpm"]) if row["min_bpm"] is not None else None,
+        "max_bpm": int(row["max_bpm"]) if row["max_bpm"] is not None else None,
+        "avg_bpm": float(row["avg_bpm"]) if row["avg_bpm"] is not None else None,
     }
 
 
 @app.get("/summary/audio/recent")
-def summary_audio_recent(limit: int = Query(default=10, ge=1, le=100)) -> dict:
+def summary_audio_recent(limit: int = Query(default=10, ge=1, le=100)) -> dict[str, Any]:
     with _db_conn() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
@@ -412,37 +416,32 @@ def summary_audio_recent(limit: int = Query(default=10, ge=1, le=100)) -> dict:
                     a.device_id,
                     a.start_ts,
                     a.end_ts,
-                    a.transcription_state,
                     a.audio_bytes,
                     CASE WHEN t.audio_id IS NULL THEN 0 ELSE 1 END AS transcript_ready
-                FROM audio_note a
-                LEFT JOIN transcript t ON t.audio_id = a.id
+                FROM core.audio_note a
+                LEFT JOIN core.transcript t ON t.audio_id = a.id
                 ORDER BY a.start_ts DESC
                 LIMIT %s
                 """,
                 (limit,),
             )
             rows = cur.fetchall()
+
     return {"status": "ok", "entries": rows}
 
 
 @app.get("/status")
-def status() -> dict:
+def status() -> dict[str, Any]:
     with _db_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT updated_at FROM service_heartbeat WHERE service_name = %s", (SERVICE,))
-            hb = cur.fetchone()
-            cur.execute("SELECT COUNT(*) FROM hr_sample")
-            hr_count = cur.fetchone()[0]
-            cur.execute("SELECT COUNT(*) FROM audio_note")
-            audio_count = cur.fetchone()[0]
-            cur.execute("SELECT COUNT(*) FROM artifacts")
-            artifact_count = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM health.sample")
+            health_count = int(cur.fetchone()[0])
+            cur.execute("SELECT COUNT(*) FROM core.audio_note")
+            audio_count = int(cur.fetchone()[0])
+
     return {
         "service": SERVICE,
         "database": "postgres",
-        "last_heartbeat": hb[0].isoformat() if hb else None,
-        "hr_sample_count_total": int(hr_count),
-        "audio_note_count_total": int(audio_count),
-        "artifact_count_total": int(artifact_count),
+        "health_sample_count_total": health_count,
+        "audio_note_count_total": audio_count,
     }

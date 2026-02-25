@@ -1,14 +1,14 @@
-
 import json
 import os
 import re
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Query
@@ -19,23 +19,46 @@ SERVICE = os.getenv("MYNAH_SERVICE_NAME", "mynah_agent")
 DATABASE_DSN = os.getenv("MYNAH_DATABASE_DSN", "postgresql://mynah:mynah@postgres:5432/mynah")
 ARTIFACTS_PATH = Path(os.getenv("MYNAH_ARTIFACTS_PATH", "/home/appuser/data/artifacts"))
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5:35b-a3b")
+OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "qwen3-embedding:0.6b")
 OLLAMA_TIMEOUT_SEC = int(os.getenv("OLLAMA_TIMEOUT_SEC", "120"))
-MAX_WRITEPLAN_RETRIES = int(os.getenv("MYNAH_WRITEPLAN_MAX_RETRIES", "3"))
-SIMILARITY_TOP_K = int(os.getenv("MYNAH_SIMILARITY_TOP_K", "12"))
+OLLAMA_EMBED_DIM = int(os.getenv("OLLAMA_EMBED_DIM", "1024"))
+MAX_COMPACTION_RETRIES = int(os.getenv("MYNAH_COMPACTION_MAX_RETRIES", "3"))
+EXACT_WINDOW_MIN = int(os.getenv("MYNAH_LINK_WINDOW_MIN", "90"))
 
-SENSITIVE_TYPES = {"health", "decision"}
+ISO_DATETIME_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})?\b")
+ISO_DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+HOUR_MIN_RE = re.compile(r"\b(\d{1,2}):(\d{2})\b")
 
-app = FastAPI(title="mynah_agent", version="0.2.0")
+app = FastAPI(title="mynah_agent", version="0.4.0")
 
 
 class ArtifactIngestRequest(BaseModel):
-    artifact_type: Literal["transcript", "me_md", "doc", "agent_note", "voice_transcript"]
-    source: str = Field(default="manual", min_length=1, max_length=64)
-    content_text: str = Field(min_length=1, max_length=200_000)
-    object_uri: str | None = Field(default=None, max_length=512)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    source_type: str = Field(min_length=1, max_length=64)
+    content: str = Field(min_length=1, max_length=200_000)
+    upload_ts: datetime
+    source_ts: datetime | None
+    day_scope: bool
+    timezone: str = Field(min_length=1, max_length=64)
     caller: str = Field(default="local_ui", min_length=1, max_length=64)
+
+    @field_validator("upload_ts", "source_ts")
+    @classmethod
+    def normalize_ts(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            raise ValueError("timestamps must include timezone information")
+        return value.astimezone(timezone.utc)
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except Exception as exc:  # noqa: BLE001
+            raise ValueError(f"invalid timezone: {value}") from exc
+        return value
 
 
 class ArtifactProcessRequest(BaseModel):
@@ -43,9 +66,31 @@ class ArtifactProcessRequest(BaseModel):
 
 
 class MeMarkdownProcessRequest(BaseModel):
+    source_type: str = Field(default="manual_text", min_length=1, max_length=64)
     markdown: str = Field(min_length=1, max_length=200_000)
-    source: str = Field(default="me_md", min_length=1, max_length=64)
+    upload_ts: datetime
+    source_ts: datetime | None
+    day_scope: bool
+    timezone: str = Field(min_length=1, max_length=64)
     caller: str = Field(default="local_ui", min_length=1, max_length=64)
+
+    @field_validator("upload_ts", "source_ts")
+    @classmethod
+    def normalize_ts(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            raise ValueError("timestamps must include timezone information")
+        return value.astimezone(timezone.utc)
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except Exception as exc:  # noqa: BLE001
+            raise ValueError(f"invalid timezone: {value}") from exc
+        return value
 
 
 class AudioTranscribeRequest(BaseModel):
@@ -59,69 +104,13 @@ class ReportGenerateRequest(BaseModel):
     caller: str = Field(default="local_ui", min_length=1, max_length=64)
 
 
-class WriteEntryPlan(BaseModel):
-    action: Literal["create", "update", "link", "duplicate", "question"]
-    entry_type: Literal["memory", "health", "preference", "idea", "decision", "relationship", "event", "task"] | None = None
-    title: str | None = Field(default=None, max_length=200)
-    body: str | None = Field(default=None, max_length=4000)
-    tags: list[str] = Field(default_factory=list, max_length=32)
-    time_start: str | None = Field(default=None, max_length=64)
-    time_end: str | None = Field(default=None, max_length=64)
-    target_entry_id: str | None = Field(default=None, max_length=128)
-    relation: str | None = Field(default=None, max_length=64)
-    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
-
-    @field_validator("tags")
-    @classmethod
-    def normalize_tags(cls, value: list[str]) -> list[str]:
-        seen = set()
-        out = []
-        for tag in value:
-            t = tag.strip().lower()
-            if not t or t in seen:
-                continue
-            seen.add(t)
-            out.append(t)
-        return out
+class CompactedNote(BaseModel):
+    text: str = Field(min_length=1, max_length=600)
+    ts_hint: str | None = Field(default=None, max_length=120)
 
 
-class WriteFactPlan(BaseModel):
-    action: Literal["create", "update", "duplicate", "question"]
-    fact_type: str = Field(min_length=1, max_length=64)
-    payload: dict[str, Any] = Field(default_factory=dict)
-    effective_time: str | None = Field(default=None, max_length=64)
-    source_entry_ref: str | None = Field(default=None, max_length=128)
-    target_fact_id: str | None = Field(default=None, max_length=128)
-    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
-
-
-class WriteLinkPlan(BaseModel):
-    from_ref: str = Field(min_length=1, max_length=128)
-    to_ref: str = Field(min_length=1, max_length=128)
-    relation: str = Field(min_length=1, max_length=64)
-    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
-
-
-class DedupeCandidate(BaseModel):
-    candidate_existing_id: str = Field(min_length=1, max_length=128)
-    reason: str = Field(min_length=1, max_length=300)
-    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
-
-
-class WritePlan(BaseModel):
-    artifact_summary: str = Field(default="", max_length=2000)
-    new_entries: list[WriteEntryPlan] = Field(default_factory=list, max_length=64)
-    new_facts: list[WriteFactPlan] = Field(default_factory=list, max_length=64)
-    links: list[WriteLinkPlan] = Field(default_factory=list, max_length=128)
-    dedupe_candidates: list[DedupeCandidate] = Field(default_factory=list, max_length=64)
-    questions: list[str] = Field(default_factory=list, max_length=64)
-
-
-class ValidationIssue(BaseModel):
-    code: str
-    field: str
-    reason: str
-    suggestion: str
+class CompactionOutput(BaseModel):
+    notes: list[CompactedNote] = Field(min_length=1, max_length=256)
 
 
 def _db_conn() -> psycopg.Connection:
@@ -130,28 +119,55 @@ def _db_conn() -> psycopg.Connection:
 
 def _init_db() -> None:
     ARTIFACTS_PATH.mkdir(parents=True, exist_ok=True)
+    if OLLAMA_EMBED_DIM <= 0:
+        raise RuntimeError("OLLAMA_EMBED_DIM must be positive")
+
     with _db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
+            cur.execute("CREATE SCHEMA IF NOT EXISTS core")
+            cur.execute("CREATE SCHEMA IF NOT EXISTS health")
+            cur.execute("CREATE SCHEMA IF NOT EXISTS memory")
+
             cur.execute(
                 """
-                CREATE TABLE IF NOT EXISTS artifacts (
+                CREATE TABLE IF NOT EXISTS core.ingest_artifact (
                     id TEXT PRIMARY KEY,
-                    artifact_type TEXT NOT NULL,
-                    source TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    content_text TEXT NOT NULL,
+                    source_type TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    upload_ts TIMESTAMPTZ NOT NULL,
+                    source_ts TIMESTAMPTZ,
+                    day_scope BOOLEAN NOT NULL,
+                    timezone TEXT NOT NULL,
                     content_hash TEXT NOT NULL,
-                    object_uri TEXT,
-                    metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
                     processing_state TEXT NOT NULL DEFAULT 'pending',
+                    created_at TIMESTAMPTZ NOT NULL,
                     processed_at TIMESTAMPTZ
                 )
                 """
             )
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_ingest_artifact_state ON core.ingest_artifact(processing_state)")
+
             cur.execute(
                 """
-                CREATE TABLE IF NOT EXISTS audio_note (
+                CREATE TABLE IF NOT EXISTS core.compaction_attempt (
+                    id BIGSERIAL PRIMARY KEY,
+                    artifact_id TEXT NOT NULL,
+                    attempt INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    caller TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    prompt_text TEXT NOT NULL,
+                    output_text TEXT,
+                    error_text TEXT,
+                    created_at TIMESTAMPTZ NOT NULL
+                )
+                """
+            )
+
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS core.audio_note (
                     id TEXT PRIMARY KEY,
                     device_id TEXT NOT NULL,
                     start_ts TIMESTAMPTZ NOT NULL,
@@ -161,14 +177,14 @@ def _init_db() -> None:
                     audio_bytes INTEGER NOT NULL,
                     transcript_hint_path TEXT,
                     source TEXT NOT NULL,
-                    transcription_state TEXT NOT NULL DEFAULT 'pending',
                     ingested_at TIMESTAMPTZ NOT NULL
                 )
                 """
             )
+
             cur.execute(
                 """
-                CREATE TABLE IF NOT EXISTS transcript (
+                CREATE TABLE IF NOT EXISTS core.transcript (
                     audio_id TEXT PRIMARY KEY,
                     text TEXT NOT NULL,
                     model TEXT NOT NULL,
@@ -177,87 +193,39 @@ def _init_db() -> None:
                 )
                 """
             )
+
             cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS entries (
-                    id TEXT PRIMARY KEY,
-                    entry_type TEXT NOT NULL,
-                    title TEXT,
-                    body TEXT NOT NULL,
-                    time_start TIMESTAMPTZ,
-                    time_end TIMESTAMPTZ,
-                    confidence REAL NOT NULL,
-                    artifact_id TEXT,
-                    created_by TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'active',
-                    metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-                    embedding VECTOR,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    updated_at TIMESTAMPTZ NOT NULL
+                f"""
+                CREATE TABLE IF NOT EXISTS memory.note (
+                    id BIGSERIAL PRIMARY KEY,
+                    ts TIMESTAMPTZ NOT NULL,
+                    ts_mode TEXT NOT NULL CHECK (ts_mode IN ('exact','day','inferred','upload')),
+                    text TEXT NOT NULL,
+                    embedding VECTOR({OLLAMA_EMBED_DIM}) NOT NULL,
+                    source_artifact_id TEXT NOT NULL REFERENCES core.ingest_artifact(id) ON DELETE CASCADE,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
                 """
             )
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_memory_note_ts ON memory.note(ts)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_memory_note_source ON memory.note(source_artifact_id)")
             cur.execute(
                 """
-                CREATE TABLE IF NOT EXISTS entry_version (
+                CREATE TABLE IF NOT EXISTS memory.health_link (
                     id BIGSERIAL PRIMARY KEY,
-                    entry_id TEXT NOT NULL,
-                    version_index INTEGER NOT NULL,
-                    snapshot_json JSONB NOT NULL,
-                    reason TEXT NOT NULL,
+                    memory_id BIGINT NOT NULL REFERENCES memory.note(id) ON DELETE CASCADE,
+                    health_sample_id BIGINT REFERENCES health.sample(id) ON DELETE CASCADE,
+                    link_day DATE,
+                    relation TEXT NOT NULL CHECK (relation IN ('mentions','during','correlates_with')),
+                    confidence REAL NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
                     created_at TIMESTAMPTZ NOT NULL
                 )
                 """
             )
+
             cur.execute(
                 """
-                CREATE TABLE IF NOT EXISTS facts (
-                    id TEXT PRIMARY KEY,
-                    fact_type TEXT NOT NULL,
-                    payload_json JSONB NOT NULL,
-                    effective_time TIMESTAMPTZ,
-                    source_entry_id TEXT,
-                    artifact_id TEXT,
-                    confidence REAL NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'candidate',
-                    created_at TIMESTAMPTZ NOT NULL,
-                    updated_at TIMESTAMPTZ NOT NULL
-                )
-                """
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS links (
-                    id BIGSERIAL PRIMARY KEY,
-                    from_id TEXT NOT NULL,
-                    to_id TEXT NOT NULL,
-                    relation TEXT NOT NULL,
-                    confidence REAL NOT NULL,
-                    artifact_id TEXT,
-                    created_at TIMESTAMPTZ NOT NULL
-                )
-                """
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS write_plan_audit (
-                    id BIGSERIAL PRIMARY KEY,
-                    artifact_id TEXT NOT NULL,
-                    attempt INTEGER NOT NULL,
-                    status TEXT NOT NULL,
-                    caller TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    prompt_text TEXT NOT NULL,
-                    llm_output_text TEXT,
-                    plan_json JSONB,
-                    validation_errors_json JSONB,
-                    created_at TIMESTAMPTZ NOT NULL
-                )
-                """
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS report_artifact (
+                CREATE TABLE IF NOT EXISTS core.report_artifact (
                     report_date TEXT PRIMARY KEY,
                     path TEXT NOT NULL,
                     created_at TIMESTAMPTZ NOT NULL,
@@ -289,10 +257,12 @@ def _ollama_generate(prompt: str) -> str:
     return data.get("response", "").strip()
 
 
-def _ollama_embed(text: str) -> list[float] | None:
+def _ollama_embed(text: str) -> list[float]:
     payloads = [
-        {"model": OLLAMA_MODEL, "input": text},
-        {"model": OLLAMA_MODEL, "prompt": text},
+        {"model": OLLAMA_EMBED_MODEL, "input": text, "dimensions": OLLAMA_EMBED_DIM},
+        {"model": OLLAMA_EMBED_MODEL, "prompt": text, "dimensions": OLLAMA_EMBED_DIM},
+        {"model": OLLAMA_EMBED_MODEL, "input": text},
+        {"model": OLLAMA_EMBED_MODEL, "prompt": text},
     ]
     for endpoint in ("/api/embed", "/api/embeddings"):
         for payload in payloads:
@@ -305,15 +275,16 @@ def _ollama_embed(text: str) -> list[float] | None:
                 )
                 with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT_SEC) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
-                if "embedding" in data and isinstance(data["embedding"], list):
-                    return [float(v) for v in data["embedding"]]
-                if "embeddings" in data and isinstance(data["embeddings"], list) and data["embeddings"]:
-                    first = data["embeddings"][0]
-                    if isinstance(first, list):
-                        return [float(v) for v in first]
+                embedding = None
+                if isinstance(data.get("embedding"), list):
+                    embedding = [float(v) for v in data["embedding"]]
+                elif isinstance(data.get("embeddings"), list) and data["embeddings"] and isinstance(data["embeddings"][0], list):
+                    embedding = [float(v) for v in data["embeddings"][0]]
+                if embedding is not None and len(embedding) == OLLAMA_EMBED_DIM:
+                    return embedding
             except Exception:  # noqa: BLE001
                 continue
-    return None
+    raise RuntimeError(f"failed to produce embedding length {OLLAMA_EMBED_DIM} using {OLLAMA_EMBED_MODEL}")
 
 
 def _vector_literal(embedding: list[float]) -> str:
@@ -321,127 +292,45 @@ def _vector_literal(embedding: list[float]) -> str:
 
 
 def _extract_json_object(text: str) -> dict[str, Any]:
-    if not text:
-        raise ValueError("empty model output")
     stripped = text.strip()
     try:
-        obj = json.loads(stripped)
-        if isinstance(obj, dict):
-            return obj
+        payload = json.loads(stripped)
+        if isinstance(payload, dict):
+            return payload
     except json.JSONDecodeError:
         pass
     match = re.search(r"\{.*\}", stripped, re.DOTALL)
     if not match:
-        raise ValueError("no json object in model output")
-    obj = json.loads(match.group(0))
-    if not isinstance(obj, dict):
-        raise ValueError("model json root must be object")
-    return obj
+        raise ValueError("no JSON object in model output")
+    payload = json.loads(match.group(0))
+    if not isinstance(payload, dict):
+        raise ValueError("JSON root must be object")
+    return payload
 
 
-def _validate_write_plan(plan: WritePlan) -> list[ValidationIssue]:
-    issues: list[ValidationIssue] = []
-    for idx, entry in enumerate(plan.new_entries):
-        field = f"new_entries[{idx}]"
-        if entry.action in {"create", "update"} and not entry.entry_type:
-            issues.append(
-                ValidationIssue(
-                    code="ENTRY_TYPE_REQUIRED",
-                    field=field,
-                    reason="entry_type is required for create/update",
-                    suggestion="set entry_type to allowed taxonomy value",
-                )
-            )
-        if entry.action in {"create", "update"} and not (entry.body and entry.body.strip()):
-            issues.append(
-                ValidationIssue(
-                    code="ENTRY_BODY_REQUIRED",
-                    field=field,
-                    reason="body is required for create/update",
-                    suggestion="provide concise body text",
-                )
-            )
-        if entry.action in {"update", "link", "duplicate"} and not entry.target_entry_id:
-            issues.append(
-                ValidationIssue(
-                    code="ENTRY_TARGET_REQUIRED",
-                    field=field,
-                    reason="target_entry_id is required for update/link/duplicate",
-                    suggestion="set target_entry_id to an existing entry id",
-                )
-            )
-        if entry.action == "link" and not entry.relation:
-            issues.append(
-                ValidationIssue(
-                    code="ENTRY_RELATION_REQUIRED",
-                    field=field,
-                    reason="relation is required for link action",
-                    suggestion="set relation such as about/supports/refers_to",
-                )
-            )
-    for idx, fact in enumerate(plan.new_facts):
-        field = f"new_facts[{idx}]"
-        if fact.action in {"create", "update"} and not fact.payload:
-            issues.append(
-                ValidationIssue(
-                    code="FACT_PAYLOAD_REQUIRED",
-                    field=field,
-                    reason="payload must be non-empty for create/update",
-                    suggestion="provide structured payload fields",
-                )
-            )
-        if fact.action in {"update", "duplicate"} and not fact.target_fact_id:
-            issues.append(
-                ValidationIssue(
-                    code="FACT_TARGET_REQUIRED",
-                    field=field,
-                    reason="target_fact_id required for update/duplicate",
-                    suggestion="set target_fact_id to an existing fact id",
-                )
-            )
-    for idx, link in enumerate(plan.links):
-        field = f"links[{idx}]"
-        if link.from_ref == link.to_ref:
-            issues.append(
-                ValidationIssue(
-                    code="LINK_SELF_REFERENCE",
-                    field=field,
-                    reason="from_ref and to_ref cannot be identical",
-                    suggestion="link two different entries",
-                )
-            )
-    return issues
-
-
-def _insert_artifact(
-    *,
-    artifact_type: str,
-    source: str,
-    content_text: str,
-    object_uri: str | None,
-    metadata: dict[str, Any],
-) -> str:
+def _insert_artifact(req: ArtifactIngestRequest) -> str:
     artifact_id = str(uuid4())
     now = datetime.now(timezone.utc)
     with _db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO artifacts(
-                    id, artifact_type, source, created_at, content_text, content_hash,
-                    object_uri, metadata_json, processing_state
+                INSERT INTO core.ingest_artifact(
+                    id, source_type, content, upload_ts, source_ts, day_scope, timezone,
+                    content_hash, processing_state, created_at
                 )
-                VALUES(%s, %s, %s, %s, %s, %s, %s, %s::jsonb, 'pending')
+                VALUES(%s, %s, %s, %s, %s, %s, %s, %s, 'pending', %s)
                 """,
                 (
                     artifact_id,
-                    artifact_type,
-                    source,
+                    req.source_type,
+                    req.content,
+                    req.upload_ts,
+                    req.source_ts,
+                    req.day_scope,
+                    req.timezone,
+                    sha256(req.content.encode("utf-8")).hexdigest(),
                     now,
-                    content_text,
-                    sha256(content_text.encode("utf-8")).hexdigest(),
-                    object_uri,
-                    json.dumps(metadata, sort_keys=True),
                 ),
             )
         conn.commit()
@@ -453,8 +342,8 @@ def _fetch_artifact(artifact_id: str) -> dict[str, Any] | None:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT id, artifact_type, source, created_at, content_text, object_uri, metadata_json
-                FROM artifacts
+                SELECT id, source_type, content, upload_ts, source_ts, day_scope, timezone, processing_state
+                FROM core.ingest_artifact
                 WHERE id = %s
                 LIMIT 1
                 """,
@@ -463,87 +352,34 @@ def _fetch_artifact(artifact_id: str) -> dict[str, Any] | None:
             return cur.fetchone()
 
 
-def _find_similar_entries(content_text: str, limit: int) -> tuple[list[dict[str, Any]], list[float] | None]:
-    embedding = _ollama_embed(content_text)
-    if not embedding:
-        return [], None
-    vector = _vector_literal(embedding)
+def _set_artifact_state(artifact_id: str, state: str) -> None:
     with _db_conn() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
+        with conn.cursor() as cur:
             cur.execute(
-                """
-                SELECT id, entry_type, title, body, confidence, created_at,
-                       1 - (embedding <=> %s::vector) AS similarity
-                FROM entries
-                WHERE embedding IS NOT NULL
-                ORDER BY embedding <=> %s::vector
-                LIMIT %s
-                """,
-                (vector, vector, limit),
+                "UPDATE core.ingest_artifact SET processing_state = %s, processed_at = %s WHERE id = %s",
+                (state, datetime.now(timezone.utc), artifact_id),
             )
-            rows = cur.fetchall()
-    return rows, embedding
-
-def _build_prompt(artifact: dict[str, Any], similar_entries: list[dict[str, Any]], issues: list[ValidationIssue]) -> str:
-    similar_payload = []
-    for row in similar_entries:
-        similar_payload.append(
-            {
-                "id": row["id"],
-                "entry_type": row["entry_type"],
-                "title": row["title"],
-                "body": (row["body"] or "")[:300],
-                "similarity": row.get("similarity"),
-            }
-        )
-    prompt = (
-        "You are MYNAH's structured writer. Return ONLY one JSON object.\n"
-        "Allowed entry_type taxonomy: memory, health, preference, idea, decision, relationship, event, task.\n"
-        "Actions: create, update, link, duplicate, question.\n"
-        "Use existing ids only from similar entries; temporary refs only as new_entries[i].\n"
-        "Sensitive types health/decision should use conservative confidence if uncertain.\n"
-        "Required root keys: artifact_summary, new_entries, new_facts, links, dedupe_candidates, questions.\n\n"
-        f"Artifact metadata: {json.dumps({'id': artifact['id'], 'artifact_type': artifact['artifact_type'], 'source': artifact['source']}, sort_keys=True)}\n"
-        f"Artifact text:\n{artifact['content_text'][:12000]}\n\n"
-        f"Similar entries: {json.dumps(similar_payload, sort_keys=True)}\n"
-    )
-    if issues:
-        issues_json = json.dumps([i.model_dump() for i in issues], sort_keys=True)
-        prompt += f"\nPrevious validation errors to fix exactly: {issues_json}\n"
-    prompt += (
-        "\nJSON example:\n"
-        "{\n"
-        "  \"artifact_summary\": \"...\",\n"
-        "  \"new_entries\": [{\"action\":\"create\",\"entry_type\":\"memory\",\"title\":\"...\",\"body\":\"...\",\"confidence\":0.7}],\n"
-        "  \"new_facts\": [],\n"
-        "  \"links\": [],\n"
-        "  \"dedupe_candidates\": [],\n"
-        "  \"questions\": []\n"
-        "}\n"
-    )
-    return prompt
+        conn.commit()
 
 
-def _audit_attempt(
+def _audit_compaction(
     *,
     artifact_id: str,
     attempt: int,
     status: str,
     caller: str,
     prompt_text: str,
-    llm_output_text: str | None,
-    plan_json: dict[str, Any] | None,
-    validation_errors: list[dict[str, Any]] | None,
+    output_text: str | None,
+    error_text: str | None,
 ) -> None:
     with _db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO write_plan_audit(
-                    artifact_id, attempt, status, caller, model, prompt_text, llm_output_text,
-                    plan_json, validation_errors_json, created_at
+                INSERT INTO core.compaction_attempt(
+                    artifact_id, attempt, status, caller, model, prompt_text, output_text, error_text, created_at
                 )
-                VALUES(%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s)
+                VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     artifact_id,
@@ -552,296 +388,314 @@ def _audit_attempt(
                     caller,
                     OLLAMA_MODEL,
                     prompt_text,
-                    llm_output_text,
-                    json.dumps(plan_json, sort_keys=True) if plan_json is not None else None,
-                    json.dumps(validation_errors, sort_keys=True) if validation_errors is not None else None,
+                    output_text,
+                    error_text,
                     datetime.now(timezone.utc),
                 ),
             )
         conn.commit()
 
+def _parse_iso_token(token: str, tz: ZoneInfo) -> datetime | None:
+    value = token.strip()
+    try:
+        if "T" in value or " " in value:
+            value = value.replace(" ", "T")
+            if value.endswith("Z"):
+                value = value[:-1] + "+00:00"
+            dt = datetime.fromisoformat(value)
+            if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+                dt = dt.replace(tzinfo=tz)
+            return dt.astimezone(timezone.utc)
+        parsed_date = date.fromisoformat(value)
+        local = datetime.combine(parsed_date, time(hour=12, minute=0), tzinfo=tz)
+        return local.astimezone(timezone.utc)
+    except Exception:  # noqa: BLE001
+        return None
 
-def _resolve_entry_ref(ref: str, created_entries: list[str]) -> str | None:
-    match = re.match(r"^new_entries\[(\d+)\]$", ref.strip())
-    if not match:
-        return ref.strip()
-    idx = int(match.group(1))
-    if 0 <= idx < len(created_entries):
-        return created_entries[idx]
-    return None
+
+def _extract_explicit_candidates(content: str, tz: ZoneInfo) -> list[datetime]:
+    seen: set[str] = set()
+    candidates: list[datetime] = []
+    datetime_tokens = ISO_DATETIME_RE.findall(content)
+    for token in datetime_tokens:
+        parsed = _parse_iso_token(token, tz)
+        if not parsed:
+            continue
+        key = parsed.isoformat()
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append(parsed)
+    for token in ISO_DATE_RE.findall(content):
+        if any(token in dt for dt in datetime_tokens):
+            continue
+        parsed = _parse_iso_token(token, tz)
+        if not parsed:
+            continue
+        key = parsed.isoformat()
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append(parsed)
+    return sorted(candidates)[:32]
 
 
-def _persist_unprocessed_candidate(artifact: dict[str, Any], caller: str, reason: str) -> str:
-    entry_id = str(uuid4())
+def _resolve_relative_hint(hint: str, upload_ts: datetime, tz: ZoneInfo) -> datetime | None:
+    lower = hint.lower().strip()
+    local_upload = upload_ts.astimezone(tz)
+    target_day = local_upload.date()
+    if "yesterday" in lower:
+        target_day -= timedelta(days=1)
+    elif "tomorrow" in lower:
+        target_day += timedelta(days=1)
+
+    hour = None
+    minute = 0
+    hm = HOUR_MIN_RE.search(lower)
+    if hm:
+        hour = int(hm.group(1))
+        minute = int(hm.group(2))
+    elif "morning" in lower:
+        hour = 9
+    elif "afternoon" in lower:
+        hour = 15
+    elif "evening" in lower:
+        hour = 19
+    elif "night" in lower:
+        hour = 22
+    elif "noon" in lower or "midday" in lower:
+        hour = 12
+
+    if hour is None or hour < 0 or hour > 23:
+        return None
+    local = datetime(target_day.year, target_day.month, target_day.day, hour, minute, tzinfo=tz)
+    return local.astimezone(timezone.utc)
+
+
+def _day_anchor(upload_ts: datetime, tz: ZoneInfo) -> datetime:
+    local_day = upload_ts.astimezone(tz).date()
+    local_anchor = datetime(local_day.year, local_day.month, local_day.day, 12, 0, tzinfo=tz)
+    return local_anchor.astimezone(timezone.utc)
+
+
+def _resolve_note_ts(
+    *,
+    ts_hint: str | None,
+    source_ts: datetime | None,
+    day_scope: bool,
+    upload_ts: datetime,
+    explicit_candidates: list[datetime],
+    tz: ZoneInfo,
+) -> tuple[datetime, str]:
+    if source_ts is not None:
+        return source_ts, "exact"
+    if day_scope:
+        return _day_anchor(upload_ts, tz), "day"
+    if explicit_candidates:
+        return explicit_candidates[0], "exact"
+    if ts_hint:
+        explicit = _parse_iso_token(ts_hint, tz)
+        if explicit is not None:
+            return explicit, "exact"
+        inferred = _resolve_relative_hint(ts_hint, upload_ts, tz)
+        if inferred is not None:
+            return inferred, "inferred"
+    return upload_ts, "upload"
+
+
+def _build_compaction_prompt(
+    artifact: dict[str, Any],
+    explicit_candidates: list[datetime],
+    previous_error: str | None,
+) -> str:
+    explicit = [item.isoformat() for item in explicit_candidates[:10]]
+    prompt = (
+        "You are MYNAH memory compactor. Return ONLY one JSON object with key 'notes'.\n"
+        "Format: {\"notes\":[{\"text\":\"...\",\"ts_hint\":null}]}\n"
+        "Each note must be atomic, concise, and faithful to content.\n"
+        "Do not invent facts and do not merge unrelated topics.\n"
+        "ts_hint may be null, an explicit timestamp, or a relative phrase.\n\n"
+        f"source_type: {artifact['source_type']}\n"
+        f"day_scope: {artifact['day_scope']}\n"
+        f"timezone: {artifact['timezone']}\n"
+        f"source_ts: {artifact['source_ts']}\n"
+        f"upload_ts: {artifact['upload_ts']}\n"
+        f"explicit_timestamp_candidates: {json.dumps(explicit)}\n\n"
+        f"content:\n{artifact['content'][:12000]}\n"
+    )
+    if previous_error:
+        prompt += f"\nFix previous error exactly: {previous_error}\n"
+    return prompt
+
+
+def _link_note_to_health(cur: psycopg.Cursor, note_id: int, note_ts: datetime, ts_mode: str) -> int:
     now = datetime.now(timezone.utc)
-    with _db_conn() as conn:
-        with conn.cursor() as cur:
+    inserted = 0
+    if ts_mode == "day":
+        day_start = note_ts.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        cur.execute(
+            """
+            SELECT id FROM health.sample
+            WHERE ts >= %s AND ts < %s
+            ORDER BY ts ASC
+            LIMIT 1000
+            """,
+            (day_start, day_end),
+        )
+        for row in cur.fetchall():
             cur.execute(
                 """
-                INSERT INTO entries(
-                    id, entry_type, title, body, confidence, artifact_id,
-                    created_by, status, metadata_json, embedding, created_at, updated_at
-                )
-                VALUES(%s, 'unprocessed_candidate', %s, %s, %s, %s, %s, 'candidate', %s::jsonb, NULL, %s, %s)
+                INSERT INTO memory.health_link(memory_id, health_sample_id, link_day, relation, confidence, created_at)
+                VALUES(%s, %s, %s, 'during', %s, %s)
                 """,
-                (
-                    entry_id,
-                    "Unprocessed Artifact",
-                    artifact["content_text"][:4000],
-                    0.0,
-                    artifact["id"],
-                    caller,
-                    json.dumps({"reason": reason}, sort_keys=True),
-                    now,
-                    now,
-                ),
+                (note_id, row[0], day_start.date(), 0.75, now),
             )
-            cur.execute(
-                "UPDATE artifacts SET processing_state = 'failed', processed_at = %s WHERE id = %s",
-                (now, artifact["id"]),
+            inserted += 1
+        return inserted
+
+    window = timedelta(minutes=EXACT_WINDOW_MIN)
+    start = note_ts - window
+    end = note_ts + window
+    confidence = {"exact": 0.9, "inferred": 0.6, "upload": 0.3}.get(ts_mode, 0.5)
+    cur.execute(
+        """
+        SELECT id FROM health.sample
+        WHERE ts >= %s AND ts <= %s
+        ORDER BY ts ASC
+        LIMIT 1000
+        """,
+        (start, end),
+    )
+    for row in cur.fetchall():
+        cur.execute(
+            """
+            INSERT INTO memory.health_link(memory_id, health_sample_id, link_day, relation, confidence, created_at)
+            VALUES(%s, %s, NULL, 'during', %s, %s)
+            """,
+            (note_id, row[0], confidence, now),
+        )
+        inserted += 1
+    return inserted
+
+
+def _compact_with_retries(artifact: dict[str, Any], caller: str) -> CompactionOutput:
+    explicit_candidates = _extract_explicit_candidates(artifact["content"], ZoneInfo(artifact["timezone"]))
+    previous_error = None
+    for attempt in range(1, MAX_COMPACTION_RETRIES + 1):
+        prompt = _build_compaction_prompt(artifact, explicit_candidates, previous_error)
+        output_text = None
+        try:
+            output_text = _ollama_generate(prompt)
+            parsed = _extract_json_object(output_text)
+            compacted = CompactionOutput.model_validate(parsed)
+            _audit_compaction(
+                artifact_id=artifact["id"],
+                attempt=attempt,
+                status="accepted",
+                caller=caller,
+                prompt_text=prompt,
+                output_text=output_text,
+                error_text=None,
             )
-        conn.commit()
-    return entry_id
-
-
-def _apply_plan(artifact: dict[str, Any], plan: WritePlan, caller: str, artifact_embedding: list[float] | None) -> dict[str, Any]:
-    now = datetime.now(timezone.utc)
-    created_entries: list[str] = []
-    updated_entries: list[str] = []
-    created_facts: list[str] = []
-    created_links = 0
-
-    with _db_conn() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            for entry in plan.new_entries:
-                if entry.action == "create":
-                    entry_id = str(uuid4())
-                    body = (entry.body or "").strip()
-                    embedding = _ollama_embed(body) if body else None
-                    status = "candidate" if (entry.entry_type in SENSITIVE_TYPES and entry.confidence < 0.80) else "active"
-                    cur.execute(
-                        """
-                        INSERT INTO entries(
-                            id, entry_type, title, body, time_start, time_end, confidence, artifact_id,
-                            created_by, status, metadata_json, embedding, created_at, updated_at
-                        )
-                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::vector, %s, %s)
-                        """,
-                        (
-                            entry_id,
-                            entry.entry_type,
-                            (entry.title or "").strip() or None,
-                            body,
-                            entry.time_start,
-                            entry.time_end,
-                            entry.confidence,
-                            artifact["id"],
-                            caller,
-                            status,
-                            json.dumps({"tags": entry.tags}, sort_keys=True),
-                            _vector_literal(embedding) if embedding else None,
-                            now,
-                            now,
-                        ),
-                    )
-                    created_entries.append(entry_id)
-                elif entry.action == "update" and entry.target_entry_id:
-                    cur.execute("SELECT * FROM entries WHERE id = %s LIMIT 1", (entry.target_entry_id,))
-                    existing = cur.fetchone()
-                    if not existing:
-                        continue
-                    cur.execute("SELECT COALESCE(MAX(version_index), 0) + 1 FROM entry_version WHERE entry_id = %s", (entry.target_entry_id,))
-                    next_version = int(cur.fetchone()[0])
-                    cur.execute(
-                        """
-                        INSERT INTO entry_version(entry_id, version_index, snapshot_json, reason, created_at)
-                        VALUES(%s, %s, %s::jsonb, %s, %s)
-                        """,
-                        (
-                            entry.target_entry_id,
-                            next_version,
-                            json.dumps(dict(existing), sort_keys=True, default=str),
-                            "write_plan_update",
-                            now,
-                        ),
-                    )
-                    new_body = (entry.body or existing["body"]).strip()
-                    embedding = _ollama_embed(new_body) if new_body else None
-                    new_type = entry.entry_type or existing["entry_type"]
-                    new_status = "candidate" if (new_type in SENSITIVE_TYPES and entry.confidence < 0.80) else existing["status"]
-                    cur.execute(
-                        """
-                        UPDATE entries
-                        SET entry_type = %s,
-                            title = %s,
-                            body = %s,
-                            time_start = COALESCE(%s, time_start),
-                            time_end = COALESCE(%s, time_end),
-                            confidence = %s,
-                            status = %s,
-                            metadata_json = metadata_json || %s::jsonb,
-                            embedding = COALESCE(%s::vector, embedding),
-                            updated_at = %s
-                        WHERE id = %s
-                        """,
-                        (
-                            new_type,
-                            (entry.title or existing["title"] or "").strip() or None,
-                            new_body,
-                            entry.time_start,
-                            entry.time_end,
-                            entry.confidence,
-                            new_status,
-                            json.dumps({"tags": entry.tags}, sort_keys=True),
-                            _vector_literal(embedding) if embedding else None,
-                            now,
-                            entry.target_entry_id,
-                        ),
-                    )
-                    updated_entries.append(entry.target_entry_id)
-                elif entry.action == "link" and entry.target_entry_id and created_entries:
-                    cur.execute(
-                        """
-                        INSERT INTO links(from_id, to_id, relation, confidence, artifact_id, created_at)
-                        VALUES(%s, %s, %s, %s, %s, %s)
-                        """,
-                        (created_entries[-1], entry.target_entry_id, entry.relation or "related", entry.confidence, artifact["id"], now),
-                    )
-                    created_links += 1
-
-            for fact in plan.new_facts:
-                if fact.action not in {"create", "update"}:
-                    continue
-                fact_id = fact.target_fact_id if (fact.action == "update" and fact.target_fact_id) else str(uuid4())
-                source_entry_id = _resolve_entry_ref(fact.source_entry_ref, created_entries) if fact.source_entry_ref else None
-                status = "confirmed" if fact.confidence >= 0.85 else "candidate"
-                cur.execute(
-                    """
-                    INSERT INTO facts(
-                        id, fact_type, payload_json, effective_time, source_entry_id, artifact_id,
-                        confidence, status, created_at, updated_at
-                    )
-                    VALUES(%s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT(id) DO UPDATE SET
-                        fact_type = excluded.fact_type,
-                        payload_json = excluded.payload_json,
-                        effective_time = excluded.effective_time,
-                        source_entry_id = excluded.source_entry_id,
-                        artifact_id = excluded.artifact_id,
-                        confidence = excluded.confidence,
-                        status = excluded.status,
-                        updated_at = excluded.updated_at
-                    """,
-                    (
-                        fact_id,
-                        fact.fact_type,
-                        json.dumps(fact.payload, sort_keys=True),
-                        fact.effective_time,
-                        source_entry_id,
-                        artifact["id"],
-                        fact.confidence,
-                        status,
-                        now,
-                        now,
-                    ),
-                )
-                created_facts.append(fact_id)
-
-            for link in plan.links:
-                from_id = _resolve_entry_ref(link.from_ref, created_entries)
-                to_id = _resolve_entry_ref(link.to_ref, created_entries)
-                if not from_id or not to_id:
-                    continue
-                cur.execute(
-                    """
-                    INSERT INTO links(from_id, to_id, relation, confidence, artifact_id, created_at)
-                    VALUES(%s, %s, %s, %s, %s, %s)
-                    """,
-                    (from_id, to_id, link.relation, link.confidence, artifact["id"], now),
-                )
-                created_links += 1
-
-            cur.execute("UPDATE artifacts SET processing_state = 'processed', processed_at = %s WHERE id = %s", (now, artifact["id"]))
-        conn.commit()
-
-    return {
-        "created_entries": len(created_entries),
-        "updated_entries": len(updated_entries),
-        "created_facts": len(created_facts),
-        "created_links": created_links,
-        "entry_ids": created_entries,
-        "updated_entry_ids": updated_entries,
-        "fact_ids": created_facts,
-        "artifact_embedding_created": bool(artifact_embedding),
-    }
+            return compacted
+        except (ValidationError, ValueError, urllib.error.URLError, urllib.error.HTTPError, RuntimeError) as exc:
+            previous_error = str(exc)
+            _audit_compaction(
+                artifact_id=artifact["id"],
+                attempt=attempt,
+                status="rejected",
+                caller=caller,
+                prompt_text=prompt,
+                output_text=output_text,
+                error_text=previous_error,
+            )
+        except Exception as exc:  # noqa: BLE001
+            previous_error = str(exc)
+            _audit_compaction(
+                artifact_id=artifact["id"],
+                attempt=attempt,
+                status="rejected",
+                caller=caller,
+                prompt_text=prompt,
+                output_text=output_text,
+                error_text=previous_error,
+            )
+    raise RuntimeError(f"compaction failed after {MAX_COMPACTION_RETRIES} retries")
 
 
 def _process_artifact(artifact_id: str, caller: str) -> dict[str, Any]:
     artifact = _fetch_artifact(artifact_id)
     if not artifact:
         raise HTTPException(status_code=404, detail="artifact not found")
+    if artifact["processing_state"] == "processed":
+        return {"status": "ok", "artifact_id": artifact_id, "notes_created": 0, "links_created": 0, "cached": True}
 
-    similar_entries, artifact_embedding = _find_similar_entries(artifact["content_text"], SIMILARITY_TOP_K)
-    issues: list[ValidationIssue] = []
-    for attempt in range(1, MAX_WRITEPLAN_RETRIES + 1):
-        prompt = _build_prompt(artifact, similar_entries, issues)
-        llm_output = _ollama_generate(prompt)
-        plan_dict: dict[str, Any] | None = None
-        validation_issues: list[ValidationIssue] = []
-        try:
-            plan_dict = _extract_json_object(llm_output)
-            plan = WritePlan(**plan_dict)
-            validation_issues = _validate_write_plan(plan)
-        except (ValueError, ValidationError) as exc:
-            validation_issues = [
-                ValidationIssue(
-                    code="WRITE_PLAN_PARSE_FAILED",
-                    field="root",
-                    reason=str(exc),
-                    suggestion="return strict JSON object matching required root keys",
+    try:
+        compacted = _compact_with_retries(artifact, caller)
+    except RuntimeError as exc:
+        _set_artifact_state(artifact_id, "failed")
+        return {"status": "failed_closed", "artifact_id": artifact_id, "reason": str(exc)}
+
+    tz = ZoneInfo(artifact["timezone"])
+    explicit_candidates = _extract_explicit_candidates(artifact["content"], tz)
+    notes_created = 0
+    links_created = 0
+    note_ids: list[int] = []
+
+    with _db_conn() as conn:
+        with conn.cursor() as cur:
+            for item in compacted.notes:
+                resolved_ts, ts_mode = _resolve_note_ts(
+                    ts_hint=item.ts_hint,
+                    source_ts=artifact["source_ts"],
+                    day_scope=artifact["day_scope"],
+                    upload_ts=artifact["upload_ts"],
+                    explicit_candidates=explicit_candidates,
+                    tz=tz,
                 )
-            ]
+                embedding = _ollama_embed(item.text)
+                cur.execute(
+                    """
+                    INSERT INTO memory.note(ts, ts_mode, text, embedding, source_artifact_id, created_at)
+                    VALUES(%s, %s, %s, %s::vector, %s, %s)
+                    RETURNING id
+                    """,
+                    (
+                        resolved_ts,
+                        ts_mode,
+                        item.text.strip(),
+                        _vector_literal(embedding),
+                        artifact_id,
+                        datetime.now(timezone.utc),
+                    ),
+                )
+                note_id = int(cur.fetchone()[0])
+                note_ids.append(note_id)
+                notes_created += 1
+                links_created += _link_note_to_health(cur, note_id, resolved_ts, ts_mode)
 
-        _audit_attempt(
-            artifact_id=artifact_id,
-            attempt=attempt,
-            status="valid" if not validation_issues else "invalid",
-            caller=caller,
-            prompt_text=prompt,
-            llm_output_text=llm_output,
-            plan_json=plan_dict,
-            validation_errors=[item.model_dump() for item in validation_issues],
-        )
+            cur.execute(
+                "UPDATE core.ingest_artifact SET processing_state = 'processed', processed_at = %s WHERE id = %s",
+                (datetime.now(timezone.utc), artifact_id),
+            )
+        conn.commit()
 
-        if not validation_issues:
-            result = _apply_plan(artifact, plan, caller, artifact_embedding)
-            return {
-                "status": "ok",
-                "artifact_id": artifact_id,
-                "attempts": attempt,
-                "write_result": result,
-                "artifact_summary": plan.artifact_summary,
-                "questions": plan.questions,
-            }
-        issues = validation_issues
-
-    fallback_id = _persist_unprocessed_candidate(artifact, caller, "validator_retries_exhausted")
     return {
-        "status": "failed_closed",
+        "status": "ok",
         "artifact_id": artifact_id,
-        "attempts": MAX_WRITEPLAN_RETRIES,
-        "fallback_entry_id": fallback_id,
-        "validation_errors": [item.model_dump() for item in issues],
+        "notes_created": notes_created,
+        "links_created": links_created,
+        "note_ids": note_ids,
     }
 
-
-def _transcribe_audio_fixture(req: AudioTranscribeRequest) -> dict:
+def _transcribe_audio_fixture(req: AudioTranscribeRequest) -> dict[str, Any]:
     with _db_conn() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT id, transcript_hint_path
-                FROM audio_note
+                SELECT id, start_ts, transcript_hint_path
+                FROM core.audio_note
                 WHERE id = %s
                 LIMIT 1
                 """,
@@ -850,19 +704,21 @@ def _transcribe_audio_fixture(req: AudioTranscribeRequest) -> dict:
             audio = cur.fetchone()
             if not audio:
                 raise HTTPException(status_code=404, detail="audio note not found")
-
-            cur.execute("SELECT audio_id, path FROM transcript WHERE audio_id = %s LIMIT 1", (req.audio_id,))
+            cur.execute("SELECT audio_id, path, text FROM core.transcript WHERE audio_id = %s LIMIT 1", (req.audio_id,))
             existing = cur.fetchone()
 
     if existing and not req.force:
-        artifact_id = _insert_artifact(
-            artifact_type="voice_transcript",
-            source="audio_transcribe_cached",
-            content_text="cached transcript reused",
-            object_uri=existing["path"],
-            metadata={"audio_id": req.audio_id, "cached": True},
+        ingest = ArtifactIngestRequest(
+            source_type="wearable_transcript",
+            content=existing["text"],
+            upload_ts=datetime.now(timezone.utc),
+            source_ts=audio["start_ts"],
+            day_scope=False,
+            timezone="UTC",
+            caller=req.caller,
         )
-        return {"status": "ok", "audio_id": req.audio_id, "transcript_created": False, "artifact_id": artifact_id, "processed": False}
+        artifact_id = _insert_artifact(ingest)
+        return {"status": "ok", "audio_id": req.audio_id, "artifact_id": artifact_id, "transcript_created": False}
 
     hint_path = Path(audio["transcript_hint_path"]) if audio["transcript_hint_path"] else None
     if not hint_path or not hint_path.exists():
@@ -881,7 +737,7 @@ def _transcribe_audio_fixture(req: AudioTranscribeRequest) -> dict:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO transcript(audio_id, text, model, path, created_at)
+                INSERT INTO core.transcript(audio_id, text, model, path, created_at)
                 VALUES(%s, %s, %s, %s, %s)
                 ON CONFLICT(audio_id) DO UPDATE SET
                     text=excluded.text,
@@ -891,60 +747,62 @@ def _transcribe_audio_fixture(req: AudioTranscribeRequest) -> dict:
                 """,
                 (req.audio_id, transcript_text, "artifact_transcript_v1", str(transcript_path), now),
             )
-            cur.execute("UPDATE audio_note SET transcription_state = 'completed' WHERE id = %s", (req.audio_id,))
         conn.commit()
 
-    artifact_id = _insert_artifact(
-        artifact_type="voice_transcript",
-        source="audio_transcribe",
-        content_text=transcript_text,
-        object_uri=str(transcript_path),
-        metadata={"audio_id": req.audio_id},
+    ingest = ArtifactIngestRequest(
+        source_type="wearable_transcript",
+        content=transcript_text,
+        upload_ts=now,
+        source_ts=audio["start_ts"],
+        day_scope=False,
+        timezone="UTC",
+        caller=req.caller,
     )
+    artifact_id = _insert_artifact(ingest)
     process_result = _process_artifact(artifact_id, req.caller)
     return {
         "status": "ok",
         "audio_id": req.audio_id,
         "transcript_created": True,
         "artifact_id": artifact_id,
-        "processed": process_result["status"],
-        "write_result": process_result.get("write_result"),
+        "process_result": process_result,
     }
 
 
-def _generate_report(req: ReportGenerateRequest) -> dict:
+def _generate_report(req: ReportGenerateRequest) -> dict[str, Any]:
     report_date = req.date or datetime.now(timezone.utc).date().isoformat()
     start = datetime.fromisoformat(f"{report_date}T00:00:00+00:00")
     end = datetime.fromisoformat(f"{report_date}T23:59:59.999999+00:00")
+
     with _db_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM entries WHERE created_at >= %s AND created_at <= %s", (start, end))
-            entry_count = int(cur.fetchone()[0])
-            cur.execute("SELECT COUNT(*) FROM facts WHERE created_at >= %s AND created_at <= %s", (start, end))
-            fact_count = int(cur.fetchone()[0])
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT COUNT(*) AS count FROM memory.note WHERE ts >= %s AND ts <= %s", (start, end))
+            note_count = int(cur.fetchone()["count"])
+            cur.execute("SELECT COUNT(*) AS count FROM health.sample WHERE ts >= %s AND ts <= %s", (start, end))
+            health_count = int(cur.fetchone()["count"])
             cur.execute(
                 """
-                SELECT id, entry_type, COALESCE(title, '(untitled)')
-                FROM entries
-                WHERE created_at >= %s AND created_at <= %s
-                ORDER BY created_at DESC
+                SELECT id, ts, ts_mode, SUBSTRING(text FROM 1 FOR 120) AS preview
+                FROM memory.note
+                WHERE ts >= %s AND ts <= %s
+                ORDER BY ts DESC
                 LIMIT 10
                 """,
                 (start, end),
             )
-            rows = cur.fetchall()
+            notes = cur.fetchall()
 
     lines = [
         f"# MYNAH Daily Report - {report_date}",
         "",
-        "## Structured Writes",
-        f"- Entries written: {entry_count}",
-        f"- Facts written: {fact_count}",
+        "## Counts",
+        f"- Memory notes: {note_count}",
+        f"- Health samples: {health_count}",
         "",
-        "## Latest Entries",
+        "## Recent Memory Notes",
     ]
-    for row in rows:
-        lines.append(f"- `{row[0]}` [{row[1]}] {row[2]}")
+    for row in notes:
+        lines.append(f"- [{row['ts_mode']}] {row['ts']}: {row['preview']}")
 
     report_dir = ARTIFACTS_PATH / "reports" / report_date
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -956,7 +814,7 @@ def _generate_report(req: ReportGenerateRequest) -> dict:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO report_artifact(report_date, path, created_at, generator, note)
+                INSERT INTO core.report_artifact(report_date, path, created_at, generator, note)
                 VALUES(%s, %s, %s, %s, %s)
                 ON CONFLICT(report_date) DO UPDATE SET
                     path=excluded.path,
@@ -964,10 +822,11 @@ def _generate_report(req: ReportGenerateRequest) -> dict:
                     generator=excluded.generator,
                     note=excluded.note
                 """,
-                (report_date, str(report_path), now, SERVICE, f"entries={entry_count};facts={fact_count}"),
+                (report_date, str(report_path), now, SERVICE, f"notes={note_count};health={health_count}"),
             )
         conn.commit()
-    return {"status": "ok", "report_date": report_date, "path": str(report_path), "entries": entry_count, "facts": fact_count}
+
+    return {"status": "ok", "report_date": report_date, "path": str(report_path), "notes": note_count, "health": health_count}
 
 
 @app.on_event("startup")
@@ -976,70 +835,80 @@ def startup() -> None:
 
 
 @app.get("/health")
-def health() -> dict:
+def health() -> dict[str, str]:
     return {"status": "ok", "service": SERVICE}
 
 
 @app.get("/ready")
-def ready() -> dict:
+def ready() -> dict[str, Any]:
     try:
         with _db_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=503, detail=f"postgres unavailable: {exc}") from exc
+
     try:
-        model_ok = _model_available(OLLAMA_MODEL)
+        gen_ok = _model_available(OLLAMA_MODEL)
+        embed_ok = _model_available(OLLAMA_EMBED_MODEL)
     except urllib.error.URLError as exc:
         raise HTTPException(status_code=503, detail=f"ollama unavailable: {exc.reason}") from exc
-    if not model_ok:
+
+    if not gen_ok:
         raise HTTPException(status_code=503, detail=f"required model missing: {OLLAMA_MODEL}")
-    return {"status": "ready", "service": SERVICE, "database": "postgres", "model": OLLAMA_MODEL}
+    if not embed_ok:
+        raise HTTPException(status_code=503, detail=f"required embed model missing: {OLLAMA_EMBED_MODEL}")
+
+    return {
+        "status": "ready",
+        "service": SERVICE,
+        "database": "postgres",
+        "model": OLLAMA_MODEL,
+        "embed_model": OLLAMA_EMBED_MODEL,
+        "embed_dim": OLLAMA_EMBED_DIM,
+    }
 
 
 @app.post("/pipeline/artifacts/ingest")
-def pipeline_artifacts_ingest(req: ArtifactIngestRequest) -> dict:
-    artifact_id = _insert_artifact(
-        artifact_type=req.artifact_type,
-        source=req.source,
-        content_text=req.content_text,
-        object_uri=req.object_uri,
-        metadata={"caller": req.caller, **req.metadata},
-    )
+def pipeline_artifacts_ingest(req: ArtifactIngestRequest) -> dict[str, str]:
+    artifact_id = _insert_artifact(req)
     return {"status": "ok", "artifact_id": artifact_id}
 
 
 @app.post("/pipeline/artifacts/process/{artifact_id}")
-def pipeline_artifacts_process(artifact_id: str, req: ArtifactProcessRequest) -> dict:
+def pipeline_artifacts_process(artifact_id: str, req: ArtifactProcessRequest) -> dict[str, Any]:
     return _process_artifact(artifact_id, req.caller)
 
 
 @app.post("/pipeline/me_md/process")
-def pipeline_me_md_process(req: MeMarkdownProcessRequest) -> dict:
-    artifact_id = _insert_artifact(
-        artifact_type="me_md",
-        source=req.source,
-        content_text=req.markdown,
-        object_uri=None,
-        metadata={"caller": req.caller},
+def pipeline_me_md_process(req: MeMarkdownProcessRequest) -> dict[str, Any]:
+    ingest = ArtifactIngestRequest(
+        source_type=req.source_type,
+        content=req.markdown,
+        upload_ts=req.upload_ts,
+        source_ts=req.source_ts,
+        day_scope=req.day_scope,
+        timezone=req.timezone,
+        caller=req.caller,
     )
+    artifact_id = _insert_artifact(ingest)
     result = _process_artifact(artifact_id, req.caller)
     return {"status": "ok", "artifact_id": artifact_id, "result": result}
 
 
 @app.post("/pipeline/audio/transcribe")
-def pipeline_audio_transcribe(req: AudioTranscribeRequest) -> dict:
+def pipeline_audio_transcribe(req: AudioTranscribeRequest) -> dict[str, Any]:
     return _transcribe_audio_fixture(req)
 
 
 @app.get("/tools/transcript/recent")
-def transcript_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict:
+def transcript_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, Any]:
     with _db_conn() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
                 SELECT audio_id, model, created_at, path, SUBSTRING(text FROM 1 FOR 160) AS preview
-                FROM transcript
+                FROM core.transcript
                 ORDER BY created_at DESC
                 LIMIT %s
                 """,
@@ -1050,18 +919,18 @@ def transcript_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict:
 
 
 @app.post("/tools/report_generate")
-def tools_report_generate(req: ReportGenerateRequest) -> dict:
+def tools_report_generate(req: ReportGenerateRequest) -> dict[str, Any]:
     return _generate_report(req)
 
 
 @app.get("/tools/report_recent")
-def tools_report_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict:
+def tools_report_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, Any]:
     with _db_conn() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
                 SELECT report_date, path, created_at, generator, note
-                FROM report_artifact
+                FROM core.report_artifact
                 ORDER BY report_date DESC
                 LIMIT %s
                 """,
@@ -1072,22 +941,23 @@ def tools_report_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict:
 
 
 @app.get("/status")
-def status() -> dict:
+def status() -> dict[str, Any]:
     with _db_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM artifacts")
+            cur.execute("SELECT COUNT(*) FROM core.ingest_artifact")
             artifact_count = int(cur.fetchone()[0])
-            cur.execute("SELECT COUNT(*) FROM entries")
-            entry_count = int(cur.fetchone()[0])
-            cur.execute("SELECT COUNT(*) FROM facts")
-            fact_count = int(cur.fetchone()[0])
-            cur.execute("SELECT COUNT(*) FROM write_plan_audit")
-            audit_count = int(cur.fetchone()[0])
+            cur.execute("SELECT COUNT(*) FROM memory.note")
+            note_count = int(cur.fetchone()[0])
+            cur.execute("SELECT COUNT(*) FROM memory.health_link")
+            link_count = int(cur.fetchone()[0])
+            cur.execute("SELECT COUNT(*) FROM core.compaction_attempt")
+            attempt_count = int(cur.fetchone()[0])
     return {
         "service": SERVICE,
         "database": "postgres",
         "artifact_count": artifact_count,
-        "entry_count": entry_count,
-        "fact_count": fact_count,
-        "write_plan_audit_count": audit_count,
+        "memory_note_count": note_count,
+        "memory_health_link_count": link_count,
+        "compaction_attempt_count": attempt_count,
+        "embed_dim": OLLAMA_EMBED_DIM,
     }
