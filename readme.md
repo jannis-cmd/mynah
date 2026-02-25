@@ -19,13 +19,19 @@ Core simplifications:
 - separate generation model and embedding model
 
 ## Timestamp Framework
-Priority order:
-1. source timestamp
-2. explicit timestamp extracted from content
-3. inferred timestamp from LLM hint + deterministic resolver
-4. upload timestamp fallback
+Two-step resolution:
+1. Compute one artifact anchor timestamp (`exact/day/upload`):
+   - `source_ts` -> `exact`
+   - `day_scope=true` -> local day anchor (12:00) -> `day`
+   - explicit absolute timestamp in artifact text -> `exact`
+   - otherwise `upload_ts` -> `upload`
+2. LLM groups text by temporal hint and returns atomic items per group:
+   - each group has `hint`
+   - each group has `items[]`
+   - script resolves `hint + anchor_ts -> group_ts` deterministically
+   - all items in that group inherit `group_ts`
 
-`day_scope=true` forces all extracted notes to one day anchor timestamp.
+LLM chooses hints, script does all timestamp math.
 
 ## Runtime Stack
 - `mynah_agent` (ingest, compaction, timestamp resolution, linking, reports)

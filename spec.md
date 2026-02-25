@@ -95,22 +95,44 @@ Every ingest artifact must include all fields below:
 
 ## 7. Timestamp Resolution Framework (Locked)
 
-Priority order:
-1. `source_ts` (exact source timestamp)
-2. Script extraction of explicit timestamps from content
-3. LLM temporal-hint extraction + deterministic script resolver
-4. `upload_ts` fallback
+Timestamp resolution is two-step and group-based.
+
+Step A: compute one artifact anchor timestamp:
+1. `source_ts` -> `ts_mode = exact`
+2. `day_scope = true` -> local 12:00 day anchor -> `ts_mode = day`
+3. Script extraction of explicit absolute timestamps from artifact content -> `ts_mode = exact`
+4. `upload_ts` fallback -> `ts_mode = upload`
+
+Step B: LLM temporal grouping + deterministic script mapping:
+1. LLM returns `groups[]` with:
+   - `hint` (from allowed hint options)
+   - `items[]` (atomic memory texts)
+2. Script resolves each `hint` against `anchor_ts` to one `group_ts`.
+3. Every item in that group is written with `ts = group_ts` and mapped `ts_mode`.
+
+This keeps temporal scope consistent across all items in the same group.
 
 ### 7.1 Day Scope
-If `day_scope = true`, all notes from that artifact use the same day anchor timestamp.
-Recommended anchor: local 12:00 for that day.
-`ts_mode = day`.
+If `day_scope = true`, anchor timestamp is local 12:00 of the artifact day (`ts_mode = day`).
+Group hints may still override to inferred timestamps.
 
-### 7.2 Inference Rule
-When content contains relative expressions (for example "in the morning") and no exact time:
-- LLM extracts structured hint.
-- Script resolves hint against upload day/time and timezone.
-- Result stored with `ts_mode = inferred`.
+### 7.2 Hint Mapping Rule
+LLM chooses from explicit hint options; script performs all timestamp arithmetic.
+Minimum supported hints:
+- `default`, `today`, `now`
+- `morning`, `afternoon`, `evening`, `night`
+- `yesterday`, `yesterday morning`, `yesterday afternoon`, `yesterday evening`, `yesterday night`, `last night`
+- `tomorrow`, `tomorrow morning`, `tomorrow afternoon`, `tomorrow evening`, `tomorrow night`
+- `at H:MM`, `at H am/pm`, `yesterday at H:MM`, `tomorrow at H:MM`
+
+Example mapping from `anchor_ts = 2026-02-25 14:03:05.6`:
+- `today` -> `2026-02-25 14:03:05.6`
+- `morning` -> `2026-02-25 09:00:00`
+- `afternoon` -> `2026-02-25 15:00:00`
+- `evening` -> `2026-02-25 20:00:00`
+- `yesterday` -> `2026-02-24 12:00:00`
+- `tomorrow` -> `2026-02-26 12:00:00`
+- `yesterday evening` -> `2026-02-24 20:00:00`
 
 ### 7.3 Timezone Rule
 - Store timestamps in UTC.
@@ -128,13 +150,15 @@ Atomic rules (v0):
 
 ### 8.1 LLM vs Script Responsibilities
 LLM responsibilities:
-- Compact raw text into atomic notes.
-- Extract temporal hints when required.
+- Group raw text by temporal hint (`groups[].hint`).
+- Split group content into atomic memory items (`groups[].items[]`).
+- Use only allowed hint labels; use `default` when uncertain.
 
 Script responsibilities:
-- Parse explicit timestamps.
-- Apply timestamp precedence rules.
-- Resolve inferred timestamps deterministically.
+- Parse explicit timestamps from artifact text.
+- Compute artifact anchor timestamp (`exact/day/upload`).
+- Resolve each group hint to concrete timestamp deterministically.
+- Apply group timestamp to every item in that group.
 - Validate output shape and required fields.
 - Write DB rows and embeddings.
 - Link memories to health by timestamp rules.

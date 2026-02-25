@@ -40,6 +40,42 @@ REQUIRED_TABLES = (
 ISO_DATETIME_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})?\b")
 ISO_DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 HOUR_MIN_RE = re.compile(r"\b(\d{1,2}):(\d{2})\b")
+AT_TIME_RE = re.compile(r"^at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$", re.IGNORECASE)
+
+HINT_DAYPART_HOURS = {
+    "morning": 9,
+    "afternoon": 15,
+    "evening": 20,
+    "night": 22,
+}
+
+HINT_LITERAL_SET = {
+    "default",
+    "today",
+    "now",
+    "morning",
+    "afternoon",
+    "evening",
+    "night",
+    "yesterday",
+    "yesterday morning",
+    "yesterday afternoon",
+    "yesterday evening",
+    "yesterday night",
+    "tomorrow",
+    "tomorrow morning",
+    "tomorrow afternoon",
+    "tomorrow evening",
+    "tomorrow night",
+    "last night",
+    "tonight",
+    "this morning",
+    "this afternoon",
+    "this evening",
+    "at time",
+    "yesterday at time",
+    "tomorrow at time",
+}
 
 app = FastAPI(title="mynah_agent", version="0.5.0")
 
@@ -179,13 +215,42 @@ class ReportGenerateRequest(BaseModel):
     caller: str = Field(default="local_ui", min_length=1, max_length=64)
 
 
-class CompactedNote(BaseModel):
-    text: str = Field(min_length=1, max_length=600)
-    ts_hint: str | None = Field(default=None, max_length=120)
+class TemporalGroup(BaseModel):
+    hint: str = Field(min_length=1, max_length=64)
+    items: list[str] = Field(min_length=1, max_length=128)
+
+    @field_validator("hint")
+    @classmethod
+    def normalize_and_validate_hint(cls, value: str) -> str:
+        hint = " ".join(value.lower().strip().split())
+        if hint in HINT_LITERAL_SET:
+            return hint
+        if AT_TIME_RE.match(hint):
+            return hint
+        if hint.startswith("yesterday ") and AT_TIME_RE.match(hint[len("yesterday "):]):
+            return hint
+        if hint.startswith("tomorrow ") and AT_TIME_RE.match(hint[len("tomorrow "):]):
+            return hint
+        raise ValueError(f"unsupported hint: {value}")
+
+    @field_validator("items")
+    @classmethod
+    def normalize_items(cls, values: list[str]) -> list[str]:
+        out: list[str] = []
+        for value in values:
+            item = value.strip()
+            if not item:
+                continue
+            if len(item) > 600:
+                raise ValueError("item too long")
+            out.append(item)
+        if not out:
+            raise ValueError("items must contain at least one non-empty entry")
+        return out
 
 
 class CompactionOutput(BaseModel):
-    notes: list[CompactedNote] = Field(min_length=1, max_length=256)
+    groups: list[TemporalGroup] = Field(min_length=1, max_length=64)
 
 
 def _db_conn() -> psycopg.Connection:
@@ -538,36 +603,33 @@ def _extract_explicit_candidates(content: str, tz: ZoneInfo) -> list[datetime]:
     return sorted(candidates)[:32]
 
 
-def _resolve_relative_hint(hint: str, upload_ts: datetime, tz: ZoneInfo) -> datetime | None:
-    lower = hint.lower().strip()
-    local_upload = upload_ts.astimezone(tz)
-    target_day = local_upload.date()
-    if "yesterday" in lower:
-        target_day -= timedelta(days=1)
-    elif "tomorrow" in lower:
-        target_day += timedelta(days=1)
+def _normalize_hint(hint: str) -> str:
+    return " ".join(hint.lower().strip().split())
 
-    hour = None
-    minute = 0
-    hm = HOUR_MIN_RE.search(lower)
-    if hm:
-        hour = int(hm.group(1))
-        minute = int(hm.group(2))
-    elif "morning" in lower:
-        hour = 9
-    elif "afternoon" in lower:
-        hour = 15
-    elif "evening" in lower:
-        hour = 19
-    elif "night" in lower:
-        hour = 22
-    elif "noon" in lower or "midday" in lower:
-        hour = 12
 
-    if hour is None or hour < 0 or hour > 23:
+def _parse_at_time(hint: str) -> tuple[int, int] | None:
+    text = _normalize_hint(hint)
+    match = AT_TIME_RE.match(text)
+    if not match:
         return None
-    local = datetime(target_day.year, target_day.month, target_day.day, hour, minute, tzinfo=tz)
-    return local.astimezone(timezone.utc)
+    hour = int(match.group(1))
+    minute = int(match.group(2) or "0")
+    ampm = match.group(3)
+
+    if ampm:
+        if hour < 1 or hour > 12:
+            return None
+        if ampm.lower() == "am":
+            hour = 0 if hour == 12 else hour
+        else:
+            hour = 12 if hour == 12 else hour + 12
+    else:
+        if hour < 0 or hour > 23:
+            return None
+
+    if minute < 0 or minute > 59:
+        return None
+    return hour, minute
 
 
 def _day_anchor(upload_ts: datetime, tz: ZoneInfo) -> datetime:
@@ -576,9 +638,15 @@ def _day_anchor(upload_ts: datetime, tz: ZoneInfo) -> datetime:
     return local_anchor.astimezone(timezone.utc)
 
 
-def _resolve_note_ts(
+def _with_local_time(base_ts: datetime, tz: ZoneInfo, day_delta: int, hour: int, minute: int) -> datetime:
+    local = base_ts.astimezone(tz)
+    target_day = local.date() + timedelta(days=day_delta)
+    target = datetime(target_day.year, target_day.month, target_day.day, hour, minute, tzinfo=tz)
+    return target.astimezone(timezone.utc)
+
+
+def _resolve_default_anchor_ts(
     *,
-    ts_hint: str | None,
     source_ts: datetime | None,
     day_scope: bool,
     upload_ts: datetime,
@@ -591,14 +659,68 @@ def _resolve_note_ts(
         return _day_anchor(upload_ts, tz), "day"
     if explicit_candidates:
         return explicit_candidates[0], "exact"
-    if ts_hint:
-        explicit = _parse_iso_token(ts_hint, tz)
-        if explicit is not None:
-            return explicit, "exact"
-        inferred = _resolve_relative_hint(ts_hint, upload_ts, tz)
-        if inferred is not None:
-            return inferred, "inferred"
     return upload_ts, "upload"
+
+
+def _resolve_group_hint_ts(
+    *,
+    hint: str,
+    anchor_ts: datetime,
+    anchor_mode: str,
+    tz: ZoneInfo,
+) -> tuple[datetime, str]:
+    normalized = _normalize_hint(hint)
+
+    explicit = _parse_iso_token(normalized, tz)
+    if explicit is not None:
+        return explicit, "exact"
+
+    if normalized in {"default", "today", "now"}:
+        return anchor_ts, anchor_mode
+    if normalized in {"morning", "this morning"}:
+        return _with_local_time(anchor_ts, tz, 0, HINT_DAYPART_HOURS["morning"], 0), "inferred"
+    if normalized in {"afternoon", "this afternoon"}:
+        return _with_local_time(anchor_ts, tz, 0, HINT_DAYPART_HOURS["afternoon"], 0), "inferred"
+    if normalized in {"evening", "this evening"}:
+        return _with_local_time(anchor_ts, tz, 0, HINT_DAYPART_HOURS["evening"], 0), "inferred"
+    if normalized in {"night", "tonight"}:
+        return _with_local_time(anchor_ts, tz, 0, HINT_DAYPART_HOURS["night"], 0), "inferred"
+
+    if normalized == "yesterday":
+        return _with_local_time(anchor_ts, tz, -1, 12, 0), "inferred"
+    if normalized == "tomorrow":
+        return _with_local_time(anchor_ts, tz, 1, 12, 0), "inferred"
+    if normalized == "yesterday morning":
+        return _with_local_time(anchor_ts, tz, -1, HINT_DAYPART_HOURS["morning"], 0), "inferred"
+    if normalized == "yesterday afternoon":
+        return _with_local_time(anchor_ts, tz, -1, HINT_DAYPART_HOURS["afternoon"], 0), "inferred"
+    if normalized == "yesterday evening":
+        return _with_local_time(anchor_ts, tz, -1, HINT_DAYPART_HOURS["evening"], 0), "inferred"
+    if normalized in {"last night", "yesterday night"}:
+        return _with_local_time(anchor_ts, tz, -1, HINT_DAYPART_HOURS["night"], 0), "inferred"
+    if normalized == "tomorrow morning":
+        return _with_local_time(anchor_ts, tz, 1, HINT_DAYPART_HOURS["morning"], 0), "inferred"
+    if normalized == "tomorrow afternoon":
+        return _with_local_time(anchor_ts, tz, 1, HINT_DAYPART_HOURS["afternoon"], 0), "inferred"
+    if normalized == "tomorrow evening":
+        return _with_local_time(anchor_ts, tz, 1, HINT_DAYPART_HOURS["evening"], 0), "inferred"
+    if normalized == "tomorrow night":
+        return _with_local_time(anchor_ts, tz, 1, HINT_DAYPART_HOURS["night"], 0), "inferred"
+
+    if normalized.startswith("yesterday "):
+        parsed = _parse_at_time(normalized[len("yesterday "):])
+        if parsed:
+            return _with_local_time(anchor_ts, tz, -1, parsed[0], parsed[1]), "inferred"
+    if normalized.startswith("tomorrow "):
+        parsed = _parse_at_time(normalized[len("tomorrow "):])
+        if parsed:
+            return _with_local_time(anchor_ts, tz, 1, parsed[0], parsed[1]), "inferred"
+
+    parsed = _parse_at_time(normalized)
+    if parsed:
+        return _with_local_time(anchor_ts, tz, 0, parsed[0], parsed[1]), "inferred"
+
+    return anchor_ts, anchor_mode
 
 
 def _build_compaction_prompt(
@@ -608,11 +730,17 @@ def _build_compaction_prompt(
 ) -> str:
     explicit = [item.isoformat() for item in explicit_candidates[:10]]
     prompt = (
-        "You are MYNAH memory compactor. Return ONLY one JSON object with key 'notes'.\n"
-        "Format: {\"notes\":[{\"text\":\"...\",\"ts_hint\":null}]}\n"
-        "Each note must be atomic, concise, and faithful to content.\n"
-        "Do not invent facts and do not merge unrelated topics.\n"
-        "ts_hint may be null, an explicit timestamp, or a relative phrase.\n\n"
+        "You are MYNAH temporal grouping extractor. Return ONLY one JSON object with key 'groups'.\n"
+        "Format: {\"groups\":[{\"hint\":\"default\",\"items\":[\"...\"]}]}\n"
+        "Each item must be atomic, concise, and faithful to content.\n"
+        "Do not invent facts. Do not merge unrelated actions into one item.\n"
+        "Every item must appear in exactly one group.\n"
+        "Allowed hint values: default, today, now, morning, afternoon, evening, night,\n"
+        "yesterday, yesterday morning, yesterday afternoon, yesterday evening, yesterday night, last night,\n"
+        "tomorrow, tomorrow morning, tomorrow afternoon, tomorrow evening, tomorrow night, tonight,\n"
+        "this morning, this afternoon, this evening, at H:MM, at H am/pm,\n"
+        "yesterday at H:MM, yesterday at H am/pm, tomorrow at H:MM, tomorrow at H am/pm.\n"
+        "If unsure, use hint='default'.\n\n"
         f"source_type: {artifact['source_type']}\n"
         f"day_scope: {artifact['day_scope']}\n"
         f"timezone: {artifact['timezone']}\n"
@@ -737,41 +865,47 @@ def _process_artifact(artifact_id: str, caller: str) -> dict[str, Any]:
 
     tz = ZoneInfo(artifact["timezone"])
     explicit_candidates = _extract_explicit_candidates(artifact["content"], tz)
+    anchor_ts, anchor_mode = _resolve_default_anchor_ts(
+        source_ts=artifact["source_ts"],
+        day_scope=artifact["day_scope"],
+        upload_ts=artifact["upload_ts"],
+        explicit_candidates=explicit_candidates,
+        tz=tz,
+    )
     notes_created = 0
     links_created = 0
     note_ids: list[int] = []
 
     with _db_conn() as conn:
         with conn.cursor() as cur:
-            for item in compacted.notes:
-                resolved_ts, ts_mode = _resolve_note_ts(
-                    ts_hint=item.ts_hint,
-                    source_ts=artifact["source_ts"],
-                    day_scope=artifact["day_scope"],
-                    upload_ts=artifact["upload_ts"],
-                    explicit_candidates=explicit_candidates,
+            for group in compacted.groups:
+                group_ts, group_mode = _resolve_group_hint_ts(
+                    hint=group.hint,
+                    anchor_ts=anchor_ts,
+                    anchor_mode=anchor_mode,
                     tz=tz,
                 )
-                embedding = _ollama_embed(item.text)
-                cur.execute(
-                    """
-                    INSERT INTO memory.note(ts, ts_mode, text, embedding, source_artifact_id, created_at)
-                    VALUES(%s, %s, %s, %s::vector, %s, %s)
-                    RETURNING id
-                    """,
-                    (
-                        resolved_ts,
-                        ts_mode,
-                        item.text.strip(),
-                        _vector_literal(embedding),
-                        artifact_id,
-                        datetime.now(timezone.utc),
-                    ),
-                )
-                note_id = int(cur.fetchone()[0])
-                note_ids.append(note_id)
-                notes_created += 1
-                links_created += _link_note_to_health(cur, note_id, resolved_ts, ts_mode)
+                for item_text in group.items:
+                    embedding = _ollama_embed(item_text)
+                    cur.execute(
+                        """
+                        INSERT INTO memory.note(ts, ts_mode, text, embedding, source_artifact_id, created_at)
+                        VALUES(%s, %s, %s, %s::vector, %s, %s)
+                        RETURNING id
+                        """,
+                        (
+                            group_ts,
+                            group_mode,
+                            item_text.strip(),
+                            _vector_literal(embedding),
+                            artifact_id,
+                            datetime.now(timezone.utc),
+                        ),
+                    )
+                    note_id = int(cur.fetchone()[0])
+                    note_ids.append(note_id)
+                    notes_created += 1
+                    links_created += _link_note_to_health(cur, note_id, group_ts, group_mode)
 
             cur.execute(
                 "UPDATE core.ingest_artifact SET processing_state = 'processed', processed_at = %s WHERE id = %s",
