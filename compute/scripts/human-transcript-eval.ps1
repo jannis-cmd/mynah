@@ -168,7 +168,7 @@ try:
             "transcript_hint": transcript,
             "source": "human_longitudinal_eval",
         }
-        post("http://mynahd:8001/ingest/audio", ingest_payload, timeout=20)
+        post("http://mynah_agent:8002/ingest/audio", ingest_payload, timeout=20)
         ingest_ok += 1
         audio_ids.append(note_id)
 

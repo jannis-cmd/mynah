@@ -28,8 +28,7 @@ Priority order:
 `day_scope=true` forces all extracted notes to one day anchor timestamp.
 
 ## Runtime Stack
-- `mynahd` (ingest and summaries)
-- `mynah_agent` (compaction, timestamp resolution, linking)
+- `mynah_agent` (ingest, compaction, timestamp resolution, linking, reports)
 - `mynah_ui` (local display)
 - `postgres` + `pgvector`
 - `ollama`

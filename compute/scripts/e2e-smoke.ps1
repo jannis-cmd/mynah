@@ -10,8 +10,6 @@ import json
 import urllib.request
 
 for url in (
-    "http://mynahd:8001/health",
-    "http://mynahd:8001/ready",
     "http://mynah_agent:8002/health",
     "http://mynah_agent:8002/ready",
     "http://mynah_ui:8000/health",
@@ -26,6 +24,7 @@ Write-Host "== hr ingest and summary =="
 import json
 import time
 import urllib.request
+from datetime import datetime, timezone
 from datetime import datetime, timezone
 
 run_id = int(time.time())
@@ -42,17 +41,17 @@ payload = {
     ],
 }
 req = urllib.request.Request(
-    "http://mynahd:8001/ingest/hr",
+    "http://mynah_agent:8002/ingest/hr",
     data=json.dumps(payload).encode("utf-8"),
     headers={"Content-Type": "application/json"},
     method="POST",
 )
 with urllib.request.urlopen(req, timeout=15) as resp:
     ingest = json.loads(resp.read().decode("utf-8"))
-assert ingest["accepted_samples"] == 3, ingest
+assert ingest["inserted"] == 3, ingest
 print("ingest", ingest)
 
-with urllib.request.urlopen(f"http://mynahd:8001/summary/hr/today?date={day}&device_id={device_id}", timeout=10) as resp:
+with urllib.request.urlopen(f"http://mynah_agent:8002/summary/hr/today?date={day}&device_id={device_id}", timeout=10) as resp:
     summary = json.loads(resp.read().decode("utf-8"))
 assert summary["sample_count"] == 3, summary
 print("summary", summary)
@@ -81,7 +80,7 @@ audio_payload = {
     "source": "e2e_smoke",
 }
 ingest_req = urllib.request.Request(
-    "http://mynahd:8001/ingest/audio",
+    "http://mynah_agent:8002/ingest/audio",
     data=json.dumps(audio_payload).encode("utf-8"),
     headers={"Content-Type": "application/json"},
     method="POST",
@@ -123,7 +122,15 @@ markdown = (
 )
 req = urllib.request.Request(
     "http://mynah_agent:8002/pipeline/me_md/process",
-    data=json.dumps({"markdown": markdown, "source": "e2e_smoke", "caller": "e2e_smoke"}).encode("utf-8"),
+    data=json.dumps({
+        "source_type": "manual_text",
+        "markdown": markdown,
+        "upload_ts": datetime.now(timezone.utc).isoformat(),
+        "source_ts": None,
+        "day_scope": False,
+        "timezone": "UTC",
+        "caller": "e2e_smoke"
+    }).encode("utf-8"),
     headers={"Content-Type": "application/json"},
     method="POST",
 )

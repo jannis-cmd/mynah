@@ -32,7 +32,7 @@ Out of scope for now:
 - Simplified spec is locked.
 - Implemented checks in code:
   - unit tests for timestamp precedence and retry fail-closed logic (`test_pipeline_rules.py`)
-  - runtime smoke checks for daemon ingest and summary endpoints in Docker
+  - runtime smoke checks for unified agent ingest and summary endpoints in Docker
   - runtime smoke check for artifact process fail-closed behavior when required model is missing
 - Full acceptance test suite for this model is still in progress.
 

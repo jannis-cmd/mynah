@@ -3,6 +3,7 @@ import os
 import re
 import urllib.error
 import urllib.request
+from base64 import b64decode
 from datetime import date, datetime, time, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
@@ -12,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 from psycopg.rows import dict_row
 
 SERVICE = os.getenv("MYNAH_SERVICE_NAME", "mynah_agent")
@@ -30,7 +31,7 @@ ISO_DATETIME_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?(?:Z
 ISO_DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 HOUR_MIN_RE = re.compile(r"\b(\d{1,2}):(\d{2})\b")
 
-app = FastAPI(title="mynah_agent", version="0.4.0")
+app = FastAPI(title="mynah_agent", version="0.5.0")
 
 
 class ArtifactIngestRequest(BaseModel):
@@ -93,6 +94,70 @@ class MeMarkdownProcessRequest(BaseModel):
         return value
 
 
+class HrSampleIn(BaseModel):
+    ts: datetime
+    bpm: int = Field(ge=20, le=260)
+    quality: int = Field(default=100, ge=0, le=100)
+
+    @field_validator("ts")
+    @classmethod
+    def normalize_ts(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            raise ValueError("ts must include timezone information")
+        return value.astimezone(timezone.utc)
+
+
+class HrIngestRequest(BaseModel):
+    device_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._:-]+$")
+    samples: list[HrSampleIn] = Field(min_length=1, max_length=3600)
+    source: str = Field(default="simulated", max_length=64)
+
+
+class HealthSampleIn(BaseModel):
+    ts: datetime
+    metric: str = Field(min_length=1, max_length=64)
+    value_num: float | None = None
+    value_json: dict[str, Any] | None = None
+    unit: str | None = Field(default=None, max_length=32)
+    quality: int | None = Field(default=None, ge=0, le=100)
+    source: str | None = Field(default=None, max_length=64)
+
+    @field_validator("ts")
+    @classmethod
+    def normalize_ts(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            raise ValueError("ts must include timezone information")
+        return value.astimezone(timezone.utc)
+
+    @model_validator(mode="after")
+    def ensure_value(self) -> "HealthSampleIn":
+        if self.value_num is None and self.value_json is None:
+            raise ValueError("value_num or value_json is required")
+        return self
+
+
+class HealthIngestRequest(BaseModel):
+    source: str = Field(min_length=1, max_length=64)
+    samples: list[HealthSampleIn] = Field(min_length=1, max_length=3600)
+
+
+class AudioIngestRequest(BaseModel):
+    note_id: str | None = Field(default=None, min_length=4, max_length=80, pattern=r"^[A-Za-z0-9._:-]+$")
+    device_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._:-]+$")
+    start_ts: datetime
+    end_ts: datetime
+    audio_b64: str = Field(min_length=8, max_length=1_500_000)
+    transcript_hint: str | None = Field(default=None, max_length=100_000)
+    source: str = Field(default="simulated", max_length=64)
+
+    @field_validator("start_ts", "end_ts")
+    @classmethod
+    def normalize_ts(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+            raise ValueError("timestamp must include timezone information")
+        return value.astimezone(timezone.utc)
+
+
 class AudioTranscribeRequest(BaseModel):
     audio_id: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9._:-]+$")
     caller: str = Field(default="local_ui", min_length=1, max_length=64)
@@ -128,6 +193,26 @@ def _init_db() -> None:
             cur.execute("CREATE SCHEMA IF NOT EXISTS core")
             cur.execute("CREATE SCHEMA IF NOT EXISTS health")
             cur.execute("CREATE SCHEMA IF NOT EXISTS memory")
+
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS health.sample (
+                    id BIGSERIAL PRIMARY KEY,
+                    ts TIMESTAMPTZ NOT NULL,
+                    metric TEXT NOT NULL,
+                    value_num DOUBLE PRECISION,
+                    value_json JSONB,
+                    unit TEXT,
+                    quality INTEGER,
+                    source TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    UNIQUE(source, metric, ts),
+                    CHECK (value_num IS NOT NULL OR value_json IS NOT NULL)
+                )
+                """
+            )
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_health_sample_ts ON health.sample(ts)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_health_sample_metric_ts ON health.sample(metric, ts)")
 
             cur.execute(
                 """
@@ -181,6 +266,7 @@ def _init_db() -> None:
                 )
                 """
             )
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_audio_note_start_ts ON core.audio_note(start_ts)")
 
             cur.execute(
                 """
@@ -306,6 +392,74 @@ def _extract_json_object(text: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("JSON root must be object")
     return payload
+
+
+def _audio_artifact_paths(note_id: str, start_ts: datetime) -> tuple[Path, Path]:
+    audio_dir = ARTIFACTS_PATH / "audio" / start_ts.strftime("%Y") / start_ts.strftime("%m")
+    transcript_fixture_dir = ARTIFACTS_PATH / "transcript_fixtures"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    transcript_fixture_dir.mkdir(parents=True, exist_ok=True)
+    return audio_dir / f"{note_id}.wav", transcript_fixture_dir / f"{note_id}.txt"
+
+
+def _persist_audio_note(
+    cur: psycopg.Cursor,
+    *,
+    note_id: str,
+    device_id: str,
+    start_ts: datetime,
+    end_ts: datetime,
+    audio_bytes: bytes,
+    transcript_hint: str | None,
+    source: str,
+    ingested_at: datetime,
+) -> dict[str, Any]:
+    audio_sha = sha256(audio_bytes).hexdigest()
+    audio_path, transcript_fixture_path = _audio_artifact_paths(note_id, start_ts)
+    audio_path.write_bytes(audio_bytes)
+
+    transcript_hint_path_str = None
+    if transcript_hint:
+        transcript_fixture_path.write_text(transcript_hint.strip(), encoding="utf-8")
+        transcript_hint_path_str = str(transcript_fixture_path)
+
+    cur.execute(
+        """
+        INSERT INTO core.audio_note(
+            id, device_id, start_ts, end_ts, audio_path, audio_sha256, audio_bytes,
+            transcript_hint_path, source, ingested_at
+        )
+        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT(id) DO UPDATE SET
+            device_id=excluded.device_id,
+            start_ts=excluded.start_ts,
+            end_ts=excluded.end_ts,
+            audio_path=excluded.audio_path,
+            audio_sha256=excluded.audio_sha256,
+            audio_bytes=excluded.audio_bytes,
+            transcript_hint_path=excluded.transcript_hint_path,
+            source=excluded.source,
+            ingested_at=excluded.ingested_at
+        """,
+        (
+            note_id,
+            device_id,
+            start_ts,
+            end_ts,
+            str(audio_path),
+            audio_sha,
+            len(audio_bytes),
+            transcript_hint_path_str,
+            source,
+            ingested_at,
+        ),
+    )
+    return {
+        "audio_id": note_id,
+        "audio_bytes": len(audio_bytes),
+        "audio_sha256": audio_sha,
+        "transcript_hint_available": bool(transcript_hint_path_str),
+    }
 
 
 def _insert_artifact(req: ArtifactIngestRequest) -> str:
@@ -869,6 +1023,179 @@ def ready() -> dict[str, Any]:
     }
 
 
+@app.post("/ingest/hr")
+def ingest_hr(payload: HrIngestRequest) -> dict[str, Any]:
+    ingested_at = datetime.now(timezone.utc)
+    inserted = 0
+    with _db_conn() as conn:
+        with conn.cursor() as cur:
+            for sample in payload.samples:
+                cur.execute(
+                    """
+                    INSERT INTO health.sample(ts, metric, value_num, unit, quality, source, created_at)
+                    VALUES(%s, 'hr', %s, 'bpm', %s, %s, %s)
+                    ON CONFLICT(source, metric, ts) DO UPDATE SET
+                        value_num=excluded.value_num,
+                        unit=excluded.unit,
+                        quality=excluded.quality
+                    """,
+                    (sample.ts, float(sample.bpm), sample.quality, payload.device_id, ingested_at),
+                )
+                inserted += 1
+        conn.commit()
+
+    return {
+        "status": "ok",
+        "device_id": payload.device_id,
+        "inserted": inserted,
+        "source": payload.source,
+        "ingested_at": ingested_at.isoformat(),
+    }
+
+
+@app.post("/ingest/health")
+def ingest_health(payload: HealthIngestRequest) -> dict[str, Any]:
+    ingested_at = datetime.now(timezone.utc)
+    inserted = 0
+    with _db_conn() as conn:
+        with conn.cursor() as cur:
+            for sample in payload.samples:
+                source = sample.source or payload.source
+                cur.execute(
+                    """
+                    INSERT INTO health.sample(ts, metric, value_num, value_json, unit, quality, source, created_at)
+                    VALUES(%s, %s, %s, %s::jsonb, %s, %s, %s, %s)
+                    ON CONFLICT(source, metric, ts) DO UPDATE SET
+                        value_num=excluded.value_num,
+                        value_json=excluded.value_json,
+                        unit=excluded.unit,
+                        quality=excluded.quality
+                    """,
+                    (
+                        sample.ts,
+                        sample.metric,
+                        sample.value_num,
+                        json.dumps(sample.value_json) if sample.value_json is not None else None,
+                        sample.unit,
+                        sample.quality,
+                        source,
+                        ingested_at,
+                    ),
+                )
+                inserted += 1
+        conn.commit()
+
+    return {"status": "ok", "inserted": inserted, "ingested_at": ingested_at.isoformat()}
+
+
+@app.post("/ingest/audio")
+def ingest_audio(payload: AudioIngestRequest) -> dict[str, Any]:
+    if payload.end_ts <= payload.start_ts:
+        raise HTTPException(status_code=422, detail="end_ts must be later than start_ts")
+    try:
+        audio_bytes = b64decode(payload.audio_b64, validate=True)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=422, detail="audio_b64 must be valid base64") from exc
+    if not audio_bytes:
+        raise HTTPException(status_code=422, detail="decoded audio payload is empty")
+
+    note_id = payload.note_id or str(uuid4())
+    ingested_at = datetime.now(timezone.utc)
+    with _db_conn() as conn:
+        with conn.cursor() as cur:
+            persisted = _persist_audio_note(
+                cur,
+                note_id=note_id,
+                device_id=payload.device_id,
+                start_ts=payload.start_ts,
+                end_ts=payload.end_ts,
+                audio_bytes=audio_bytes,
+                transcript_hint=payload.transcript_hint,
+                source=payload.source,
+                ingested_at=ingested_at,
+            )
+        conn.commit()
+
+    return {
+        "status": "ok",
+        "audio_id": note_id,
+        "device_id": payload.device_id,
+        "audio_bytes": persisted["audio_bytes"],
+        "audio_sha256": persisted["audio_sha256"],
+        "transcript_hint_available": persisted["transcript_hint_available"],
+        "ingested_at": ingested_at.isoformat(),
+    }
+
+
+@app.get("/summary/hr/today")
+def summary_hr_today(date: str | None = Query(default=None), device_id: str | None = Query(default=None)) -> dict[str, Any]:
+    if date:
+        try:
+            day = datetime.fromisoformat(f"{date}T00:00:00+00:00")
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD") from exc
+    else:
+        day = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    day_end = day.replace(hour=23, minute=59, second=59, microsecond=999999)
+    params: list[Any] = [day, day_end]
+    where = "metric = 'hr' AND ts >= %s AND ts <= %s"
+    if device_id:
+        where += " AND source = %s"
+        params.append(device_id)
+
+    with _db_conn() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT
+                    COUNT(*) AS sample_count,
+                    MIN(value_num) AS min_bpm,
+                    MAX(value_num) AS max_bpm,
+                    ROUND(AVG(value_num)::numeric, 2) AS avg_bpm
+                FROM health.sample
+                WHERE {where}
+                """,
+                params,
+            )
+            row = cur.fetchone()
+
+    return {
+        "status": "ok",
+        "date": day.date().isoformat(),
+        "device_id": device_id,
+        "sample_count": int(row["sample_count"] or 0),
+        "min_bpm": int(row["min_bpm"]) if row["min_bpm"] is not None else None,
+        "max_bpm": int(row["max_bpm"]) if row["max_bpm"] is not None else None,
+        "avg_bpm": float(row["avg_bpm"]) if row["avg_bpm"] is not None else None,
+    }
+
+
+@app.get("/summary/audio/recent")
+def summary_audio_recent(limit: int = Query(default=10, ge=1, le=100)) -> dict[str, Any]:
+    with _db_conn() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT
+                    a.id,
+                    a.device_id,
+                    a.start_ts,
+                    a.end_ts,
+                    a.audio_bytes,
+                    CASE WHEN t.audio_id IS NULL THEN 0 ELSE 1 END AS transcript_ready
+                FROM core.audio_note a
+                LEFT JOIN core.transcript t ON t.audio_id = a.id
+                ORDER BY a.start_ts DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            rows = cur.fetchall()
+
+    return {"status": "ok", "entries": rows}
+
+
 @app.post("/pipeline/artifacts/ingest")
 def pipeline_artifacts_ingest(req: ArtifactIngestRequest) -> dict[str, str]:
     artifact_id = _insert_artifact(req)
@@ -944,6 +1271,10 @@ def tools_report_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict[st
 def status() -> dict[str, Any]:
     with _db_conn() as conn:
         with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM health.sample")
+            health_count = int(cur.fetchone()[0])
+            cur.execute("SELECT COUNT(*) FROM core.audio_note")
+            audio_count = int(cur.fetchone()[0])
             cur.execute("SELECT COUNT(*) FROM core.ingest_artifact")
             artifact_count = int(cur.fetchone()[0])
             cur.execute("SELECT COUNT(*) FROM memory.note")
@@ -955,6 +1286,8 @@ def status() -> dict[str, Any]:
     return {
         "service": SERVICE,
         "database": "postgres",
+        "health_sample_count_total": health_count,
+        "audio_note_count_total": audio_count,
         "artifact_count": artifact_count,
         "memory_note_count": note_count,
         "memory_health_link_count": link_count,

@@ -10,7 +10,6 @@ from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 
 SERVICE = os.getenv("MYNAH_SERVICE_NAME", "mynah_ui")
-DAEMON_URL = os.getenv("MYNAH_DAEMON_URL", "http://mynahd:8001")
 AGENT_URL = os.getenv("MYNAH_AGENT_URL", "http://mynah_agent:8002")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -43,15 +42,13 @@ def health() -> dict:
 
 @app.get("/status")
 def status() -> JSONResponse:
-    daemon_state, daemon_detail = _probe(f"{DAEMON_URL}/ready")
-    agent_state, agent_detail = _probe(f"{AGENT_URL}/ready")
-    hr_today = _fetch_json(f"{DAEMON_URL}/summary/hr/today")
-    audio_recent = _fetch_json(f"{DAEMON_URL}/summary/audio/recent?limit=5")
+    pipeline_state, pipeline_detail = _probe(f"{AGENT_URL}/ready")
+    hr_today = _fetch_json(f"{AGENT_URL}/summary/hr/today")
+    audio_recent = _fetch_json(f"{AGENT_URL}/summary/audio/recent?limit=5")
     reports_recent = _fetch_json(f"{AGENT_URL}/tools/report_recent?limit=5")
     payload = {
         "service": SERVICE,
-        "daemon": {"state": daemon_state, "detail": daemon_detail},
-        "agent": {"state": agent_state, "detail": agent_detail},
+        "pipeline": {"state": pipeline_state, "detail": pipeline_detail},
         "hr_today": hr_today,
         "audio_recent": audio_recent,
         "reports_recent": reports_recent,
@@ -62,20 +59,17 @@ def status() -> JSONResponse:
 
 @app.get("/")
 def home(request: Request):
-    daemon_state, daemon_detail = _probe(f"{DAEMON_URL}/ready")
-    agent_state, agent_detail = _probe(f"{AGENT_URL}/ready")
-    hr_today = _fetch_json(f"{DAEMON_URL}/summary/hr/today") or {}
-    audio_recent = _fetch_json(f"{DAEMON_URL}/summary/audio/recent?limit=5") or {"entries": []}
+    pipeline_state, pipeline_detail = _probe(f"{AGENT_URL}/ready")
+    hr_today = _fetch_json(f"{AGENT_URL}/summary/hr/today") or {}
+    audio_recent = _fetch_json(f"{AGENT_URL}/summary/audio/recent?limit=5") or {"entries": []}
     reports_recent = _fetch_json(f"{AGENT_URL}/tools/report_recent?limit=5") or {"entries": []}
     return templates.TemplateResponse(
         request=request,
         name="index.html",
         context={
             "service": SERVICE,
-            "daemon_state": daemon_state,
-            "daemon_detail": daemon_detail,
-            "agent_state": agent_state,
-            "agent_detail": agent_detail,
+            "pipeline_state": pipeline_state,
+            "pipeline_detail": pipeline_detail,
             "hr_today": hr_today,
             "audio_recent": audio_recent,
             "reports_recent": reports_recent,

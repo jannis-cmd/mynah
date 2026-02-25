@@ -72,7 +72,7 @@ for theme in THEMES:
             "transcript_hint": transcript,
             "source": "quality_eval",
         }
-        post("http://mynahd:8001/ingest/audio", ingest_payload, timeout=15)
+        post("http://mynah_agent:8002/ingest/audio", ingest_payload, timeout=15)
         transcribed = post(
             "http://mynah_agent:8002/pipeline/audio/transcribe",
             {"audio_id": note_id, "caller": CALLER, "force": True},

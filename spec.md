@@ -1,6 +1,6 @@
 # MYNAH Specification
 
-Version: 0.4
+Version: 0.5
 Status: Active
 
 ## 1. One-Line Definition
@@ -40,8 +40,8 @@ Stores compacted atomic memory notes as plain text plus vector embeddings.
 ### 4.3 Link Layer
 Links memory notes to health data by timestamp alignment rules.
 
-### 4.4 Conversational Layer
-Uses read/query tools over stored data, but does not own canonical writes.
+### 4.4 Unified Pipeline Service
+One service (`mynah_agent`) owns ingest, memory pipeline, and reporting APIs.
 
 ## 5. Data Model (Minimal)
 
@@ -174,7 +174,7 @@ Use separate models for generation and embeddings.
 
 ## 14. Implementation Boundary
 - Memory pipeline owns canonical writes.
-- Conversational agent reads via tools and can trigger pipeline operations, but does not write DB rows directly.
+- Ingest and summary APIs are part of the same service (`mynah_agent`) to keep the stack minimal.
 
 ## 15. Testing State
 - Full acceptance suite for this simplified architecture is agreed but will be implemented next.
