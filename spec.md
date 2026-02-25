@@ -150,7 +150,7 @@ Framework is model-agnostic via configuration.
 
 ### 10.1 Default test models
 - Generation model: `qwen2.5:7b`
-- Embedding model: `qwen2.5:7b` with `dimensions=1024`
+- Embedding model: `qwen3-embedding:0.6b` with `dimensions=1024`
 
 ### 10.2 Separation rule
 Separate models are preferred, but the same local model is allowed in constrained mode to minimize setup overhead.

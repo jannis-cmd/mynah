@@ -40,7 +40,7 @@ Readiness:
 
 Defaults for testing:
 - generation: `qwen2.5:7b`
-- embedding: `qwen2.5:7b` with `OLLAMA_EMBED_DIM=1024`
+- embedding: `qwen3-embedding:0.6b` with `OLLAMA_EMBED_DIM=1024`
 
 ## Quick Start
 Linux/macOS:
