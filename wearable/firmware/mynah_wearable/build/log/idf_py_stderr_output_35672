@@ -1,0 +1,291 @@
+Command: C:\Users\janni\.espressif\python_env\idf5.5_py3.13_env\Scripts\python.exe C:\Users\janni\esp\v5.5.1\esp-idf\tools/idf_monitor.py -p COM4 -b 115200 --toolchain-prefix riscv32-esp-elf- --target esp32c3 --revision 3 --decode-panic backtrace C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\mynah_wearable.elf C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf --force-color -m 'C:\Users\janni\.espressif\python_env\idf5.5_py3.13_env\Scripts\python.exe' 'C:\Users\janni\esp\v5.5.1\esp-idf\tools\idf.py' '-p' 'COM4'
+[0;33m--- Warning: GDB cannot open serial ports accessed as COMx[0m
+[0;33m--- Using \\.\COM4 instead...[0m
+[0;33m--- esp-idf-monitor 1.8.0 on \\.\COM4 115200[0m
+[0;33m--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H[0m
+[0m--- 0x4005882a: [0;33mmemcpy[0m[0m in [0;32mROM[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c[0m[0m:[1;31m49[0m
+[0;33m--- Stack dump detected[0m
+[0m--- 0x4038be36: [0;33mpanic_abort[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m483[0m
+[0m--- 0x4038bdf4: [0;33mesp_vApplicationTickHook[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/freertos_hooks.c[0m[0m:[1;31m31[0m
+[0m--- 0x40380001: [0;33m_vector_table[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/riscv/vectors_intc.S[0m[0m:[1;31m54[0m
+[0;33m
+--- Backtrace:
+
+[0m
+[0m--- 0x4038bf1c: [0;33mesp_restart_noos[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c[0m[0m:[1;31m115[0m
+[0m--- 0x403cbf10: [0;33mesp_bootloader_get_description[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x403ce710: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x403cbf1a: [0;33mcall_start_cpu0[0m[0m at [0;32mC:/Users/janni/esp/v5.5.1/esp-idf/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m25[0m
+[0m--- 0x4200b3b6: [0;33mapp_main[0m[0m at [0;32mC:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c[0m[0m:[1;31m1105[0m
+[0m--- 0x4038bdeb: [0;33m_esp_error_check_failed[0m[0m 

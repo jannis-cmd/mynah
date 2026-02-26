@@ -134,7 +134,7 @@ def _generate_transcript_batch(
     model: str,
     batch: list[TranscriptSeed],
     tz_name: str,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], int]:
     seed_payload = [
         {
             "id": item.note_id,
@@ -168,6 +168,7 @@ def _generate_transcript_batch(
 
     by_id = {item.note_id: item for item in batch}
     out: list[dict[str, Any]] = []
+    ts_mismatch_count = 0
     for row in entries:
         if not isinstance(row, dict):
             raise ValueError("entry is not an object")
@@ -177,21 +178,21 @@ def _generate_transcript_batch(
         expected = by_id[note_id]
         ts = str(row.get("ts", "")).strip()
         if ts != expected.ts.isoformat():
-            raise ValueError(f"timestamp mismatch for {note_id}: expected={expected.ts.isoformat()}, got={ts}")
+            ts_mismatch_count += 1
         text = str(row.get("text", "")).strip()
         if len(text) < 60:
             raise ValueError(f"text too short for {note_id}")
         out.append(
             {
                 "id": note_id,
-                "ts": ts,
+                "ts": expected.ts.isoformat(),
                 "timezone": tz_name,
                 "text": text,
                 "topics": expected.topics,
             }
         )
     out.sort(key=lambda x: x["id"])
-    return out
+    return out, ts_mismatch_count
 
 
 def _copy_codex_history(sessions_root: Path, output_root: Path) -> tuple[int, int]:
@@ -265,23 +266,62 @@ def main() -> None:
 
     copied_files, copied_bytes = _copy_codex_history(sessions_root=sessions_root, output_root=output_root)
 
+    checkpoint_path = output_root / "voice_transcripts.checkpoint.jsonl"
     transcripts: list[dict[str, Any]] = []
-    for i in range(0, len(seeds), args.batch_size):
-        batch = seeds[i : i + args.batch_size]
-        generated = _generate_transcript_batch(
-            ollama_container=args.ollama_container,
-            model=args.model,
-            batch=batch,
-            tz_name=args.timezone,
-        )
+    ts_mismatch_total = 0
+    if checkpoint_path.exists():
+        for raw in checkpoint_path.read_text(encoding="utf-8").splitlines():
+            raw = raw.strip()
+            if raw:
+                transcripts.append(json.loads(raw))
+        transcripts.sort(key=lambda item: item["id"])
+        print(f"resuming from checkpoint entries={len(transcripts)}")
+
+    index = len(transcripts)
+    for i in range(index):
+        expected_id = seeds[i].note_id
+        if transcripts[i]["id"] != expected_id:
+            raise RuntimeError(
+                f"checkpoint mismatch at index={i}: expected id={expected_id}, got={transcripts[i]['id']}"
+            )
+    logical_batch = 0
+    while index < len(seeds):
+        remaining = len(seeds) - index
+        batch_size = min(args.batch_size, remaining)
+        while True:
+            batch = seeds[index : index + batch_size]
+            try:
+                generated, ts_mismatch_count = _generate_transcript_batch(
+                    ollama_container=args.ollama_container,
+                    model=args.model,
+                    batch=batch,
+                    tz_name=args.timezone,
+                )
+                break
+            except Exception as exc:  # noqa: BLE001
+                if batch_size == 1:
+                    raise RuntimeError(f"failed to generate transcript for seed index={index}: {exc}") from exc
+                batch_size = max(1, batch_size // 2)
+                print(f"batch generation failed at index={index}, reducing batch_size to {batch_size}: {exc}")
+        logical_batch += 1
+        ts_mismatch_total += ts_mismatch_count
         transcripts.extend(generated)
-        print(f"generated transcript batch {i // args.batch_size + 1}: +{len(generated)} (total={len(transcripts)})")
+        with checkpoint_path.open("a", encoding="utf-8") as cp_handle:
+            for row in generated:
+                cp_handle.write(json.dumps(row, ensure_ascii=True) + "\n")
+        index += len(generated)
+        print(
+            f"generated transcript batch {logical_batch}: "
+            f"+{len(generated)} (total={len(transcripts)}), ts_mismatch_batch={ts_mismatch_count}"
+        )
 
     transcripts.sort(key=lambda item: item["id"])
     transcript_path = output_root / "voice_transcripts.jsonl"
     with transcript_path.open("w", encoding="utf-8") as handle:
         for row in transcripts:
             handle.write(json.dumps(row, ensure_ascii=True) + "\n")
+    if checkpoint_path.exists():
+        checkpoint_path.unlink()
 
     hrv_path = output_root / "hrv_samples.csv"
     hrv_count = _generate_hrv(transcripts=transcripts, output_csv=hrv_path, seed=args.seed)
@@ -296,6 +336,7 @@ def main() -> None:
         "transcript_start_ts": transcripts[0]["ts"] if transcripts else None,
         "transcript_end_ts": transcripts[-1]["ts"] if transcripts else None,
         "hrv_sample_count": hrv_count,
+        "transcript_ts_mismatch_count_model_vs_seed": ts_mismatch_total,
         "agent_history_file_count": copied_files,
         "agent_history_total_bytes": copied_bytes,
         "paths": {

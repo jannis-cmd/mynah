@@ -12,6 +12,7 @@ MYNAH is an open-source, offline-first personal intelligence system that stores 
 - Linux runtime target (development from Linux and Windows).
 - Local-only operation (no cloud dependency in core paths).
 - Wearable ingest for health signals and voice transcripts.
+- Wearable-to-compute BLE GATT sync with chunked object transfer (`manifest -> fetch -> commit/wipe`) and compute-side hash verification.
 - Text ingest from external sources (for example chat exports).
 - `/ME` git repository as canonical human-owned record for preferences, policies, and curated decisions.
 - PostgreSQL + pgvector as runtime query/index layer.

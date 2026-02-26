@@ -21,6 +21,13 @@ Out of scope for now:
 - hardware BLE tests on physical wearable
 - cloud/remote access scenarios
 
+Wearable quick-check (manual on device):
+- boot/runtime check: firmware should log BLE advertising startup and no fatal init errors.
+- button smoke test: on debounced `pressed` event firmware toggles voice-note session and logs `voice_note_started` / `voice_note_stopped` with runtime stats.
+- HR live check: firmware emits `hr_status` every 5s so signal quality can be observed while placing/removing sensor contact.
+- HR recovery check: after repeated FIFO read errors, firmware attempts sensor re-init and logs `hr_recover start` / `hr_recover ok|failed`.
+- BLE sync check: compute triggers `POST /sync/wearable_ble`, pulls manifest objects via GATT chunk fetch, validates SHA256, writes to DB, and sends commit/wipe.
+
 ## 2. Required Pipeline Checks
 - Raw artifact ingest with required fields and extraction version metadata.
 - Temporal grouping output (`groups[].hint + groups[].items[]`) is validated and mapped deterministically to timestamps.
@@ -48,6 +55,7 @@ Out of scope for now:
 - Implemented checks in code:
   - API contract route coverage and readiness semantics tests (`test_api_contract.py`)
   - unit tests for group-hint timestamp mapping and retry fail-closed logic (`test_pipeline_rules.py`)
+  - BLE sync parser and chunk transfer tests with fake transport (`test_ble_sync.py`)
   - runtime smoke checks for unified agent ingest and summary endpoints in Docker
   - timestamp mode smoke test scripts (`compute/scripts/timestamp-modes-smoke.ps1`, `.sh`)
   - retrieval runtime endpoints:

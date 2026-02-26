@@ -1,0 +1,2363 @@
+Command: C:\Users\janni\.espressif\python_env\idf5.5_py3.13_env\Scripts\python.exe C:\Users\janni\esp\v5.5.1\esp-idf\tools/idf_monitor.py -p COM4 -b 115200 --toolchain-prefix riscv32-esp-elf- --target esp32c3 --revision 3 --decode-panic backtrace C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\mynah_wearable.elf C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf --force-color -m 'C:\Users\janni\.espressif\python_env\idf5.5_py3.13_env\Scripts\python.exe' 'C:\Users\janni\esp\v5.5.1\esp-idf\tools\idf.py' '-p' 'COM4'
+[0;32mI (227) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 sizeESP-ROM:esp32c3-api1-20210207[0m
+Build:Feb  7 2021
+rst:0x15 (USB_UART_CHIP_RESET),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4005882a
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (25) boot: chip revision: v0.4[0m
+[0;32mI (25) boot: efuse block revision: v1.3[0m
+[0;32mI (28) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (32) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (36) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (44) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (53) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (66) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (79) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (92) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (102) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (128) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (130) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (137) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (227) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (247) cpu_start: Pro cpu start user code[0m
+[0;32mI (247) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (247) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (256) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (261) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (269) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (273) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (277) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (281) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (287) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (292) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (359) main_task: Started on CPU0[0m
+[0;32mI (359) main_task: Calling app_main()[0m
+[0;32mI (379) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (389) max30102: part id: 0xFF[0m
+[1;31mE (439) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (246) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (227) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (246) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (227) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (292) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (246) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (246) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (246) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (227) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (292) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (246) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (246) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable: value has been optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/app_startup.c:208
+#6  0x4038d020 in vPortTaskWrapper (pxCode=<optimized out>, pvParameters=<optimized out>) at C:/Users/janni/esp/v5.5.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c:255
+
+
+
+ELF file SHA256: 0a5f67393
+
+Rebooting...
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x9 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4038bf1c
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x15ac
+load:0x403cbf10,len:0xc34
+load:0x403ce710,len:0x2fd0
+entry 0x403cbf1a
+[0;32mI (24) boot: ESP-IDF v5.5.1 2nd stage bootloader[0m
+[0;32mI (24) boot: compile time Feb 26 2026 13:27:42[0m
+[0;32mI (24) boot: chip revision: v0.4[0m
+[0;32mI (24) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32c3: SPI Speed      : 80MHz[0m
+[0;32mI (31) boot.esp32c3: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32c3: SPI Flash Size : 4MB[0m
+[0;32mI (39) boot: Enabling RNG early entropy source...[0m
+[0;32mI (43) boot: Partition Table:[0m
+[0;32mI (46) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (52) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (59) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (65) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (72) boot:  3 factory          factory app      00 00 00020000 00100000[0m
+[0;32mI (78) boot:  4 ota_0            OTA app          00 10 00120000 00100000[0m
+[0;32mI (85) boot:  5 ota_1            OTA app          00 11 00220000 00100000[0m
+[0;32mI (91) boot:  6 storage          Unknown data     01 82 00320000 00080000[0m
+[0;32mI (98) boot: End of partition table[0m
+[0;32mI (101) boot: Defaulting to factory image[0m
+[0;32mI (105) esp_image: segment 0: paddr=00020020 vaddr=3c070020 size=165e0h ( 91616) map[0m
+[0;32mI (127) esp_image: segment 1: paddr=00036608 vaddr=3fc95800 size=02524h (  9508) load[0m
+[0;32mI (129) esp_image: segment 2: paddr=00038b34 vaddr=40380000 size=074e4h ( 29924) load[0m
+[0;32mI (136) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=6bb30h (441136) map[0m
+[0;32mI (209) esp_image: segment 4: paddr=000abb58 vaddr=403874e4 size=0e1e0h ( 57824) load[0m
+[0;32mI (220) esp_image: segment 5: paddr=000b9d40 vaddr=50000000 size=00020h (    32) load[0m
+[0;32mI (226) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (227) boot: Disabling RNG early entropy source...[0m
+[0;32mI (238) cpu_start: Unicore app[0m
+[0;32mI (246) cpu_start: Pro cpu start user code[0m
+[0;32mI (246) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (246) app_init: Application information:[0m
+[0;32mI (247) app_init: Project name:     mynah_wearable[0m
+[0;32mI (251) app_init: App version:      915b2b7-dirty[0m
+[0;32mI (255) app_init: Compile time:     Feb 26 2026 14:57:13[0m
+[0;32mI (260) app_init: ELF file SHA256:  0a5f67393...[0m
+[0;32mI (265) app_init: ESP-IDF:          v5.5.1[0m
+[0;32mI (268) efuse_init: Min chip rev:     v0.3[0m
+[0;32mI (272) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (276) efuse_init: Chip rev:         v0.4[0m
+[0;32mI (280) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (286) heap_init: At 3FCB5AA0 len 0000A560 (41 KiB): RAM[0m
+[0;32mI (291) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM[0m
+[0;32mI (298) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM[0m
+[0;32mI (304) heap_init: At 50000020 len 00001FC8 (7 KiB): RTCRAM[0m
+[0;32mI (310) spi_flash: detected chip: generic[0m
+[0;32mI (313) spi_flash: flash io: dio[0m
+[0;33mW (316) i2s(legacy): legacy i2s driver is deprecated, please migrate to use driver/i2s_std.h, driver/i2s_pdm.h or driver/i2s_tdm.h[0m
+[0;33mW (327) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`[0m
+[0;32mI (337) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (343) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (350) coexist: coex firmware version: b0bcc39[0m
+[0;32mI (354) coexist: coexist rom version 9387209[0m
+[0;32mI (358) main_task: Started on CPU0[0m
+[0;32mI (358) main_task: Calling app_main()[0m
+[0;32mI (378) mynah_fw: spiffs mounted total=474641 used=0[0m
+[0;32mI (388) max30102: part id: 0xFF[0m
+[1;31mE (438) mynah_fw: ble_init(899): esp_nimble_hci_init failed[0m
+ESP_ERROR_CHECK failed: esp_err_t 0xffffffff (ESP_FAIL) at 0x4200b3b6
+file: "./main/main.c" line 1105
+func: app_main
+expression: ble_init()
+
+abort() was called at PC 0x4038bdeb on core 0
+Core  0 register dump:
+MEPC    : 0x4038be36  RA      : 0x4038bdf4  SP      : 0x3fcb86e0  GP      : 0x3fc96000  
+TP      : 0x3fcb87d0  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000004  S1      : 0x3fcb8744  A0      : 0x3fcb870c  A1      : 0x3fcb8742  
+A2      : 0x00000000  A3      : 0x3fcb8739  A4      : 0x00000001  A5      : 0x3fcb4000  
+A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x00000000  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+MHARTID : 0x00000000  
+
+add symbol table from file "C:\Users\janni\workspace\PRIVAT\mynah\wearable\firmware\mynah_wearable\build\bootloader\bootloader.elf"
+warning: could not convert 'main' from the host encoding (CP1252) to UTF-32.
+This normally should not happen, please file a bug report.
+panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+483	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/panic.c:483
+#1  0x4038bdf4 in esp_system_abort (details=details@entry=0x3fcb870c "abort() was called at PC 0x4038bdeb on core 0") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x40393086 in abort () at C:/Users/janni/esp/v5.5.1/esp-idf/components/newlib/src/abort.c:38
+#3  0x4038bdee in _esp_error_check_failed (rc=<optimized out>, file=file@entry=0x3c07544c "", line=line@entry=1105, function=function@entry=0x3c080088 <__func__.4> "", expression=expression@entry=0x3c0754b4 "") at C:/Users/janni/esp/v5.5.1/esp-idf/components/esp_system/esp_err.c:49
+#4  0x4200b3ba in app_main () at C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/main/main.c:1105
+#5  0x4206acf8 in main_task (args=<error reading variable:

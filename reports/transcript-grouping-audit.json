@@ -1,0 +1,115 @@
+{
+  "generated_at_utc": "2026-02-26T07:22:04.857239+00:00",
+  "processed_artifact_count": 123,
+  "artifact_with_accepted_compaction": 123,
+  "total_notes": 230,
+  "total_group_items": 230,
+  "hint_counts": {
+    "default": 49,
+    "evening": 9,
+    "tomorrow morning": 2,
+    "this morning": 5,
+    "today": 29,
+    "tomorrow": 4,
+    "tonight": 20,
+    "morning": 13,
+    "this evening": 2,
+    "now": 4,
+    "afternoon": 4,
+    "night": 5,
+    "last night": 3,
+    "this afternoon": 3,
+    "yesterday evening": 1,
+    "yesterday": 2
+  },
+  "hint_quality_counts": {
+    "ok": 149,
+    "weak": 6
+  },
+  "ts_mode_counts": {
+    "exact": 154,
+    "inferred": 76
+  },
+  "note_type_counts": {
+    "observation": 230
+  },
+  "text_alignment_mismatches": 0,
+  "default_only_artifacts_with_temporal_cues": 8,
+  "default_only_artifact_ids": [
+    "c4f11d29-9ae1-4981-a0be-7cf2c98bb20d",
+    "a71b6741-9f2b-44ec-aa71-ebd2e66f744d",
+    "44582447-3d2c-457c-b12c-7d6b7f2f9023",
+    "6cf040d5-63d4-4a9a-a74e-999e7bdb5571",
+    "152a5794-492e-4ff2-9331-8fe452c1c0e9",
+    "6cf420af-faca-48e3-9236-26cfcecd6db3",
+    "fa3f3f10-bf15-4ac4-a587-37e72e07c944",
+    "8d87f722-7d12-4c19-8708-b39e95355b5b"
+  ],
+  "weak_hint_examples": [
+    {
+      "artifact_id": "93d77d68-2b94-4103-a2c1-52fa960d906e",
+      "source_ts": "2025-08-16 22:15:00+00",
+      "hint": "evening",
+      "reason": "evening hint without cue",
+      "content_excerpt": "Had a late meeting. Drank some water to stay hydrated, but I\u2019m exhausted. Hoping for a good night\u2019s sleep."
+    },
+    {
+      "artifact_id": "91663bdc-4c4d-43af-a0e2-e5363d480210",
+      "source_ts": "2025-08-21 08:30:00+00",
+      "hint": "morning",
+      "reason": "morning hint without morning cue",
+      "content_excerpt": "Another day, another cup of coffee. It's 8 AM and I'm wired up already. The caffeine buzz is great for focus but I know it'll hit me hard later tonight when trying to sleep. Gotta keep an eye on that tomorrow."
+    },
+    {
+      "artifact_id": "80e3f41f-e07c-44b8-bc8c-20ff85563b36",
+      "source_ts": "2025-08-23 18:30:00+00",
+      "hint": "this evening",
+      "reason": "evening hint without cue",
+      "content_excerpt": "Today was all about brainstorming sessions. My head's spinning with ideas but also feeling a bit drained. Might need to hit the gym later tonight for some stress relief. Planning on hitting that elliptical machine, yeah."
+    },
+    {
+      "artifact_id": "5722feb0-ae94-441f-b431-af40c5eaf000",
+      "source_ts": "2025-08-24 22:35:00+00",
+      "hint": "evening",
+      "reason": "evening hint without cue",
+      "content_excerpt": "Just finished dinner, and it's a good one. Grilled chicken and veggies. Helps clear the mind for some serious coding tonight. But man, that caffeine is really starting to kick in now. Could be trouble sleeping later."
+    },
+    {
+      "artifact_id": "14a59aa8-c8cf-4056-9ba9-dc9c8f9e16b7",
+      "source_ts": "2025-10-02 14:35:00+00",
+      "hint": "this afternoon",
+      "reason": "afternoon hint without cue",
+      "content_excerpt": "Great meeting with the team today. Actually had some cool ideas for a new project proposal. Just hope it gets approved. Decided to grab an early dinner and head home earlier tonight. Need to get good rest, feeling pretty"
+    },
+    {
+      "artifact_id": "562f00a2-4be9-49dd-b142-6328a931a3e6",
+      "source_ts": "2025-10-04 08:30:00+00",
+      "hint": "morning",
+      "reason": "morning hint without morning cue",
+      "content_excerpt": "Woke up with a bit of a headache. Probably from all the stress and not enough sleep last night. Decided to get an early start on some exercise, quick jog around the park. Helps clear my head and feels good. Need that boo"
+    }
+  ],
+  "alignment_mismatch_examples": [],
+  "failed_or_pending_artifacts": [
+    {
+      "artifact_id": "98f6b0b7-73fc-43f0-a3a8-fc4b179a414e",
+      "source_ts": "2025-11-07 20:20:00+00",
+      "state": "failed"
+    },
+    {
+      "artifact_id": "fc935dd5-f3bc-4cae-baaf-92036715b53d",
+      "source_ts": "2025-11-28 18:35:00+00",
+      "state": "failed"
+    },
+    {
+      "artifact_id": "5bc21eae-3268-4b0c-80ea-198657db83d9",
+      "source_ts": "2025-12-04 09:15:00+00",
+      "state": "pending"
+    }
+  ],
+  "rejected_error_categories": {
+    "json_parse": 15,
+    "other": 2,
+    "unsupported_hint": 3
+  }
+}

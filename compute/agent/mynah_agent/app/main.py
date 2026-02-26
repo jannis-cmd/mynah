@@ -16,6 +16,8 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 from psycopg.rows import dict_row
 
+from app.ble_sync import sync_wearable_ble_blocking
+
 SERVICE = os.getenv("MYNAH_SERVICE_NAME", "mynah_agent")
 DATABASE_DSN = os.getenv("MYNAH_DATABASE_DSN", "postgresql://mynah:mynah@postgres:5432/mynah")
 ARTIFACTS_PATH = Path(os.getenv("MYNAH_ARTIFACTS_PATH", "/home/appuser/data/artifacts"))
@@ -233,6 +235,13 @@ class AudioTranscribeRequest(BaseModel):
     audio_id: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9._:-]+$")
     caller: str = Field(default="local_ui", min_length=1, max_length=64)
     force: bool = Field(default=False)
+
+
+class BleWearableSyncRequest(BaseModel):
+    address: str | None = Field(default=None, min_length=2, max_length=64)
+    name_prefix: str = Field(default="MYNAH-WEARABLE", min_length=1, max_length=64)
+    chunk_size: int = Field(default=200, ge=1, le=240)
+    device_id_override: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class ReportGenerateRequest(BaseModel):
@@ -692,6 +701,105 @@ def _persist_audio_note(
         "audio_bytes": len(audio_bytes),
         "audio_sha256": audio_sha,
         "transcript_hint_available": bool(transcript_hint_path_str),
+    }
+
+
+def _extract_device_id_from_info(info: str, override: str | None) -> str:
+    if override:
+        return override
+    for token in info.split("|"):
+        token = token.strip()
+        if token.startswith("device_id="):
+            value = token.split("=", 1)[1].strip()
+            if value:
+                return value
+    return "wearable_ble"
+
+
+def _datetime_from_ms(ts_ms: int) -> datetime:
+    # If timestamp is not epoch-like, use ingest-time fallback.
+    if ts_ms < 100_000_000_000:
+        return datetime.now(timezone.utc)
+    return datetime.fromtimestamp(ts_ms / 1000.0, tz=timezone.utc)
+
+
+def _ingest_ble_objects(sync_result: dict[str, Any], *, device_id_override: str | None) -> dict[str, Any]:
+    device_id = _extract_device_id_from_info(str(sync_result.get("device_info", "")), device_id_override)
+    now = datetime.now(timezone.utc)
+
+    hr_inserted = 0
+    audio_inserted = 0
+    audio_ids: list[str] = []
+
+    with _db_conn() as conn:
+        with conn.cursor() as cur:
+            for obj in sync_result.get("objects", []):
+                kind = str(obj.get("kind", ""))
+                payload = obj.get("payload", b"")
+                if not isinstance(payload, (bytes, bytearray)):
+                    continue
+                raw = bytes(payload)
+
+                if kind == "hr":
+                    text = raw.decode("utf-8", errors="replace")
+                    for line in text.splitlines():
+                        line = line.strip()
+                        if not line or line.startswith("ts_ms,"):
+                            continue
+                        parts = [p.strip() for p in line.split(",")]
+                        if len(parts) < 5:
+                            continue
+                        try:
+                            ts_ms = int(parts[0])
+                            bpm = float(parts[1])
+                            quality = int(parts[2])
+                        except ValueError:
+                            continue
+                        cur.execute(
+                            """
+                            INSERT INTO health.sample(ts, metric, value_num, unit, quality, source, created_at)
+                            VALUES(%s, 'hr', %s, 'bpm', %s, %s, %s)
+                            ON CONFLICT(source, metric, ts) DO UPDATE SET
+                                value_num=excluded.value_num,
+                                quality=excluded.quality
+                            """,
+                            (_datetime_from_ms(ts_ms), bpm, quality, device_id, now),
+                        )
+                        hr_inserted += 1
+                    continue
+
+                if kind == "audio":
+                    object_id = str(obj.get("object_id", "audio_unknown"))
+                    meta = obj.get("meta", {}) if isinstance(obj.get("meta"), dict) else {}
+                    start_ms = int(meta.get("start_ms", 0))
+                    end_ms = int(meta.get("end_ms", 0))
+                    start_ts = _datetime_from_ms(start_ms)
+                    end_ts = _datetime_from_ms(end_ms)
+                    if end_ts <= start_ts:
+                        end_ts = start_ts + timedelta(seconds=1)
+                    note_id = f"ble-{object_id.replace('.', '_')}-{start_ms}"
+                    persisted = _persist_audio_note(
+                        cur,
+                        note_id=note_id,
+                        device_id=device_id,
+                        start_ts=start_ts,
+                        end_ts=end_ts,
+                        audio_bytes=raw,
+                        transcript_hint=None,
+                        source="wearable_ble",
+                        ingested_at=now,
+                    )
+                    audio_inserted += 1
+                    audio_ids.append(str(persisted["audio_id"]))
+                    continue
+
+        conn.commit()
+
+    return {
+        "device_id": device_id,
+        "hr_inserted": hr_inserted,
+        "audio_inserted": audio_inserted,
+        "audio_ids": audio_ids,
     }
 
 
@@ -1801,6 +1909,31 @@ def ingest_audio(payload: AudioIngestRequest) -> dict[str, Any]:
         "audio_sha256": persisted["audio_sha256"],
         "transcript_hint_available": persisted["transcript_hint_available"],
         "ingested_at": ingested_at.isoformat(),
+    }
+
+
+@app.post("/sync/wearable_ble")
+def sync_wearable_ble(req: BleWearableSyncRequest) -> dict[str, Any]:
+    try:
+        sync_result = sync_wearable_ble_blocking(
+            address=req.address,
+            name_prefix=req.name_prefix,
+            chunk_size=req.chunk_size,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"ble sync failed: {exc}") from exc
+
+    ingest_stats = _ingest_ble_objects(sync_result, device_id_override=req.device_id_override)
+    return {
+        "status": "ok",
+        "address": sync_result.get("address"),
+        "device_info": sync_result.get("device_info"),
+        "status_before": sync_result.get("status_before"),
+        "status_after": sync_result.get("status_after"),
+        "manifest_text": sync_result.get("manifest_text"),
+        "wipe_confirm": sync_result.get("wipe_confirm"),
+        "committed_ids": sync_result.get("committed_ids", []),
+        "ingest": ingest_stats,
     }
 
 

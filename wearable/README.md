@@ -9,9 +9,14 @@ This directory contains wearable hardware and firmware assets for the MYNAH offl
 
 ## Current Firmware Status
 - ESP-IDF scaffold created at `wearable/firmware/mynah_wearable`
-- I2C init + MAX30102 basic polling implemented
-- I2S microphone capture task scaffold implemented
-- BLE sync/profile is not implemented yet in this draft
+- I2C init + MAX30102 polling and on-device HR buffering implemented
+- I2S microphone capture + button-toggled voice-note recording to SPIFFS implemented
+- Debounced button toggle implemented (`press -> voice_note_started`, next press -> `voice_note_stopped`)
+- Runtime logs are reduced to lifecycle/status lines to keep serial monitor readable.
+- HR emits compact `hr_status` every 5 seconds (reads/valid/errors/recoveries).
+- BLE GATT sync is implemented:
+  - `device_info`, `status`, `manifest`, `fetch_req`, `fetch_data`, `commit_sync`, `wipe_confirm`, `time_sync`
+  - compute can dump unsynced HR + voice-note objects, verify SHA, then commit/wipe on-device buffers
 
 ## Suggested Wiring (current draft)
 
@@ -29,6 +34,17 @@ This directory contains wearable hardware and firmware assets for the MYNAH offl
 - `GPIO20 (D7)` -> `SD`
 
 Note: microphone pin mapping is configurable in firmware and may need adjustment based on your exact wiring.
+
+### XIAO ESP32-C3 -> Button (voice note toggle)
+- `GPIO9 (D9)` -> one button pin
+- `GND` -> other button pin
+- Input mode uses internal pull-up (`active-low`); avoid holding during reset/boot
+
+## Serial Runtime Output
+After flashing/reset, firmware prints:
+- BLE startup/advertising state
+- button events and voice-note start/stop metadata
+- periodic `hr_status` lines (`reads`, `valid`, `errs`, `recoveries`, latest values)
 
 ## Build and Flash
 See `wearable/firmware/README.md` for ESP-IDF setup and flash commands.

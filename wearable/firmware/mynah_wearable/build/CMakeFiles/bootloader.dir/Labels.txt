@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/build/CMakeFiles/bootloader
+C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/build/CMakeFiles/bootloader.rule
+C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/build/CMakeFiles/bootloader-complete.rule
+C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+C:/Users/janni/workspace/PRIVAT/mynah/wearable/firmware/mynah_wearable/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule

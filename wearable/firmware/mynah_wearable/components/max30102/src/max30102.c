@@ -1,5 +1,6 @@
 #include "max30102.h"
 
+#include "esp_check.h"
 #include "esp_log.h"
 
 #define TAG "max30102"

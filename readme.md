@@ -44,6 +44,7 @@ All retrieval results are returned with citations (source row/path + chunk metad
 Runtime APIs:
 - `POST /pipeline/search/reindex/memory_notes` builds/refreshes derived vector rows.
 - `POST /tools/retrieve` runs retrieval with mode + limit + optional health context.
+- `POST /sync/wearable_ble` pulls wearable BLE objects (HR + voice notes), verifies hashes, ingests rows, then commits/wipes wearable buffers.
 
 ## Context and Trust Controls
 - Context assembly is script-owned and budgeted by profile (not model-autonomous).
@@ -75,6 +76,10 @@ Windows PowerShell:
 ```powershell
 ./compute/scripts/stack-up.ps1
 ```
+
+Wearable BLE sync (after stack is up):
+- Linux/macOS: `sh compute/scripts/wearable-ble-sync.sh`
+- Windows PowerShell: `./compute/scripts/wearable-ble-sync.ps1`
 
 Stop:
 
