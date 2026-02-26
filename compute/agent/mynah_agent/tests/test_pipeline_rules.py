@@ -89,3 +89,13 @@ def test_compaction_retries_fail_closed_on_model_error(monkeypatch: pytest.Monke
 def test_temporal_item_note_type_is_strict() -> None:
     with pytest.raises(ValueError, match="unsupported note_type"):
         main.TemporalItem(text="Some text", note_type="unknown")
+
+
+def test_retrieval_request_normalizes_query() -> None:
+    req = main.RetrievalRequest(query="   sleep trends   ", mode="hybrid")
+    assert req.query == "sleep trends"
+
+
+def test_query_has_recency_hint_detects_tokens() -> None:
+    assert main._query_has_recency_hint("How was my sleep today?")
+    assert not main._query_has_recency_hint("show long term baseline")

@@ -7,7 +7,7 @@ from base64 import b64decode
 from datetime import date, datetime, time, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -31,6 +31,8 @@ EXACT_WINDOW_MIN = int(os.getenv("MYNAH_LINK_WINDOW_MIN", "90"))
 REQUIRED_TABLES = (
     "core.ingest_artifact",
     "core.compaction_attempt",
+    "search.embedding_model",
+    "search.vector_index",
     "health.sample",
     "core.audio_note",
     "core.transcript",
@@ -79,6 +81,25 @@ HINT_LITERAL_SET = {
     "tomorrow at time",
 }
 NOTE_TYPE_SET = {"event", "fact", "observation", "feeling", "decision_context", "task"}
+QUERY_MODE_SET = {"lexical", "semantic", "hybrid", "deep"}
+FUSION_RRF_K = 60.0
+MAX_CANDIDATE_LIMIT = 200
+DEFAULT_CANDIDATE_MULTIPLIER = 4
+MAX_QUERY_EXPANSIONS = 4
+DEFAULT_CONTEXT_PROFILE = "balanced"
+
+RECENCY_HINT_TOKENS = {
+    "today",
+    "yesterday",
+    "recent",
+    "recently",
+    "this week",
+    "last week",
+    "this month",
+    "tonight",
+    "this morning",
+    "this evening",
+}
 
 app = FastAPI(title="mynah_agent", version="0.5.0")
 
@@ -272,6 +293,46 @@ class CompactionOutput(BaseModel):
     groups: list[TemporalGroup] = Field(min_length=1, max_length=64)
 
 
+class QueryExpansionOutput(BaseModel):
+    variants: list[str] = Field(default_factory=list, max_length=MAX_QUERY_EXPANSIONS)
+
+    @field_validator("variants")
+    @classmethod
+    def normalize_variants(cls, values: list[str]) -> list[str]:
+        out: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            normalized = " ".join(value.strip().split())
+            if not normalized:
+                continue
+            key = normalized.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(normalized)
+            if len(out) >= MAX_QUERY_EXPANSIONS:
+                break
+        return out
+
+
+class RetrievalRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=1000)
+    mode: Literal["lexical", "semantic", "hybrid", "deep"] = "hybrid"
+    limit: int = Field(default=8, ge=1, le=50)
+    include_health: bool = False
+    query_expansion: bool = True
+    rerank: bool | None = None
+    context_profile: str = Field(default=DEFAULT_CONTEXT_PROFILE, min_length=1, max_length=64)
+
+    @field_validator("query")
+    @classmethod
+    def normalize_query(cls, value: str) -> str:
+        query = " ".join(value.strip().split())
+        if not query:
+            raise ValueError("query cannot be empty")
+        return query
+
+
 def _db_conn() -> psycopg.Connection:
     return psycopg.connect(DATABASE_DSN, autocommit=False)
 
@@ -408,6 +469,126 @@ def _ollama_embed(text: str) -> list[float]:
 
 def _vector_literal(embedding: list[float]) -> str:
     return "[" + ",".join(f"{value:.10f}" for value in embedding) + "]"
+
+
+def _embedding_model_id() -> str:
+    return f"ollama:{OLLAMA_EMBED_MODEL}:{OLLAMA_EMBED_DIM}"
+
+
+def _ensure_embedding_model_row(cur: psycopg.Cursor) -> str:
+    model_id = _embedding_model_id()
+    cur.execute(
+        """
+        INSERT INTO search.embedding_model(id, provider, dimension, status, created_at)
+        VALUES(%s, 'ollama', %s, 'active', %s)
+        ON CONFLICT(id) DO UPDATE SET
+            provider = excluded.provider,
+            dimension = excluded.dimension,
+            status = 'active'
+        """,
+        (model_id, OLLAMA_EMBED_DIM, datetime.now(timezone.utc)),
+    )
+    return model_id
+
+
+def _upsert_vector_index_row(
+    cur: psycopg.Cursor,
+    *,
+    note_id: int,
+    text: str,
+    embedding: list[float],
+    ts_mode: str,
+    note_type: str,
+    source_artifact_id: str,
+) -> None:
+    model_id = _ensure_embedding_model_row(cur)
+    cur.execute(
+        """
+        INSERT INTO search.vector_index(
+            target_table, target_id, chunk_idx, text_content, embedding, embedding_model_id,
+            is_active, invalidated_at, extra_metadata, created_at
+        )
+        VALUES(
+            'memory.note', %s, 0, %s, %s::vector, %s,
+            TRUE, NULL, %s::jsonb, %s
+        )
+        ON CONFLICT(target_table, target_id, chunk_idx, embedding_model_id) DO UPDATE SET
+            text_content = excluded.text_content,
+            embedding = excluded.embedding,
+            is_active = TRUE,
+            invalidated_at = NULL,
+            extra_metadata = excluded.extra_metadata
+        """,
+        (
+            str(note_id),
+            text,
+            _vector_literal(embedding),
+            model_id,
+            json.dumps(
+                {
+                    "ts_mode": ts_mode,
+                    "note_type": note_type,
+                    "source_artifact_id": source_artifact_id,
+                }
+            ),
+            datetime.now(timezone.utc),
+        ),
+    )
+
+
+def _upsert_all_memory_note_vectors(cur: psycopg.Cursor) -> dict[str, Any]:
+    model_id = _ensure_embedding_model_row(cur)
+    cur.execute(
+        """
+        SELECT COUNT(*)
+        FROM search.vector_index
+        WHERE target_table = 'memory.note' AND embedding_model_id = %s
+        """,
+        (model_id,),
+    )
+    before = int(cur.fetchone()[0])
+    now = datetime.now(timezone.utc)
+    cur.execute(
+        """
+        INSERT INTO search.vector_index(
+            target_table, target_id, chunk_idx, text_content, embedding, embedding_model_id,
+            is_active, invalidated_at, extra_metadata, created_at
+        )
+        SELECT
+            'memory.note',
+            n.id::text,
+            0,
+            n.text,
+            n.embedding,
+            %s,
+            TRUE,
+            NULL,
+            jsonb_build_object(
+                'ts_mode', n.ts_mode,
+                'note_type', n.note_type,
+                'source_artifact_id', n.source_artifact_id
+            ),
+            %s
+        FROM memory.note n
+        ON CONFLICT(target_table, target_id, chunk_idx, embedding_model_id) DO UPDATE SET
+            text_content = excluded.text_content,
+            embedding = excluded.embedding,
+            is_active = TRUE,
+            invalidated_at = NULL,
+            extra_metadata = excluded.extra_metadata
+        """,
+        (model_id, now),
+    )
+    cur.execute(
+        """
+        SELECT COUNT(*)
+        FROM search.vector_index
+        WHERE target_table = 'memory.note' AND embedding_model_id = %s
+        """,
+        (model_id,),
+    )
+    after = int(cur.fetchone()[0])
+    return {"embedding_model_id": model_id, "before": before, "after": after, "delta": after - before}
 
 
 def _extract_json_object(text: str) -> dict[str, Any]:
@@ -820,6 +1001,347 @@ def _link_note_to_health(cur: psycopg.Cursor, note_id: int, note_ts: datetime, t
     return inserted
 
 
+def _query_has_recency_hint(query: str) -> bool:
+    query_lc = query.casefold()
+    return any(token in query_lc for token in RECENCY_HINT_TOKENS)
+
+
+def _recency_boost(ts: datetime, *, enable: bool) -> float:
+    if not enable:
+        return 0.0
+    age_days = max((datetime.now(timezone.utc) - ts).total_seconds() / 86400.0, 0.0)
+    return 0.05 / (1.0 + age_days)
+
+
+def _build_query_expansion_prompt(query: str) -> str:
+    return (
+        "Generate concise query variants for local retrieval.\n"
+        "Return ONLY JSON object with key variants as array of short strings.\n"
+        "Rules:\n"
+        "- Keep meaning equivalent to original query.\n"
+        "- Focus on synonyms and alternate phrasing.\n"
+        "- Max 4 variants.\n"
+        "- Do not include numbering.\n"
+        f"Original query: {query}\n"
+    )
+
+
+def _expand_query_variants(query: str) -> list[str]:
+    prompt = _build_query_expansion_prompt(query)
+    output = _ollama_generate(prompt, response_format="json")
+    parsed = _extract_json_object(output)
+    expansion = QueryExpansionOutput.model_validate(parsed)
+    out = [item for item in expansion.variants if item.casefold() != query.casefold()]
+    return out[:MAX_QUERY_EXPANSIONS]
+
+
+def _retrieve_lexical_rows(cur: psycopg.Cursor, *, query: str, limit: int) -> list[dict[str, Any]]:
+    cur.execute(
+        """
+        SELECT
+            n.id AS note_id,
+            n.ts,
+            n.ts_mode,
+            n.note_type,
+            n.text,
+            n.source_artifact_id,
+            ts_rank_cd(to_tsvector('simple', n.text), plainto_tsquery('simple', %s))::double precision AS lexical_score
+        FROM memory.note n
+        WHERE to_tsvector('simple', n.text) @@ plainto_tsquery('simple', %s)
+        ORDER BY lexical_score DESC, n.ts DESC, n.id DESC
+        LIMIT %s
+        """,
+        (query, query, limit),
+    )
+    rows = [dict(row) for row in cur.fetchall()]
+    if rows:
+        return rows
+
+    tokens = [token for token in re.findall(r"[a-z0-9]{2,}", query.casefold()) if token]
+    if not tokens:
+        return []
+    cur.execute(
+        """
+        SELECT
+            n.id AS note_id,
+            n.ts,
+            n.ts_mode,
+            n.note_type,
+            n.text,
+            n.source_artifact_id,
+            (
+                SELECT COUNT(*)::double precision
+                FROM unnest(%s::text[]) AS t(token)
+                WHERE position(t.token in lower(n.text)) > 0
+            ) AS lexical_hits
+        FROM memory.note n
+        WHERE EXISTS (
+            SELECT 1
+            FROM unnest(%s::text[]) AS t(token)
+            WHERE position(t.token in lower(n.text)) > 0
+        )
+        ORDER BY lexical_hits DESC, n.ts DESC, n.id DESC
+        LIMIT %s
+        """,
+        (tokens, tokens, limit),
+    )
+    broad_rows = []
+    token_count = max(len(tokens), 1)
+    for row in cur.fetchall():
+        item = dict(row)
+        lexical_hits = float(item.pop("lexical_hits") or 0.0)
+        item["lexical_score"] = lexical_hits / float(token_count)
+        broad_rows.append(item)
+    return broad_rows
+
+
+def _retrieve_semantic_rows(
+    cur: psycopg.Cursor,
+    *,
+    query_vector_literal: str,
+    embedding_model_id: str,
+    limit: int,
+) -> list[dict[str, Any]]:
+    cur.execute(
+        """
+        SELECT
+            v.id AS vector_row_id,
+            v.chunk_idx,
+            n.id AS note_id,
+            n.ts,
+            n.ts_mode,
+            n.note_type,
+            n.text,
+            n.source_artifact_id,
+            (1 - (v.embedding <=> %s::vector))::double precision AS semantic_score
+        FROM search.vector_index v
+        JOIN memory.note n
+          ON v.target_table = 'memory.note'
+         AND v.target_id = n.id::text
+        WHERE v.is_active = TRUE
+          AND v.embedding_model_id = %s
+        ORDER BY v.embedding <=> %s::vector ASC, n.ts DESC, n.id DESC
+        LIMIT %s
+        """,
+        (query_vector_literal, embedding_model_id, query_vector_literal, limit),
+    )
+    return list(cur.fetchall())
+
+
+def _ensure_vector_index_ready(cur: psycopg.Cursor) -> dict[str, Any]:
+    model_id = _ensure_embedding_model_row(cur)
+    cur.execute("SELECT COUNT(*) AS count FROM memory.note")
+    memory_notes = int(cur.fetchone()["count"])
+    cur.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM search.vector_index
+        WHERE target_table = 'memory.note' AND embedding_model_id = %s AND is_active = TRUE
+        """,
+        (model_id,),
+    )
+    vector_rows = int(cur.fetchone()["count"])
+    reindex_stats = None
+    if vector_rows < memory_notes:
+        reindex_stats = _upsert_all_memory_note_vectors(cur)
+        vector_rows = int(reindex_stats["after"])
+    return {
+        "embedding_model_id": model_id,
+        "memory_note_count": memory_notes,
+        "vector_row_count": vector_rows,
+        "reindexed": reindex_stats is not None,
+        "reindex_stats": reindex_stats,
+    }
+
+
+def _new_candidate(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "note_id": int(row["note_id"]),
+        "ts": row["ts"],
+        "ts_mode": row["ts_mode"],
+        "note_type": row["note_type"],
+        "text": row["text"],
+        "source_artifact_id": row["source_artifact_id"],
+        "vector_row_id": row.get("vector_row_id"),
+        "chunk_idx": int(row.get("chunk_idx") or 0),
+        "lexical_score": 0.0,
+        "semantic_score": 0.0,
+        "lexical_rank": None,
+        "semantic_rank": None,
+        "rrf_score": 0.0,
+        "time_boost": 0.0,
+        "final_score": 0.0,
+    }
+
+
+def _accumulate_ranked_rows(
+    candidates: dict[int, dict[str, Any]],
+    rows: list[dict[str, Any]],
+    *,
+    channel: Literal["lexical", "semantic"],
+    weight: float,
+) -> None:
+    for rank, row in enumerate(rows, start=1):
+        note_id = int(row["note_id"])
+        entry = candidates.get(note_id)
+        if entry is None:
+            entry = _new_candidate(row)
+            candidates[note_id] = entry
+        if row.get("vector_row_id") is not None:
+            entry["vector_row_id"] = int(row["vector_row_id"])
+            entry["chunk_idx"] = int(row.get("chunk_idx") or 0)
+        if channel == "lexical":
+            lexical_score = float(row.get("lexical_score") or 0.0) * weight
+            entry["lexical_score"] = max(entry["lexical_score"], lexical_score)
+            if entry["lexical_rank"] is None or rank < entry["lexical_rank"]:
+                entry["lexical_rank"] = rank
+        else:
+            semantic_score = float(row.get("semantic_score") or 0.0) * weight
+            entry["semantic_score"] = max(entry["semantic_score"], semantic_score)
+            if entry["semantic_rank"] is None or rank < entry["semantic_rank"]:
+                entry["semantic_rank"] = rank
+        entry["rrf_score"] += weight * (1.0 / (FUSION_RRF_K + float(rank)))
+
+
+def _candidate_sort_key(entry: dict[str, Any]) -> tuple[float, datetime, int]:
+    return (float(entry["final_score"]), entry["ts"], int(entry["note_id"]))
+
+
+def _attach_health_context(cur: psycopg.Cursor, note_ids: list[int]) -> dict[int, dict[str, Any]]:
+    if not note_ids:
+        return {}
+    cur.execute(
+        """
+        SELECT
+            l.memory_id,
+            COUNT(*)::bigint AS sample_count,
+            MIN(h.ts) AS min_ts,
+            MAX(h.ts) AS max_ts
+        FROM memory.health_link l
+        LEFT JOIN health.sample h ON h.id = l.health_sample_id
+        WHERE l.memory_id = ANY(%s)
+        GROUP BY l.memory_id
+        """,
+        (note_ids,),
+    )
+    out: dict[int, dict[str, Any]] = {}
+    for row in cur.fetchall():
+        memory_id = int(row["memory_id"])
+        out[memory_id] = {
+            "sample_count": int(row["sample_count"] or 0),
+            "min_ts": row["min_ts"].isoformat() if row["min_ts"] else None,
+            "max_ts": row["max_ts"].isoformat() if row["max_ts"] else None,
+        }
+    return out
+
+
+def _run_retrieval(req: RetrievalRequest) -> dict[str, Any]:
+    mode = req.mode
+    candidate_limit = min(MAX_CANDIDATE_LIMIT, max(req.limit * DEFAULT_CANDIDATE_MULTIPLIER, req.limit))
+    recency_hint = _query_has_recency_hint(req.query)
+    diagnostics: dict[str, Any] = {
+        "mode": mode,
+        "query_expansion_used": False,
+        "rerank_used": False,
+        "candidate_limit": candidate_limit,
+        "context_profile": req.context_profile,
+    }
+
+    query_variants: list[tuple[str, float]] = [(req.query, 1.0)]
+    if mode == "deep" and req.query_expansion:
+        try:
+            expansions = _expand_query_variants(req.query)
+            diagnostics["query_expansion_used"] = bool(expansions)
+            diagnostics["query_expansions"] = expansions
+            for variant in expansions:
+                query_variants.append((variant, 0.7))
+        except Exception as exc:  # noqa: BLE001
+            diagnostics["query_expansion_error"] = str(exc)
+
+    with _db_conn() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            vector_state = _ensure_vector_index_ready(cur)
+            diagnostics["vector_state"] = vector_state
+
+            candidates: dict[int, dict[str, Any]] = {}
+
+            if mode in {"lexical", "hybrid", "deep"}:
+                for variant, weight in query_variants:
+                    lexical_rows = _retrieve_lexical_rows(cur, query=variant, limit=candidate_limit)
+                    _accumulate_ranked_rows(candidates, lexical_rows, channel="lexical", weight=weight)
+
+            if mode in {"semantic", "hybrid", "deep"}:
+                for variant, weight in query_variants:
+                    query_embedding = _ollama_embed(variant)
+                    query_vec = _vector_literal(query_embedding)
+                    semantic_rows = _retrieve_semantic_rows(
+                        cur,
+                        query_vector_literal=query_vec,
+                        embedding_model_id=vector_state["embedding_model_id"],
+                        limit=candidate_limit,
+                    )
+                    _accumulate_ranked_rows(candidates, semantic_rows, channel="semantic", weight=weight)
+
+            for entry in candidates.values():
+                time_boost = _recency_boost(entry["ts"], enable=recency_hint)
+                entry["time_boost"] = time_boost
+                if mode == "lexical":
+                    entry["final_score"] = float(entry["lexical_score"])
+                elif mode == "semantic":
+                    entry["final_score"] = float(entry["semantic_score"])
+                else:
+                    entry["final_score"] = float(entry["rrf_score"]) + float(time_boost)
+
+            ordered = sorted(candidates.values(), key=_candidate_sort_key, reverse=True)
+            top = ordered[: req.limit]
+            health_map = _attach_health_context(cur, [int(item["note_id"]) for item in top]) if req.include_health else {}
+
+        conn.commit()
+
+    results = []
+    for item in top:
+        note_id = int(item["note_id"])
+        vector_row_id = item.get("vector_row_id")
+        citation = {
+            "source_table": "memory.note",
+            "source_id": note_id,
+            "source_artifact_id": item["source_artifact_id"],
+            "chunk_id": (
+                f"search.vector_index:{vector_row_id}"
+                if vector_row_id is not None
+                else f"memory.note:{note_id}:{item['chunk_idx']}"
+            ),
+            "ts": item["ts"].isoformat(),
+            "ts_mode": item["ts_mode"],
+            "note_type": item["note_type"],
+        }
+        score = {
+            "lexical": round(float(item["lexical_score"]), 6),
+            "semantic": round(float(item["semantic_score"]), 6),
+            "rrf": round(float(item["rrf_score"]), 6),
+            "time_boost": round(float(item["time_boost"]), 6),
+            "final": round(float(item["final_score"]), 6),
+        }
+        entry = {
+            "note_id": note_id,
+            "text": item["text"],
+            "citation": citation,
+            "score": score,
+        }
+        if req.include_health:
+            entry["health_context"] = health_map.get(note_id, {"sample_count": 0, "min_ts": None, "max_ts": None})
+        results.append(entry)
+
+    return {
+        "status": "ok",
+        "query": req.query,
+        "mode": mode,
+        "result_count": len(results),
+        "results": results,
+        "diagnostics": diagnostics,
+    }
+
+
 def _compact_with_retries(artifact: dict[str, Any], caller: str) -> CompactionOutput:
     explicit_candidates = _extract_explicit_candidates(artifact["content"], ZoneInfo(artifact["timezone"]))
     json_schema = CompactionOutput.model_json_schema()
@@ -922,6 +1444,15 @@ def _process_artifact(artifact_id: str, caller: str) -> dict[str, Any]:
                     note_id = int(cur.fetchone()[0])
                     note_ids.append(note_id)
                     notes_created += 1
+                    _upsert_vector_index_row(
+                        cur,
+                        note_id=note_id,
+                        text=item_text.text,
+                        embedding=embedding,
+                        ts_mode=group_mode,
+                        note_type=item_text.note_type,
+                        source_artifact_id=artifact_id,
+                    )
                     links_created += _link_note_to_health(cur, note_id, group_ts, group_mode)
 
             cur.execute(
@@ -1373,6 +1904,20 @@ def tools_report_recent(limit: int = Query(default=20, ge=1, le=100)) -> dict[st
     return {"status": "ok", "entries": rows}
 
 
+@app.post("/pipeline/search/reindex/memory_notes")
+def pipeline_search_reindex_memory_notes() -> dict[str, Any]:
+    with _db_conn() as conn:
+        with conn.cursor() as cur:
+            stats = _upsert_all_memory_note_vectors(cur)
+        conn.commit()
+    return {"status": "ok", **stats}
+
+
+@app.post("/tools/retrieve")
+def tools_retrieve(req: RetrievalRequest) -> dict[str, Any]:
+    return _run_retrieval(req)
+
+
 @app.get("/status")
 def status() -> dict[str, Any]:
     with _db_conn() as conn:
@@ -1387,6 +1932,10 @@ def status() -> dict[str, Any]:
             note_count = int(cur.fetchone()[0])
             cur.execute("SELECT COUNT(*) FROM memory.health_link")
             link_count = int(cur.fetchone()[0])
+            cur.execute("SELECT COUNT(*) FROM search.vector_index WHERE target_table = 'memory.note' AND is_active = TRUE")
+            vector_index_count = int(cur.fetchone()[0])
+            cur.execute("SELECT COUNT(*) FROM search.embedding_model WHERE status = 'active'")
+            embedding_model_count = int(cur.fetchone()[0])
             cur.execute("SELECT COUNT(*) FROM core.compaction_attempt")
             attempt_count = int(cur.fetchone()[0])
     return {
@@ -1399,6 +1948,8 @@ def status() -> dict[str, Any]:
         "artifact_count": artifact_count,
         "memory_note_count": note_count,
         "memory_health_link_count": link_count,
+        "vector_index_count": vector_index_count,
+        "embedding_model_count": embedding_model_count,
         "compaction_attempt_count": attempt_count,
         "embed_dim": OLLAMA_EMBED_DIM,
     }

@@ -46,6 +46,8 @@ def test_api_route_contract_minimal_surface() -> None:
         ("POST", "/pipeline/artifacts/process/{artifact_id}"),
         ("POST", "/pipeline/me_md/process"),
         ("POST", "/pipeline/audio/transcribe"),
+        ("POST", "/pipeline/search/reindex/memory_notes"),
+        ("POST", "/tools/retrieve"),
         ("POST", "/tools/report_generate"),
         ("GET", "/tools/report_recent"),
         ("GET", "/status"),

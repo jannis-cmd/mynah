@@ -222,7 +222,7 @@ Separate models are preferred, but the same local model is allowed in constraine
 - `search.vector_index` rows carry model identity and active/invalidation state.
 - Re-indexing does not require deleting source text rows.
 
-## 14. Retrieval Contract (Use Soon)
+## 14. Retrieval Contract
 The retrieval contract is deterministic and script-controlled.
 
 ### 14.1 Query Modes
@@ -300,6 +300,10 @@ Before final response:
 - downgrade unmatched claims to `uncertain` instead of presenting as fact
 - record verification results for audit and evaluation
 
+### 14.13 Runtime Endpoints
+- `POST /pipeline/search/reindex/memory_notes`: refreshes derived vector rows for `memory.note`.
+- `POST /tools/retrieve`: retrieval API with `mode`, `limit`, and optional health context attachment.
+
 ## 15. Retry and Failure Policy
 - Validation retry limit: 3 attempts.
 - If still invalid after retries: fail closed.
@@ -317,5 +321,7 @@ Before final response:
 
 ## 17. Testing State
 - Core architecture and timestamp contract are implemented.
+- Retrieval modes (`lexical`, `semantic`, `hybrid`, `deep`) and citation-bearing retrieval output are implemented.
+- Derived vector index reindex path for existing notes is implemented.
 - Candidate lifecycle, quarantine path, `/ME` sync integrity, and vector lifecycle tests are required next.
 - Context-budget determinism and verification-before-trust tests are required before production use.

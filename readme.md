@@ -41,6 +41,9 @@ Query modes:
 - `deep`
 
 All retrieval results are returned with citations (source row/path + chunk metadata).
+Runtime APIs:
+- `POST /pipeline/search/reindex/memory_notes` builds/refreshes derived vector rows.
+- `POST /tools/retrieve` runs retrieval with mode + limit + optional health context.
 
 ## Context and Trust Controls
 - Context assembly is script-owned and budgeted by profile (not model-autonomous).

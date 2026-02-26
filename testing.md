@@ -50,6 +50,10 @@ Out of scope for now:
   - unit tests for group-hint timestamp mapping and retry fail-closed logic (`test_pipeline_rules.py`)
   - runtime smoke checks for unified agent ingest and summary endpoints in Docker
   - timestamp mode smoke test scripts (`compute/scripts/timestamp-modes-smoke.ps1`, `.sh`)
+  - retrieval runtime endpoints:
+    - `POST /pipeline/search/reindex/memory_notes`
+    - `POST /tools/retrieve`
+  - retrieval mode smoke run on ingested dataset (`lexical`, `semantic`, `hybrid`, `deep`)
 - Candidate lifecycle and quarantine integration tests are next.
 - Retrieval quality evaluation harness (recall@k/precision@k/citation coverage) is next.
 - Context-budget determinism and claim verification audit tests are next.
