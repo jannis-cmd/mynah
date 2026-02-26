@@ -7,7 +7,7 @@ It stores health time-series and personal memory artifacts locally, with determi
 - Project spec: [spec.md](spec.md)
 - Testing strategy and status: [testing.md](testing.md)
 
-## System Model (v0.8)
+## System Model (v0.9)
 - `/ME` git repo is canonical for values, policies, preferences, and curated decisions.
 - PostgreSQL stores operational rows for ingest, memory, decisions, and linking.
 - pgvector index is derived for semantic retrieval and can be rebuilt.
@@ -45,6 +45,18 @@ Runtime APIs:
 - `POST /pipeline/search/reindex/memory_notes` builds/refreshes derived vector rows.
 - `POST /tools/retrieve` runs retrieval with mode + limit + optional health context.
 - `POST /sync/wearable_ble` pulls wearable BLE objects (HR + voice notes), verifies hashes, ingests rows, then commits/wipes wearable buffers.
+- `GET /tools/transcript/recent` returns recent transcript entries.
+
+## Testing Snapshot
+As of `2026-02-26`:
+- Automated tests: `16` passing (`compute/agent/mynah_agent`, `pytest -q`).
+- Automated coverage is currently strongest for:
+  - API readiness/route contract checks
+  - timestamp mapping and compaction retry rules
+  - BLE sync protocol logic with fake transport
+- Most ingest/retrieval/report endpoints and DB-integrated flows still rely on manual smoke runs.
+
+See [testing.md](testing.md) for exact covered vs not-covered areas.
 
 ## Context and Trust Controls
 - Context assembly is script-owned and budgeted by profile (not model-autonomous).

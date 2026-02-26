@@ -42,3 +42,8 @@ Edit `main/main.c`:
 - HR algorithm is placeholder quality + synthetic BPM estimator
 - Voice-note payload is raw PCM (no on-device compression yet)
 - No battery reporting or secure key storage flow yet
+
+## Test Status (`2026-02-26`)
+- No hardware-in-the-loop automated firmware tests are in repo yet.
+- BLE protocol behavior is partially covered from compute-side unit tests (`test_ble_sync.py`) using fake transport.
+- Firmware verification is currently manual via serial logs + BLE sync smoke checks.

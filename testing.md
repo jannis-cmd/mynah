@@ -1,88 +1,75 @@
 # MYNAH Testing Strategy and Tracking
 
-This document tracks testing for the v0.8 MYNAH architecture.
+Last verified: `2026-02-26`  
+Automated run: `cd compute/agent/mynah_agent && pytest -q` -> `16 passed, 2 warnings`
 
-## 1. Scope
-In scope:
-- artifact-centric ingest and provenance (`core.ingest_artifact`, `core.artifact_meta`)
-- extraction audit + quarantine (`core.compaction_attempt`, `core.extraction_failure`)
-- timestamp grouping and deterministic mapping (`exact | day | inferred | upload`)
-- memory storage and linking (`memory.note`, `memory.health_link`, `memory.link`)
-- decision lifecycle (`decision.entry`, `decision.review`)
-- preference lifecycle and `/ME` references (`preference.fact`)
-- health metric definitions (`health.metric_def`)
-- vector lifecycle (`search.embedding_model`, `search.vector_index`)
-- hybrid retrieval pipeline (lexical + semantic + fusion + optional rerank)
-- chunking and citation integrity for retrieval results
-- deterministic context assembly with profile budgets
-- verification-before-trust (claim to citation mapping)
+This document tracks what is actually tested today for the v0.9 codebase, and what is still untested.
 
-Out of scope for now:
-- hardware BLE tests on physical wearable
-- cloud/remote access scenarios
+## 1. Automated Coverage (Pytest)
 
-Wearable quick-check (manual on device):
-- boot/runtime check: firmware should log BLE advertising startup and no fatal init errors.
-- button smoke test: on debounced `pressed` event firmware toggles voice-note session and logs `voice_note_started` / `voice_note_stopped` with runtime stats.
-- HR live check: firmware emits `hr_status` every 5s so signal quality can be observed while placing/removing sensor contact.
-- HR recovery check: after repeated FIFO read errors, firmware attempts sensor re-init and logs `hr_recover start` / `hr_recover ok|failed`.
-- BLE sync check: compute triggers `POST /sync/wearable_ble`, pulls manifest objects via GATT chunk fetch, validates SHA256, writes to DB, and sends commit/wipe.
+### `tests/test_api_contract.py` (3 tests)
+- Verifies required API route surface exists (subset contract).
+- Verifies `/ready` is core-runtime readiness (not model-strict).
+- Verifies `/ready/model` fails when required model state is missing.
 
-## 2. Required Pipeline Checks
-- Raw artifact ingest with required fields and extraction version metadata.
-- Temporal grouping output (`groups[].hint + groups[].items[]`) is validated and mapped deterministically to timestamps.
-- Candidate lifecycle is enforced (`candidate -> active/deprecated/retracted/rejected`).
-- Failed extraction outputs are quarantined in `core.extraction_failure` (no silent drop).
-- Decision writes are append-safe (`decision.entry` and later `decision.review` rows).
-- Preference rows include `/ME` reference integrity (`source_path`, `source_commit_hash`) when canonicalized.
-- Memory notes are typed (`note_type`) and written with one timestamp only.
-- Links to health data follow `ts_mode` rules.
-- Vector rows support model identity and invalidation lifecycle.
-- Hybrid score fusion is deterministic and reproducible.
-- Query expansion/rerank outputs are bounded, cached, and invalidated correctly on model/version change.
-- Retrieval responses include citation metadata (source row/path + chunk id + score components).
-- Context pack assembly follows fixed slot budgets and deterministic truncation.
-- Final answer claims are checked against retrieved evidence; unmatched claims are downgraded to uncertain.
+### `tests/test_pipeline_rules.py` (11 tests)
+- Anchor timestamp precedence (`source_ts` > day-scope anchor > explicit candidates > upload).
+- Selected group-hint timestamp mapping (`yesterday evening`, `today`, `at 2pm`).
+- Compaction retry path fails closed after max retries.
+- Strict `note_type` validation on temporal extraction items.
+- Retrieval helper behavior:
+  - query normalization
+  - recency hint detection
+  - primary model text extraction
+  - deep-mode query expansion retry with strict JSON expectation
 
-## 3. Model Checks
-- Runtime default generation model is `qwen3.5:35b-a3b`.
-- Generation and embedding model configuration is explicit (can be same or separate).
-- Embedding dimension is stable with DB vector dimensions.
-- Readiness fails if required configured models are unavailable.
+### `tests/test_ble_sync.py` (2 tests)
+- BLE manifest parsing for HR and audio objects.
+- End-to-end BLE chunk fetch/verify/commit flow with fake transport (no hardware dependency).
 
-## 4. Current Status
-- v0.8 spec is locked.
-- Implemented checks in code:
-  - API contract route coverage and readiness semantics tests (`test_api_contract.py`)
-  - unit tests for group-hint timestamp mapping and retry fail-closed logic (`test_pipeline_rules.py`)
-  - BLE sync parser and chunk transfer tests with fake transport (`test_ble_sync.py`)
-  - runtime smoke checks for unified agent ingest and summary endpoints in Docker
-  - timestamp mode smoke test scripts (`compute/scripts/timestamp-modes-smoke.ps1`, `.sh`)
-  - retrieval runtime endpoints:
-    - `POST /pipeline/search/reindex/memory_notes`
-    - `POST /tools/retrieve`
-  - deep-mode query expansion retry/validation tests (strict JSON contract)
-  - retrieval mode smoke run on ingested dataset (`lexical`, `semantic`, `hybrid`, `deep`)
-  - deep-mode smoke confirms query expansions are generated and applied with `qwen3.5:35b-a3b`
-- Candidate lifecycle and quarantine integration tests are next.
-- Retrieval quality evaluation harness (recall@k/precision@k/citation coverage) is next.
-- Context-budget determinism and claim verification audit tests are next.
+## 2. Manual/Scripted Checks (Not CI-Gated)
+- `compute/scripts/e2e-smoke.sh` / `.ps1`: stack health + key ingest/transcribe/report paths.
+- `compute/scripts/timestamp-modes-smoke.sh` / `.ps1`: DB-backed timestamp mode smoke validation.
+- `compute/scripts/wearable-ble-sync.sh` / `.ps1`: calls `POST /sync/wearable_ble` against running stack/device.
+- `compute/scripts/memory-e2e-run.sh` / `.ps1`: dataset ingest harness and report generation.
 
-## 5. Planned Acceptance Suite (Next)
-1. Artifact ingest contract + idempotency tests.
-2. Group-hint timestamp mapping unit tests.
-3. Candidate lifecycle promotion/rejection tests.
-4. Extraction failure quarantine tests.
-5. Decision entry/review split integrity tests.
-6. `/ME` canonical pointer integrity tests (`path + commit_hash`).
-7. Health metric definition validation tests.
-8. Generic link table semantics tests (`memory.link`).
-9. Vector invalidation/re-index tests.
-10. End-to-end Docker runtime tests.
-11. Chunking boundary/overlap determinism tests.
-12. Hybrid fusion reproducibility tests.
-13. Deep mode expansion + rerank boundedness tests.
-14. Retrieval citation integrity tests.
-15. Retrieval quality benchmark tests (recall@k, precision@k, citation coverage).
-16. Context profile budget/truncation determinism tests.
-17. Verification-before-trust tests (claim extraction, citation mapping, uncertainty downgrade).
+These scripts are useful operator checks but are not part of the automated pytest run.
+
+## 3. Covered vs Not Covered
+
+Currently covered:
+- Core API readiness semantics.
+- Selected deterministic timestamp mapping rules.
+- Compaction retry fail-closed behavior.
+- Basic retrieval helper logic.
+- BLE sync protocol parsing and chunk-transfer logic (fake transport).
+
+Not covered yet (or not automated yet):
+- Endpoint behavior tests for:
+  - `/ingest/hr`, `/ingest/health`, `/ingest/audio`
+  - `/pipeline/artifacts/ingest`, `/pipeline/artifacts/process/{artifact_id}`
+  - `/pipeline/me_md/process`
+  - `/pipeline/audio/transcribe`
+  - `/tools/transcript/recent`
+  - `/tools/report_generate`, `/tools/report_recent`
+  - `/status`
+  - `/sync/wearable_ble` API integration to DB write path
+- Retrieval integration correctness:
+  - SQL retrieval scoring/fusion correctness
+  - citation payload integrity under live DB data
+  - deep-mode rerank behavior and bounds
+- Data lifecycle/integrity:
+  - idempotency and replay checks
+  - extraction failure quarantine integration (`core.extraction_failure`)
+  - candidate lifecycle transitions (`candidate -> active/deprecated/retracted/rejected`)
+  - `/ME` commit pointer integrity checks
+- Firmware/hardware:
+  - on-device BLE + sensor behavior is manual only
+  - no hardware-in-the-loop automated tests
+
+## 4. Next Test Additions
+1. Add API integration tests for ingest/process/retrieval/report endpoints against a test DB.
+2. Add deterministic retrieval integration tests (lexical/semantic/hybrid/deep + citation assertions).
+3. Add lifecycle tests for extraction failure quarantine and candidate transitions.
+4. Add idempotency/replay tests for artifact ingest.
+5. Keep manual smoke scripts, but add at least one CI-safe smoke profile that runs in Docker without physical hardware.

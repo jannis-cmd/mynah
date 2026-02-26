@@ -54,6 +54,21 @@
    +--------------------+             +----------------------+
 ```
 
+## 1b) Wearable BLE Sync Path
+
+```text
+wearable buffers (HR/audio objects)
+   |
+   v
+POST /sync/wearable_ble
+   |
+   +--> read manifest
+   +--> chunk fetch object bytes
+   +--> verify sha256 per object
+   +--> ingest HR/audio rows
+   +--> commit_sync + wipe_confirm
+```
+
 ## 2) Core Table Relationships
 
 ```text
@@ -113,4 +128,11 @@ citation-bearing results
   - `POST /pipeline/search/reindex/memory_notes`
 - Retrieval endpoint:
   - `POST /tools/retrieve`
+- Transcript inspection endpoint:
+  - `GET /tools/transcript/recent`
 - `decision.*`, `preference.*`, and `core.entity*` tables are in schema and ready, but primary active loop today is artifact -> memory.note -> retrieval.
+
+## 5) Testing Coverage Snapshot (`2026-02-26`)
+
+- Automated coverage exists for selected timestamp rules, compaction retry behavior, API readiness semantics, and BLE sync protocol helpers.
+- Full DB-integrated ingest/retrieval/report flows are primarily validated through manual smoke scripts and E2E harness runs.

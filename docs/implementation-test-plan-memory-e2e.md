@@ -1,6 +1,6 @@
 # MYNAH Memory Ingest Implementation and Test Plan
 
-Status: Active (branch `experiment/memory-e2e-datasets-and-writeplan`)
+Status: Active and partially completed (last reviewed `2026-02-26`, branch `experiment/memory-e2e-datasets-and-writeplan`)
 
 ## Goal
 Implement and validate a full local ingest loop for three realistic input streams:
@@ -18,49 +18,60 @@ The loop must produce structured memory notes in PostgreSQL/pgvector through the
 - Use LLM for semantic tasks (temporal grouping + atomic note extraction).
 - No silent fallback behavior.
 
-## Phase 1: Pipeline Hardening
-- [ ] Force JSON output mode in model generation calls for compaction.
-- [ ] Keep compaction schema strict and explicit.
-- [ ] Extend extracted note payload to include `note_type` for typed memory rows.
-- [ ] Keep retry/fail-closed behavior with compaction audit trail.
-- [ ] Add/adjust unit tests for schema-driven compaction behavior.
+## Progress Summary
 
-## Phase 2: Dataset Generation
-- [ ] Create dataset root: `storage/test_data/memory_e2e/`.
-- [ ] Copy Codex session JSONL files from local `.codex/sessions` into dataset.
-- [ ] Generate `200` human transcripts with:
-  - exact timestamp per transcript
-  - consistent persona and medium technicality
-  - mixed content domains (feelings, events, food, pain, ideas, plans)
-- [ ] Generate HRV dataset (`hrv_rmssd_ms`) over the same time window.
-- [ ] Write dataset manifest with counts and time span.
+Completed:
+- JSON response-format enforcement and strict compaction schema path are implemented.
+- Temporal note payload includes strict `note_type`.
+- Compaction retry/fail-closed behavior is implemented and unit-tested.
+- Dataset tooling exists (`tools/test-harness/memory_e2e/generate_testsets.py`) and dataset root is in use.
+- E2E ingest harness exists (`tools/test-harness/memory_e2e/run_ingest_and_report.py` + `compute/scripts/memory-e2e-run.*`).
+- Report outputs are being generated (`reports/memory-e2e-partial-report.md`, `reports/codex-quarter-ingest-report.md`, `reports/transcript-grouping-audit.md`).
 
-## Phase 3: E2E Ingest Harness
-- [ ] Build script to copy datasets into running agent container volume path.
-- [ ] Ingest HRV data via `/ingest/health` in chunks.
-- [ ] Ingest/process wearable transcripts via `/pipeline/artifacts/ingest` + `/pipeline/artifacts/process`.
-- [ ] Ingest/process Codex history as chunked chat artifacts.
-- [ ] Collect runtime metrics from API + SQL.
+In progress:
+- Full transcript + Codex ingest run to clean pass state (no failed/pending artifacts).
+- Stabilizing compaction behavior on harder Codex subsets.
 
-## Phase 4: Evaluation and Report
-- [ ] Define pass criteria (no failed artifacts, expected note counts, links present, etc.).
-- [ ] Produce markdown report in `reports/memory-e2e-report.md`.
-- [ ] Include:
-  - dataset summary
-  - ingest counts by source
-  - ts_mode distribution
-  - note_type distribution
-  - failure/retry stats
-  - pass/fail outcome
+Not complete yet:
+- Final all-green acceptance report (`reports/memory-e2e-report.md`) with all pass criteria satisfied.
+- CI-gated automated execution of this full E2E harness.
 
-## Phase 5: Iteration Until Pass
-- [ ] If criteria fail, inspect compaction failures and adjust prompt/schema logic.
-- [ ] Re-run full E2E loop after each meaningful change.
-- [ ] Stop once criteria pass without test-specific hacks.
+## Phase Checklist
+
+### Phase 1: Pipeline Hardening
+- [x] Force JSON output mode in model generation calls for compaction.
+- [x] Keep compaction schema strict and explicit.
+- [x] Extend extracted note payload to include `note_type` for typed memory rows.
+- [x] Keep retry/fail-closed behavior with compaction audit trail.
+- [x] Add/adjust unit tests for schema-driven compaction behavior.
+
+### Phase 2: Dataset Generation
+- [x] Create dataset root: `storage/test_data/memory_e2e/`.
+- [x] Copy Codex session JSONL files from local `.codex/sessions` into dataset.
+- [x] Generate `200` human transcripts with timestamped entries and mixed content domains.
+- [x] Generate HRV dataset (`hrv_rmssd_ms`) over the same time window.
+- [x] Write dataset manifest with counts and time span.
+
+### Phase 3: E2E Ingest Harness
+- [x] Build script to copy datasets into running agent container volume path.
+- [x] Ingest HRV data via `/ingest/health` in chunks.
+- [x] Ingest/process wearable transcripts via `/pipeline/artifacts/ingest` + `/pipeline/artifacts/process`.
+- [x] Ingest/process Codex history as chunked chat artifacts.
+- [x] Collect runtime metrics from API + SQL.
+
+### Phase 4: Evaluation and Report
+- [x] Define pass criteria (no failed artifacts, expected note counts, links present, etc.).
+- [x] Produce interim markdown reports under `reports/`.
+- [ ] Produce final full-pass report in `reports/memory-e2e-report.md`.
+
+### Phase 5: Iteration Until Pass
+- [x] Track failures/pending work and inspect compaction outcomes.
+- [x] Re-run ingestion on meaningful changes.
+- [ ] Reach stable pass state without failed/pending artifacts in target run.
 
 ## Deliverables
 - Pipeline code updates (agent).
 - Dataset generation scripts + generated test datasets.
 - E2E ingest script(s) for Linux and Windows.
-- Evaluation report markdown.
+- Evaluation report markdown (interim complete, final full-pass pending).
 - Synced docs (`spec.md`, `readme.md`, `testing.md`) reflecting behavior.

@@ -1,5 +1,7 @@
 # Retrieval Smoke Report
 
+Snapshot scope: point-in-time smoke run output; this file is not a full automated coverage report. See `testing.md` for current tested vs untested areas.
+
 - Dataset state: `memory.note=238`, `search.vector_index(active memory.note)=238`
 - Endpoint under test: `POST /tools/retrieve`
 - Reindex endpoint: `POST /pipeline/search/reindex/memory_notes`

@@ -40,3 +40,8 @@ MYNAH defines these agentic memory concepts for a local, offline personal intell
 ## 7. Offline Adaptation Notes
 - Verification and citation checks are fully local.
 - No external network lookup is required for memory trust decisions.
+
+## 8. Current Implementation Status (`2026-02-26`)
+- Retrieval endpoints and citation-bearing responses are implemented.
+- Full verification-before-trust enforcement is still in progress and not fully covered by automated tests yet.
+- See `testing.md` for current covered vs uncovered test areas.

@@ -18,6 +18,16 @@ This directory contains wearable hardware and firmware assets for the MYNAH offl
   - `device_info`, `status`, `manifest`, `fetch_req`, `fetch_data`, `commit_sync`, `wipe_confirm`, `time_sync`
   - compute can dump unsynced HR + voice-note objects, verify SHA, then commit/wipe on-device buffers
 
+## Test Coverage Snapshot (`2026-02-26`)
+- Automated (pytest):
+  - `compute/agent/mynah_agent/tests/test_ble_sync.py` validates manifest parsing and chunked BLE transfer logic with a fake transport.
+- Manual only:
+  - physical BLE advertising/discovery
+  - on-device sensor quality and recovery behavior
+  - button/audio capture behavior on actual hardware
+- Host smoke entrypoint:
+  - `compute/scripts/wearable-ble-sync.sh` (`.ps1` on Windows) calls `POST /sync/wearable_ble` against a running stack.
+
 ## Suggested Wiring (current draft)
 
 ### XIAO ESP32-C3 -> MAX30102 (SEN0344)

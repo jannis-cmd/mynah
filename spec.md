@@ -304,6 +304,8 @@ Before final response:
 ### 14.13 Runtime Endpoints
 - `POST /pipeline/search/reindex/memory_notes`: refreshes derived vector rows for `memory.note`.
 - `POST /tools/retrieve`: retrieval API with `mode`, `limit`, and optional health context attachment.
+- `POST /sync/wearable_ble`: wearable BLE object sync (`manifest -> fetch -> commit/wipe`) with hash verification.
+- `GET /tools/transcript/recent`: returns recent transcript entries.
 
 ## 15. Retry and Failure Policy
 - Validation retry limit: 3 attempts.
@@ -321,8 +323,14 @@ Before final response:
   - model readiness (required local models present)
 
 ## 17. Testing State
-- Core architecture and timestamp contract are implemented.
-- Retrieval modes (`lexical`, `semantic`, `hybrid`, `deep`) and citation-bearing retrieval output are implemented.
-- Derived vector index reindex path for existing notes is implemented.
-- Candidate lifecycle, quarantine path, `/ME` sync integrity, and vector lifecycle tests are required next.
-- Context-budget determinism and verification-before-trust tests are required before production use.
+- Automated pytest status (`2026-02-26`): `16` tests passing.
+- Automated coverage currently includes:
+  - API route/ready semantics checks
+  - selected deterministic timestamp + compaction retry rules
+  - BLE sync protocol parsing/chunk transfer with fake transport
+- Manual/scripted smoke checks exist for runtime flows (`e2e-smoke`, `timestamp-modes-smoke`, `wearable-ble-sync`, memory E2E harness), but are not CI-gated.
+- Required next automated coverage:
+  - DB-integrated ingest/process/report endpoint behavior
+  - retrieval integration correctness (fusion/rerank/citation assertions)
+  - extraction failure quarantine and candidate lifecycle transitions
+  - idempotency/replay and `/ME` pointer integrity

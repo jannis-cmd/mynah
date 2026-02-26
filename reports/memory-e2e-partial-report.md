@@ -1,5 +1,7 @@
 # Memory E2E Partial Progress Report
 
+Snapshot scope: point-in-time harness output; this file is not a full automated coverage report. See `testing.md` for current tested vs untested areas.
+
 - Generated at (UTC): `2026-02-26T07:13:40.861289+00:00`
 - Dataset root: `C:\Users\janni\workspace\PRIVAT\mynah\storage\test_data\memory_e2e`
 - Persona: `Mara`

@@ -1,5 +1,7 @@
 # Codex Quarter Ingest Report
 
+Snapshot scope: point-in-time harness output; this file is not a full automated coverage report. See `testing.md` for current tested vs untested areas.
+
 - Generated at (UTC): `2026-02-26T07:40:33.990407+00:00`
 - Dataset root: `/home/appuser/data/artifacts/test_data/memory_e2e`
 - Selected files: `6`

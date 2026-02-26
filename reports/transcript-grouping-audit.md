@@ -1,5 +1,7 @@
 # Transcript Grouping Audit
 
+Snapshot scope: point-in-time audit output; this file is not a full automated coverage report. See `testing.md` for current tested vs untested areas.
+
 - Generated at (UTC): `2026-02-26T07:22:04.857239+00:00`
 - Processed wearable transcripts audited: `123`
 - Artifacts with accepted compaction output: `123`
