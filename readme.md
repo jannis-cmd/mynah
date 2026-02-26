@@ -32,7 +32,7 @@ Retrieval is hybrid by default:
 - lexical retrieval for exact phrase/keyword intent
 - semantic retrieval for conceptual similarity
 - deterministic score fusion
-- optional query expansion + rerank in deep mode
+- optional query expansion + rerank in deep mode (expansion is retry-bounded and validated)
 
 Query modes:
 - `lexical`

@@ -86,6 +86,7 @@ FUSION_RRF_K = 60.0
 MAX_CANDIDATE_LIMIT = 200
 DEFAULT_CANDIDATE_MULTIPLIER = 4
 MAX_QUERY_EXPANSIONS = 4
+QUERY_EXPANSION_MAX_RETRIES = 3
 DEFAULT_CONTEXT_PROFILE = "balanced"
 
 RECENCY_HINT_TOKENS = {
@@ -421,6 +422,24 @@ def _model_state() -> dict[str, Any]:
     }
 
 
+def _extract_primary_model_text(data: dict[str, Any]) -> str:
+    response = data.get("response")
+    if isinstance(response, str) and response.strip():
+        return response.strip()
+
+    thinking = data.get("thinking")
+    if isinstance(thinking, str) and thinking.strip():
+        return thinking.strip()
+
+    message = data.get("message")
+    if isinstance(message, dict):
+        content = message.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+
+    return ""
+
+
 def _ollama_generate(prompt: str, response_format: str | dict[str, Any] | None = None) -> str:
     payload_data: dict[str, Any] = {"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}
     if response_format is not None:
@@ -434,7 +453,7 @@ def _ollama_generate(prompt: str, response_format: str | dict[str, Any] | None =
     )
     with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT_SEC) as resp:
         data = json.loads(resp.read().decode("utf-8"))
-    return data.get("response", "").strip()
+    return _extract_primary_model_text(data)
 
 
 def _ollama_embed(text: str) -> list[float]:
@@ -1013,26 +1032,47 @@ def _recency_boost(ts: datetime, *, enable: bool) -> float:
     return 0.05 / (1.0 + age_days)
 
 
-def _build_query_expansion_prompt(query: str) -> str:
+def _build_query_expansion_prompt(query: str, previous_error: str | None = None) -> str:
+    previous_error_block = ""
+    if previous_error:
+        previous_error_block = (
+            "Previous attempt failed validation.\n"
+            f"Fix exactly this error: {previous_error}\n"
+        )
     return (
         "Generate concise query variants for local retrieval.\n"
-        "Return ONLY JSON object with key variants as array of short strings.\n"
+        "Return ONLY JSON.\n"
+        "JSON schema:\n"
+        "{\n"
+        '  "variants": ["string", "string"]\n'
+        "}\n"
         "Rules:\n"
         "- Keep meaning equivalent to original query.\n"
         "- Focus on synonyms and alternate phrasing.\n"
         "- Max 4 variants.\n"
+        "- Keep each variant <= 12 words.\n"
         "- Do not include numbering.\n"
+        "- If uncertain, return: {\"variants\": []}.\n"
+        f"{previous_error_block}"
         f"Original query: {query}\n"
     )
 
 
 def _expand_query_variants(query: str) -> list[str]:
-    prompt = _build_query_expansion_prompt(query)
-    output = _ollama_generate(prompt, response_format="json")
-    parsed = _extract_json_object(output)
-    expansion = QueryExpansionOutput.model_validate(parsed)
-    out = [item for item in expansion.variants if item.casefold() != query.casefold()]
-    return out[:MAX_QUERY_EXPANSIONS]
+    previous_error = None
+    for _attempt in range(1, QUERY_EXPANSION_MAX_RETRIES + 1):
+        prompt = _build_query_expansion_prompt(query, previous_error)
+        try:
+            output = _ollama_generate(prompt, response_format="json")
+            parsed = _extract_json_object(output)
+            expansion = QueryExpansionOutput.model_validate(parsed)
+            out = [item for item in expansion.variants if item.casefold() != query.casefold()]
+            return out[:MAX_QUERY_EXPANSIONS]
+        except (ValidationError, ValueError, urllib.error.URLError, urllib.error.HTTPError, RuntimeError) as exc:
+            previous_error = str(exc)
+        except Exception as exc:  # noqa: BLE001
+            previous_error = str(exc)
+    raise RuntimeError(f"query expansion failed after {QUERY_EXPANSION_MAX_RETRIES} retries: {previous_error}")
 
 
 def _retrieve_lexical_rows(cur: psycopg.Cursor, *, query: str, limit: int) -> list[dict[str, Any]]:

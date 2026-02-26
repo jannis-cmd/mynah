@@ -53,7 +53,9 @@ Out of scope for now:
   - retrieval runtime endpoints:
     - `POST /pipeline/search/reindex/memory_notes`
     - `POST /tools/retrieve`
+  - deep-mode query expansion retry/validation tests (strict JSON contract)
   - retrieval mode smoke run on ingested dataset (`lexical`, `semantic`, `hybrid`, `deep`)
+  - deep-mode smoke confirms query expansions are generated and applied with `qwen3.5:35b-a3b`
 - Candidate lifecycle and quarantine integration tests are next.
 - Retrieval quality evaluation harness (recall@k/precision@k/citation coverage) is next.
 - Context-budget determinism and claim verification audit tests are next.

@@ -99,3 +99,28 @@ def test_retrieval_request_normalizes_query() -> None:
 def test_query_has_recency_hint_detects_tokens() -> None:
     assert main._query_has_recency_hint("How was my sleep today?")
     assert not main._query_has_recency_hint("show long term baseline")
+
+
+def test_extract_primary_model_text_prefers_response() -> None:
+    text = main._extract_primary_model_text({"response": " ok ", "thinking": "{\"variants\": []}"})
+    assert text == "ok"
+
+
+def test_extract_primary_model_text_uses_thinking_when_response_empty() -> None:
+    text = main._extract_primary_model_text({"response": "", "thinking": "{\"variants\": [\"a\"]}"})
+    assert text == "{\"variants\": [\"a\"]}"
+
+
+def test_expand_query_variants_retries_then_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    outputs = iter(["not-json", "{\"variants\":[\"bad day causes\",\"recent rough day factors\"]}"])
+    calls: list[object | None] = []
+
+    def fake_generate(_prompt: str, response_format: object | None = None) -> str:
+        calls.append(response_format)
+        return next(outputs)
+
+    monkeypatch.setattr(main, "_ollama_generate", fake_generate)
+    variants = main._expand_query_variants("what patterns explain my bad days recently")
+
+    assert variants == ["bad day causes", "recent rough day factors"]
+    assert len(calls) == 2
