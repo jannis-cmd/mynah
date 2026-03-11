@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MYNAH Architecture Overview</title>
+  <style>
+    :root {
+      --bg: #f5efe6;
+      --bg-2: #e8eef2;
+      --ink: #1f2a33;
+      --muted: #5f6c76;
+      --line: #9db0bb;
+      --warm: #f4d7a1;
+      --blue: #c9e2f0;
+      --green: #cfe8d4;
+      --slate: #dde5eb;
+      --card: rgba(255, 255, 255, 0.78);
+      --shadow: 0 14px 36px rgba(36, 49, 60, 0.12);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.5), transparent 34%),
+        linear-gradient(135deg, var(--bg), var(--bg-2));
+    }
+
+    .page {
+      max-width: 1520px;
+      margin: 0 auto;
+      padding: 48px 28px 56px;
+    }
+
+    .hero {
+      margin-bottom: 26px;
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: 42px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 1080px;
+      font-size: 18px;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 22px 0 30px;
+    }
+
+    .chip {
+      border: 1px solid rgba(52, 73, 84, 0.12);
+      background: rgba(255, 255, 255, 0.72);
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: #32424d;
+    }
+
+    .architecture {
+      display: grid;
+      grid-template-columns: 270px 1fr 430px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .lane {
+      position: relative;
+      min-height: 760px;
+      border-radius: var(--radius-xl);
+      padding: 22px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(62, 85, 98, 0.12);
+      backdrop-filter: blur(10px);
+    }
+
+    .lane-inputs { background: linear-gradient(180deg, rgba(255, 248, 235, 0.96), rgba(244, 227, 190, 0.86)); }
+    .lane-control { background: linear-gradient(180deg, rgba(246, 252, 255, 0.96), rgba(210, 232, 245, 0.88)); }
+    .lane-exec { background: linear-gradient(180deg, rgba(246, 255, 247, 0.96), rgba(214, 238, 220, 0.88)); }
+
+    .lane-title {
+      margin: 0 0 18px;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #31404a;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(71, 93, 104, 0.12);
+      border-radius: var(--radius-lg);
+      padding: 18px 18px 16px;
+      box-shadow: 0 10px 20px rgba(36, 49, 60, 0.05);
+    }
+
+    .card h2,
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 21px;
+      line-height: 1.1;
+    }
+
+    .card p {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.45;
+      color: #495963;
+    }
+
+    .list {
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 7px;
+      color: #46555f;
+      font-size: 15px;
+    }
+
+    .list li::before {
+      content: "";
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-right: 10px;
+      border-radius: 999px;
+      background: #8296a2;
+      vertical-align: middle;
+      transform: translateY(-1px);
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .memory-band {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.76), rgba(226, 236, 242, 0.72));
+      border: 1px solid rgba(71, 93, 104, 0.12);
+    }
+
+    .memory-band h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .memory-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .memory-tile {
+      border-radius: 16px;
+      padding: 14px;
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(71, 93, 104, 0.12);
+    }
+
+    .memory-tile strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      letter-spacing: 0.02em;
+    }
+
+    .memory-tile span {
+      color: #57656f;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .exec-split {
+      display: grid;
+      gap: 16px;
+    }
+
+    .tier {
+      position: relative;
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid rgba(66, 98, 73, 0.14);
+      min-height: 164px;
+    }
+
+    .tier.future {
+      border-style: dashed;
+      opacity: 0.86;
+    }
+
+    .pill {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: rgba(215, 239, 221, 0.9);
+      color: #2f4735;
+      border: 1px solid rgba(77, 114, 84, 0.14);
+    }
+
+    .connectors {
+      margin: 22px 0 26px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .connector {
+      position: relative;
+      min-height: 54px;
+      border-top: 3px solid var(--line);
+    }
+
+    .connector::after {
+      content: "";
+      position: absolute;
+      right: -1px;
+      top: -8px;
+      width: 14px;
+      height: 14px;
+      border-top: 3px solid var(--line);
+      border-right: 3px solid var(--line);
+      transform: rotate(45deg);
+      background: transparent;
+    }
+
+    .connector span {
+      position: absolute;
+      top: -14px;
+      left: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.92);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      color: #50606a;
+    }
+
+    .footer-panel {
+      margin-top: 30px;
+      border-radius: var(--radius-xl);
+      padding: 22px;
+      background: linear-gradient(180deg, rgba(250, 252, 253, 0.94), rgba(228, 234, 240, 0.9));
+      border: 1px solid rgba(66, 82, 95, 0.12);
+      box-shadow: var(--shadow);
+    }
+
+    .footer-panel h2 {
+      margin: 0 0 16px;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .store-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .store {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.84);
+      border: 1px solid rgba(66, 82, 95, 0.12);
+    }
+
+    .store strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .store span {
+      color: #55646f;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    @media (max-width: 1280px) {
+      .architecture {
+        grid-template-columns: 1fr;
+      }
+
+      .lane {
+        min-height: auto;
+      }
+
+      .control-grid,
+      .memory-grid,
+      .store-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .connectors {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1>MYNAH Architecture Board</h1>
+      <p>
+        A cleaner visual view of the current framework direction: tenant-owned agents, Hermes-style
+        bounded memory, SQLite session recall, self-hosted Kubernetes, gVisor sandboxed skills,
+        and optional custom hardware.
+      </p>
+    </section>
+
+    <div class="legend">
+      <span class="chip">Tenant -&gt; Agent</span>
+      <span class="chip">MEMORY.md + AGENT_PROFILE.md</span>
+      <span class="chip">SQLite Session Recall</span>
+      <span class="chip">Self-Hosted Kubernetes</span>
+      <span class="chip">gVisor Skill Sandbox</span>
+      <span class="chip">Custom Hardware Adapters</span>
+    </div>
+
+    <section class="architecture">
+      <div class="lane lane-inputs">
+        <h2 class="lane-title">Inputs</h2>
+        <div class="stack">
+          <article class="card">
+            <h3>Product Channels</h3>
+            <ul class="list">
+              <li>App chat</li>
+              <li>Kiosk / reception display</li>
+              <li>Voice or API surface</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <h3>Custom Hardware</h3>
+            <ul class="list">
+              <li>Camera</li>
+              <li>Microphone</li>
+              <li>Thermometer</li>
+              <li>Air-quality sensor</li>
+              <li>Speaker / display</li>
+              <li>Phone bridge</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <h3>Tenant Model</h3>
+            <p>
+              One tenant owns one or more agents. In most products, one real-world entity maps to one agent:
+              one horse, one receptionist, one assistant persona.
+            </p>
+          </article>
+        </div>
+      </div>
+
+      <div class="lane lane-control">
+        <h2 class="lane-title">Trusted Control Plane</h2>
+
+        <div class="control-grid">
+          <article class="card">
+            <h3>Runtime API</h3>
+            <p>Resolves tenant + agent, loads policy, gathers context, and routes the request.</p>
+          </article>
+
+          <article class="card">
+            <h3>Policy Service</h3>
+            <p>Hard capabilities, allowed skills, device access, and product boundaries.</p>
+          </article>
+
+          <article class="card">
+            <h3>Memory Service</h3>
+            <p>Maintains bounded prompt memory and runs Hermes-style post-turn memory updates.</p>
+          </article>
+
+          <article class="card">
+            <h3>Knowledge Service</h3>
+            <p>Curated domain knowledge that stays separate from conversational memory.</p>
+          </article>
+
+          <article class="card">
+            <h3>Gateway Service</h3>
+            <p>The only privileged path for sandboxed execution to reach models, storage, and system state.</p>
+          </article>
+
+          <article class="card">
+            <h3>Skill Registry</h3>
+            <p>Stores sealed skill manifests, versions, runtime classes, and agent-level installations.</p>
+          </article>
+        </div>
+
+        <section class="memory-band">
+          <h3>Agent Memory Shape</h3>
+          <div class="memory-grid">
+            <div class="memory-tile">
+              <strong>MEMORY.md</strong>
+              <span>Small always-on distilled memory for facts, routines, lessons, and stable context.</span>
+            </div>
+            <div class="memory-tile">
+              <strong>AGENT_PROFILE.md</strong>
+              <span>Profile summary for identity, role, preferences, and long-lived behavioral framing.</span>
+            </div>
+            <div class="memory-tile">
+              <strong>SQLite Session History</strong>
+              <span>Long-term recall archive searched on demand instead of injected every turn.</span>
+            </div>
+          </div>
+        </section>
+
+        <article class="card" style="margin-top: 16px;">
+          <h3>Audit and Observability</h3>
+          <p>Captures policy decisions, memory changes, skill execution, device events, and operator-visible traces.</p>
+        </article>
+      </div>
+
+      <div class="lane lane-exec">
+        <h2 class="lane-title">Execution Plane</h2>
+        <div class="exec-split">
+          <article class="card">
+            <h3>Self-Hosted Kubernetes on Linux</h3>
+            <p>Runs the platform services and isolated execution workloads on your own infrastructure.</p>
+          </article>
+
+          <section class="tier">
+            <h3 style="margin-top:0;">Core Runtime</h3>
+            <p class="cardBody">Cheap path for memory-first turns. Reads prompt memory, searches session history, and answers without sandboxing when no skill is needed.</p>
+            <span class="pill">Memory-First Path</span>
+          </section>
+
+          <section class="tier">
+            <h3 style="margin-top:0;">gVisor Skill Runner</h3>
+            <p class="cardBody">Default sandbox tier for higher-risk skill execution. Connected to the platform only through the gateway service.</p>
+            <span class="pill">Default Sandbox Tier</span>
+          </section>
+
+          <section class="tier future">
+            <h3 style="margin-top:0;">Future High-Isolation Tier</h3>
+            <p class="cardBody">Kata or micro-VM runtime for premium customers or hostile workloads that need stronger boundaries.</p>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="connectors" aria-hidden="true">
+      <div class="connector"><span>Requests + hardware events</span></div>
+      <div class="connector"><span>Context + policy + memory</span></div>
+      <div class="connector"><span>Dispatch + sandbox execution</span></div>
+    </section>
+
+    <section class="footer-panel">
+      <h2>Canonical Stores</h2>
+      <div class="store-grid">
+        <div class="store">
+          <strong>PostgreSQL</strong>
+          <span>Tenant, agent, policy, skill installation, audit, and platform state.</span>
+        </div>
+        <div class="store">
+          <strong>SQLite Session History</strong>
+          <span>Per-agent long-term conversational recall and lightweight search.</span>
+        </div>
+        <div class="store">
+          <strong>Derived Prompt Memory</strong>
+          <span>Bounded <code>MEMORY.md</code> and <code>AGENT_PROFILE.md</code> for session injection.</span>
+        </div>
+        <div class="store">
+          <strong>Object Storage</strong>
+          <span>Media, uploads, and hardware-originated assets transferred through scoped access.</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
