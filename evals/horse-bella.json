@@ -1,0 +1,26 @@
+{
+  "cases": [
+    {
+      "name": "store-ride-and-recall",
+      "messages": [
+        "Today we made a long ride for 2 hours. You were sneaky and threw me off once. I also gave you hay after the ride because it was cold.",
+        "What did we do today?"
+      ],
+      "expect_contains": [
+        "2 hours",
+        "threw me off"
+      ]
+    },
+    {
+      "name": "store-preference-and-recall",
+      "messages": [
+        "Please remember that you get a blanket whenever it is cold and windy.",
+        "When should I put a blanket on you?"
+      ],
+      "expect_contains": [
+        "cold",
+        "wind"
+      ]
+    }
+  ]
+}

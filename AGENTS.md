@@ -17,3 +17,9 @@ Use the linked files below as the starting points:
 - `SPEC.md` - full architecture and system specification
 
 Start simple, keep the system inspectable, and prefer explicit decisions over hidden behavior.
+
+Spec visualization rule:
+- `architecture-overview.html` is renamed to `spec-overview.html`.
+- `spec-overview.html` represents the current implementation truthfully at a high level and gradually becomes more granular over time.
+- When a subsystem is deep enough to inspect, its block in `spec-overview.html` should open a popup with more detail instead of linking to a new page.
+- Popup detail can be nested conceptually, but the visual spec remains a single HTML artifact.

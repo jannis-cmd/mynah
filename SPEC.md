@@ -94,7 +94,7 @@ This is the core USP:
 - treating prompts as the primary security mechanism
 
 ## 7. Tenant-Agent Model
-MYNAH is built around two primary business entities:
+MYNAH is built around three primary business entities:
 
 - `tenant`
   - the customer boundary
@@ -106,6 +106,11 @@ MYNAH is built around two primary business entities:
     - horse twin
     - receptionist
     - care companion
+
+- `user`
+  - an identified human interacting with one agent
+  - every session belongs to exactly one user
+  - if identity is not already known from login, channel, or operator context, the framework should require clarification before durable user-scoped memory is created
 
 In most product cases, one agent represents one primary real-world entity or role.
 Examples:
@@ -119,6 +124,9 @@ This model allows the same framework to support:
 - one company-wide assistant
 - multiple agents inside one tenant when needed
 
+For single-user products, one user may dominate most sessions for one agent.
+For multi-user products, one shared agent can serve many users while user-scoped context stays separate.
+
 ## 8. Core Domain Entities
 The initial platform should define these core entities:
 
@@ -126,6 +134,7 @@ The initial platform should define these core entities:
 - `agent`
 - `channel`
 - `session`
+- `user`
 - `policy`
 - `capability_grant`
 - `knowledge_asset`
@@ -142,6 +151,8 @@ The initial platform should define these core entities:
   - examples: app chat, kiosk, voice, API
 - `session`
   - bounded interaction span on one channel
+- `user`
+  - one identified human participant for a session
 - `policy`
   - hard product and security rules for one agent
 - `capability_grant`
@@ -201,7 +212,7 @@ flowchart LR
         AU["Audit / Observability"]
         DB[("PostgreSQL\ntenant / agent / policy / audit")]
         SQL[("SQLite Session History\nper agent recall index")]
-        MEM["Derived Agent Memory\nMEMORY.md + AGENT_PROFILE.md"]
+        MEM["Derived Agent Memory\nAGENT_PROFILE.md + MEMORY.md + USER.md"]
         OBJ[("Object Storage\nmedia / files")]
     end
 
@@ -249,7 +260,7 @@ flowchart LR
 flowchart TD
     T["Tenant"] --> AG["Agent"]
     AG --> POL["Policy + Capabilities"]
-    AG --> PM["Prompt Memory\nMEMORY.md + AGENT_PROFILE.md"]
+    AG --> PM["Prompt Memory\nAGENT_PROFILE.md + MEMORY.md + USER.md"]
     AG --> SH["SQLite Session History"]
     AG --> SK["Installed Skills"]
     AG --> AD["Enabled Device Adapters"]
@@ -408,38 +419,103 @@ In short:
 - adapt the hosting and tenancy model
 
 ## 13. Memory Model
-The initial memory model has three parts:
+The initial memory model has four parts:
 
 1. `MEMORY.md`
    - bounded curated persistent memory for one agent
    - contains distilled important facts, routines, preferences, lessons, and stable context
+   - also stores important decisions for now
    - small enough to inject into the system prompt every session
 
 2. `AGENT_PROFILE.md`
    - bounded profile-style memory for one agent
-   - contains identity, communication style, long-lived role information, and other profile-level facts
-   - conceptually similar to Hermes `USER.md`, but generalized for any agent type
+   - contains identity, communication style, long-lived role information, and other developer/operator-defined framing
 
-3. `SQLite session history`
+3. `USER.md`
+   - bounded user-scoped profile memory for one identified user interacting with one agent
+   - contains user name, preferences, communication style, recurring habits, and other durable user-specific facts
+   - when a new identified user starts a session with an agent, a new user-scoped `USER.md` should be created automatically
+
+4. `SQLite session history`
    - full long-term conversation and interaction archive
    - used for on-demand recall rather than always-on prompt injection
 
-### 13.1 Required Memory Scope
+### 13.1 Context Ownership
+The memory-related context types are intentionally different:
+
+- `AGENT_PROFILE.md`
+  - developer or operator defined
+  - describes who the agent is
+
+- `MEMORY.md`
+  - agent-learned shared durable context
+  - stores facts about the agent, subject, environment, routines, and important decisions shared across users
+
+- `USER.md`
+  - agent-learned user-scoped durable context
+  - stores facts about one specific user
+
+- `knowledge`
+  - imported or curated reference material
+  - not conversation-owned memory
+
+- `session history`
+  - chronological source material for recall and later derivation
+
+Agent-learned and user-scoped are not opposites.
+Both `MEMORY.md` and `USER.md` can be filled from interaction learning.
+The difference is whose durable context the information belongs to.
+
+### 13.2 Frozen Snapshot Rule
+For one request or session start, the injected prompt memory is treated as a frozen snapshot.
+
+This means:
+- `MEMORY.md`, `AGENT_PROFILE.md`, and the current session user's `USER.md` are read before response generation
+- writes that happen later in the turn are durable for future turns
+- those writes do not mutate the already-built prompt for the current turn
+
+This keeps memory behavior inspectable, avoids mid-turn prompt drift, and matches the low-cost memory-first design.
+
+### 13.3 Required Session Scope
+Every session must be scoped by:
+- `tenant_id`
+- `agent_id`
+- `user_id`
+- channel metadata
+- time metadata
+
+If a stable `user_id` is not already available, the system should require identification before durable user-scoped memory is created.
+
+### 13.4 Required Memory Scope
 Every memory artifact must be scoped by:
 - `tenant_id`
 - `agent_id`
+- `user_id` when the artifact is user-scoped
 - source channel or source system
 - time metadata
 - provenance metadata
 
-### 13.2 Required Memory Properties
+### 13.5 Memory Entry Prefixes
+Entries written into bounded memory files should carry explicit prefixes.
+
+Initial prefixes:
+- `<memory>`
+- `<decision>`
+
+For now:
+- both prefixes may be stored inside `MEMORY.md`
+- `USER.md` uses the same initial prefix vocabulary
+
+This keeps the memory model simple while leaving room for finer categories later.
+
+### 13.6 Required Memory Properties
 - auditable
 - reconstructable
 - policy-scoped
 - searchable
 - safe against accidental cross-tenant leakage
 
-### 13.3 Why This Model
+### 13.7 Why This Model
 This keeps the main benefits of Hermes:
 - small always-on persistent memory
 - long-term searchable session archive
@@ -448,6 +524,7 @@ This keeps the main benefits of Hermes:
 
 And it fits MYNAH because:
 - each agent is the main unit of memory
+- user-scoped memory can stay separate when many people use one agent
 - memory remains easy to inspect and debug
 - session history remains available for deeper recall without bloating every prompt
 
@@ -457,7 +534,7 @@ The memory pipeline should run as a bounded internal step, usually after respons
 The pipeline decides whether to:
 - store nothing
 - update `MEMORY.md`
-- update `AGENT_PROFILE.md`
+- update the current user's `USER.md`
 - mark a reminder candidate
 - persist the interaction into session history
 
@@ -469,8 +546,14 @@ The pipeline decides whether to:
    - classify each candidate as:
      - ignore
      - memory update
+     - user memory update
      - profile update
      - reminder candidate
+
+The routing rule is:
+- if the durable fact is about the agent, subject, or shared environment, write to `MEMORY.md`
+- if the durable fact is about the identified user in the current session, write to that user's `USER.md`
+- if the content is an important committed outcome, keep it in `MEMORY.md` for now using the `<decision>` prefix
 
 3. Validation
    - enforce schema, size, provenance, and policy rules
@@ -478,6 +561,7 @@ The pipeline decides whether to:
 4. Persistence
    - update bounded memory files
    - persist session history records
+   - persist memory/profile writes atomically so readers see either the old complete state or the new complete state
 
 5. Retrieval index update
    - update search structures for session history as needed
@@ -491,6 +575,7 @@ Initial retrieval should combine:
 - strict policy scoping
 - current `MEMORY.md`
 - current `AGENT_PROFILE.md`
+- current session user's `USER.md` when available
 - on-demand session history search
 - time filters
 - full-text search
@@ -505,6 +590,8 @@ Examples:
   - session history search filtered by time
 - "How does this horse usually behave during longer rides?"
   - `MEMORY.md` plus supporting session history recall
+- "What does Anna prefer when I answer her questions?"
+  - current user's `USER.md` plus supporting session history recall
 - "Who is the right contact for visitors from logistics?"
   - knowledge assets plus agent memory and session recall
 

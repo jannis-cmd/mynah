@@ -16,6 +16,7 @@ Working expectations:
 - fail clearly instead of failing open
 - keep the common path cheap and simple
 - document major architectural changes in `SPEC.md`
+- prefer tests and harnesses that clean up automatically and can be rerun without manual reset
 
 ## Closed-Loop Development
 

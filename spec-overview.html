@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MYNAH Spec Overview</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: rgba(255, 255, 255, 0.86);
+      --panel-strong: #ffffff;
+      --ink: #182031;
+      --muted: #5b6575;
+      --line: rgba(24, 32, 49, 0.12);
+      --accent: #2e6bff;
+      --accent-2: #00a7a0;
+      --implemented: #1f8f5f;
+      --planned: #c58000;
+      --future: #7b61ff;
+      --risk: #d34d4d;
+      --shadow: 0 18px 40px rgba(23, 31, 46, 0.08);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --max: 1440px;
+      --font: "Segoe UI", "Aptos", Arial, sans-serif;
+      --hero-grad: linear-gradient(135deg, rgba(221, 232, 255, 0.88), rgba(212, 246, 242, 0.7));
+      --board-grad: linear-gradient(180deg, rgba(255,255,255,0.88), rgba(245,248,252,0.88));
+      --chip-bg: rgba(255,255,255,0.74);
+      --node-bg: rgba(255,255,255,0.92);
+      --node-border: rgba(24, 32, 49, 0.1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.95), transparent 28%),
+        linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+    }
+
+    body.theme-1 {
+      --bg: #f4f6f8;
+      --panel: rgba(255,255,255,0.92);
+      --panel-strong: #ffffff;
+      --ink: #14181f;
+      --muted: #5e6775;
+      --line: rgba(20, 24, 31, 0.1);
+      --accent: #111111;
+      --accent-2: #5b6575;
+      --hero-grad: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,247,250,0.96));
+      --board-grad: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,247,250,0.96));
+      --chip-bg: rgba(255,255,255,0.95);
+      --node-bg: rgba(255,255,255,0.98);
+      --shadow: 0 16px 30px rgba(20, 24, 31, 0.05);
+    }
+
+    .page {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 26px 22px 52px;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      background: var(--chip-bg);
+      border: 1px solid var(--line);
+      color: var(--ink);
+    }
+
+    .hero {
+      padding: 28px;
+      border-radius: var(--radius-xl);
+      background: var(--hero-grad);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -40px;
+      top: -40px;
+      width: 220px;
+      height: 220px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(255,255,255,0.38), transparent 70%);
+      pointer-events: none;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(38px, 7vw, 78px);
+      letter-spacing: -0.05em;
+      line-height: 0.95;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 860px;
+      font-size: 18px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    .view {
+      background: var(--board-grad);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      position: relative;
+      min-height: 760px;
+      overflow: hidden;
+    }
+
+    .view-grid {
+      display: grid;
+      gap: 14px;
+      height: 100%;
+    }
+
+    .section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      backdrop-filter: blur(10px);
+    }
+
+    .section h2 {
+      margin: 0 0 12px;
+      font-size: 14px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .node-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .node {
+      position: relative;
+      text-align: left;
+      padding: 14px;
+      border-radius: var(--radius-md);
+      background: var(--node-bg);
+      border: 1px solid var(--node-border);
+      color: inherit;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+      transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+      min-height: 104px;
+      overflow: hidden;
+    }
+
+    .node:hover,
+    .node:focus-visible {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 28px rgba(0,0,0,0.08);
+      border-color: rgba(46, 107, 255, 0.38);
+      outline: none;
+    }
+
+    .node::after {
+      content: "";
+      position: absolute;
+      right: -10px;
+      bottom: -10px;
+      width: 64px;
+      height: 64px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(46,107,255,0.12), transparent 72%);
+      pointer-events: none;
+    }
+
+    .node .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .node .status {
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #fff;
+    }
+
+    .status.implemented { background: var(--implemented); }
+    .status.planned { background: var(--planned); }
+    .status.future { background: var(--future); }
+    .status.risk { background: var(--risk); }
+
+    .node strong {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .node span {
+      display: block;
+      font-size: 13px;
+      line-height: 1.35;
+      color: var(--muted);
+    }
+
+    .connector-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .connector-bar::before,
+    .connector-bar::after {
+      content: "";
+      flex: 1;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--line), transparent);
+    }
+
+    .theme-1 .view-grid {
+      grid-template-columns: 1.05fr 1.05fr 0.9fr;
+      align-items: start;
+    }
+
+    .theme-1 .section.current { grid-column: 1 / span 2; }
+    .theme-1 .section.current .node-grid { grid-template-columns: repeat(4, 1fr); }
+    .theme-1 .section.security .node-grid,
+    .theme-1 .section.deepen .node-grid { grid-template-columns: repeat(2, 1fr); }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(12, 17, 27, 0.44);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 20;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(760px, 100%);
+      max-height: 85vh;
+      overflow: auto;
+      background: var(--panel-strong);
+      color: var(--ink);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--line);
+      box-shadow: 0 28px 70px rgba(0,0,0,0.22);
+      padding: 22px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 18px;
+    }
+
+    .modal h3 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      letter-spacing: -0.03em;
+    }
+
+    .modal p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .close {
+      border: 1px solid var(--line);
+      background: var(--chip-bg);
+      color: var(--ink);
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .detail-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      background: var(--panel);
+    }
+
+    .detail-card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .detail-card ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .detail-card li + li {
+      margin-top: 6px;
+    }
+
+    .detail-card code {
+      font-size: 12px;
+    }
+
+    @media (max-width: 1180px) {
+      .theme-1 .view-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .theme-1 .section.current {
+        grid-column: auto;
+        grid-row: auto;
+      }
+
+      .theme-1 .section.current .node-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        padding: 18px 14px 34px;
+      }
+
+      .hero,
+      .view {
+        padding: 16px;
+      }
+
+      .theme-1 .section.current .node-grid,
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body class="theme-1">
+  <main class="page">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span class="toolbar-label">Base Visual Direction</span>
+        <span class="chip">Version 1</span>
+      </div>
+      <div class="legend">
+        <span class="chip">SPEC.md Source of Truth</span>
+        <span class="chip">Current Prototype</span>
+        <span class="chip">Popup Drilldowns</span>
+      </div>
+    </div>
+
+    <section class="hero">
+      <h1>MYNAH Spec Overview</h1>
+      <p>
+        Visual companion to SPEC.md. It shows the platform shape defined in the spec, while making clear
+        which parts are already present in the current Go prototype and which remain planned.
+      </p>
+    </section>
+
+    <section class="view">
+      <div id="viewGrid" class="view-grid"></div>
+    </section>
+  </main>
+
+  <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h3 id="modalTitle"></h3>
+          <p id="modalSummary"></p>
+        </div>
+        <button id="modalClose" class="close" aria-label="Close popup">x</button>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-card">
+          <strong>What Exists</strong>
+          <ul id="modalExists"></ul>
+        </div>
+        <div class="detail-card">
+          <strong>What It Deepens Into</strong>
+          <ul id="modalDeepens"></ul>
+        </div>
+        <div class="detail-card">
+          <strong>Code Anchors</strong>
+          <ul id="modalFiles"></ul>
+        </div>
+        <div class="detail-card">
+          <strong>Notes</strong>
+          <ul id="modalNotes"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sections = [
+      {
+        key: "current",
+        title: "Spec Baseline",
+        ids: ["tenant-agent-model", "control-plane", "runtime-api", "memory-system", "skill-system", "device-adapter-layer", "knowledge-layer", "audit-observability"]
+      },
+      {
+        key: "security",
+        title: "Security and Isolation Model",
+        ids: ["policy-model", "capability-model", "data-isolation", "sandbox-layer", "gateway-pattern", "deployment-direction"]
+      },
+      {
+        key: "deepen",
+        title: "Current Prototype Coverage",
+        ids: ["cli", "app", "file-store", "session-store", "memory-validation", "llm-client", "secrets", "evals"]
+      }
+    ];
+
+    const nodes = {
+      "tenant-agent-model": {
+        title: "Tenant-Agent Model",
+        status: "planned",
+        blurb: "Tenant is the customer boundary. Agent is the configured runtime instance.",
+        summary: "SPEC.md defines MYNAH around tenant and agent as the primary business entities. This is the core framing for the whole platform.",
+        exists: ["Tenant and agent are first-class in the spec.", "One agent usually maps to one primary role or real-world entity.", "The current prototype already stores data under tenant and agent paths."],
+        deepens: ["Future subject abstraction when product-specific needs require it.", "Provisioning and lifecycle workflows.", "Stronger explicit tenancy contracts across all subsystems."],
+        files: ["SPEC.md", "internal/app/app.go", "internal/storage/files.go"],
+        notes: ["This block comes directly from sections 7 and 8 of SPEC.md.", "The current implementation partially reflects it."]
+      },
+      "control-plane": {
+        title: "Control Plane",
+        status: "planned",
+        blurb: "Trusted services for configuration, policy, memory, credentials, and audit.",
+        summary: "SPEC.md defines a trusted control plane that owns durable state, real credentials, policy, memory persistence, and audit logging.",
+        exists: ["Defined clearly in the architecture overview and execution split.", "Only partially represented in the current prototype through local service orchestration."],
+        deepens: ["Tenant and agent management.", "Policy and capability services.", "Canonical durable state and audit ownership."],
+        files: ["SPEC.md"],
+        notes: ["This is a platform concept from the spec, not a completed subsystem in code."]
+      },
+      "runtime-api": {
+        title: "Runtime API",
+        status: "planned",
+        blurb: "Request handling for text, image, and later multimodal interactions.",
+        summary: "The spec defines a runtime API as the request-facing subsystem. In the prototype, the CLI currently stands in for that entrypoint.",
+        exists: ["Specified as a major subsystem.", "Current prototype uses a CLI instead of a real runtime API."],
+        deepens: ["Text and image input handling.", "Session resolution.", "Channel-aware request envelopes."],
+        files: ["SPEC.md", "cmd/mynah/main.go"],
+        notes: ["This block should stay spec-oriented, not CLI-oriented."]
+      },
+      "memory-system": {
+        title: "Memory System",
+        status: "implemented",
+        blurb: "Bounded memory, session recall, retrieval, and post-turn updates.",
+        summary: "The memory system is central in SPEC.md and is already the strongest implemented part of the prototype.",
+        exists: ["AGENT_PROFILE.md, shared MEMORY.md, and user-scoped USER.md are defined in the spec and represented in the prototype.", "SQLite session history and recall align with the v0 memory model.", "Post-turn memory routing is already present for shared memory and user memory.", "Injected memory is treated as a frozen snapshot for the current turn.", "Memory and user-memory writes are validated and written atomically."],
+        deepens: ["Full provenance metadata.", "Policy-scoped writes.", "Richer retrieval and memory pipeline contracts."],
+        files: ["SPEC.md", "internal/app/app.go", "internal/storage/files.go", "internal/storage/session_store.go", "internal/memory/validate.go"],
+        notes: ["This is where the prototype is closest to the spec today."]
+      },
+      "skill-system": {
+        title: "Skill System",
+        status: "planned",
+        blurb: "Sealed skill manifests, capability checks, dispatch, and sandbox execution.",
+        summary: "The skill system is a major subsystem in the spec, but it is not implemented yet in the current prototype.",
+        exists: ["Skill concepts, manifest requirements, and security rules are defined in SPEC.md."],
+        deepens: ["Manifest format.", "Installation model.", "Dispatch and isolated execution contracts."],
+        files: ["SPEC.md"],
+        notes: ["Planned in the spec, absent in code."]
+      },
+      "device-adapter-layer": {
+        title: "Device Adapter Layer",
+        status: "future",
+        blurb: "Controlled access to camera, microphone, sensors, displays, and bridges.",
+        summary: "SPEC.md includes device adapters as a core architectural lane for later multimodal and hardware-backed products.",
+        exists: ["Device adapter model is defined conceptually in the spec."],
+        deepens: ["Normalized event model.", "Policy-gated device access.", "Scoped media transfer via control plane."],
+        files: ["SPEC.md"],
+        notes: ["Not part of the current prototype yet."]
+      },
+      "knowledge-layer": {
+        title: "Knowledge Layer",
+        status: "planned",
+        blurb: "Curated company or domain knowledge kept separate from conversational memory.",
+        summary: "The spec distinguishes imported or curated knowledge from memory and transient context. The prototype does not implement this yet.",
+        exists: ["Knowledge is defined as a separate subsystem and model in SPEC.md."],
+        deepens: ["Asset ingestion.", "Structured and unstructured retrieval.", "Knowledge-policy interaction."],
+        files: ["SPEC.md"],
+        notes: ["Important separation in the source-of-truth spec."]
+      },
+      "audit-observability": {
+        title: "Audit and Observability",
+        status: "planned",
+        blurb: "Action logs, policy decisions, execution traces, and operator hooks.",
+        summary: "The spec requires audit and observability as a first-class subsystem. The prototype only has lightweight debug traces so far.",
+        exists: ["Audit layer is defined in the spec.", "Prototype has limited debug output."],
+        deepens: ["Structured audit events.", "Operator inspection surfaces.", "Incident response and control hooks."],
+        files: ["SPEC.md", "internal/app/app.go"],
+        notes: ["The HTML should represent this as a platform requirement, not as already complete."]
+      },
+      "policy-model": {
+        title: "Policy Model",
+        status: "planned",
+        blurb: "Every agent must have an explicit policy enforced in code and service boundaries.",
+        summary: "SPEC.md makes policy a central security layer. It should govern capabilities, skills, device access, memory rules, escalation, and forbidden behavior.",
+        exists: ["Policy is a named core entity in the spec.", "Policy requirements are explicit in sections 19 and 24."],
+        deepens: ["Agent policy representation.", "Enforcement points.", "Approval and escalation rules."],
+        files: ["SPEC.md"],
+        notes: ["This is source-of-truth architecture, not implemented runtime behavior yet."]
+      },
+      "cli": {
+        title: "CLI",
+        status: "implemented",
+        blurb: "Commands for init, chat, show, and eval.",
+        summary: "The current entrypoint is the Go CLI. It exposes the system as a local tool and keeps the implementation inspectable.",
+        exists: ["Supports init, chat, show, and eval commands.", "Creates tenant and agent data directories.", "Invokes the app service for runtime behavior."],
+        deepens: ["Command-level policy hooks.", "Safer admin and inspection commands.", "Operator workflows and debug surfaces."],
+        files: ["cmd/mynah/main.go"],
+        notes: ["This is implemented today.", "It is the current control surface, not yet a remote runtime API."]
+      },
+      "app": {
+        title: "App Service",
+        status: "implemented",
+        blurb: "Orchestrates a turn from input to memory revision.",
+        summary: "The service layer coordinates file-backed memory, SQLite history, recall assembly, LLM calls, and post-turn memory revision.",
+        exists: ["Loads memory and profile documents.", "Writes user and assistant messages to history.", "Builds recall context from recent and searched history.", "Runs memory revision after reply generation."],
+        deepens: ["Explicit policy enforcement.", "Capability checks before any external action.", "Structured audit events per stage."],
+        files: ["internal/app/app.go"],
+        notes: ["This is the main orchestration block in the current implementation.", "It is the natural place to insert future policy and tool routing."]
+      },
+      "file-store": {
+        title: "File Store",
+        status: "implemented",
+        blurb: "Persists AGENT_PROFILE.md, MEMORY.md, and per-user USER.md.",
+        summary: "The current memory layer is deliberately simple: bounded markdown documents stored per agent on disk.",
+        exists: ["Reads and writes MEMORY.md.", "Reads and writes AGENT_PROFILE.md.", "Reads and writes per-user USER.md.", "Keeps memory inspectable outside the model."],
+        deepens: ["Versioning and diff history.", "Approval gates for sensitive memory changes.", "Richer memory classes and separation."],
+        files: ["internal/storage/files.go"],
+        notes: ["This reflects the current implementation truthfully.", "The design favors inspectability over hidden vector stores."]
+      },
+      "session-store": {
+        title: "Session Store",
+        status: "implemented",
+        blurb: "SQLite-backed conversation archive with recall search.",
+        summary: "Longer history is stored in SQLite. Recent turns and searched turns are pulled into context on demand instead of injected permanently.",
+        exists: ["Stores sessions and messages.", "Supports recent history, time-window lookup, and FTS search.", "Uses a safer token-based FTS query builder.", "Sets a small SQLite busy timeout."],
+        deepens: ["Per-tenant isolation guarantees.", "Audit-friendly query traces.", "More formal retention and lifecycle controls."],
+        files: ["internal/storage/session_store.go", "internal/storage/session_store_test.go"],
+        notes: ["This is currently the long-term recall substrate.", "It is simple enough to inspect and test directly."]
+      },
+      "memory-validation": {
+        title: "Memory Validation",
+        status: "implemented",
+        blurb: "Rejects generic or low-value memory/profile updates.",
+        summary: "Validation constrains what can persist into memory, reducing accumulation of boilerplate or vague assistant self-description.",
+        exists: ["Validates memory doc length and quality.", "Validates profile doc length and specificity.", "Has focused tests around rejection and acceptance."],
+        deepens: ["Policy-backed memory classes.", "Safer rules for regulated data.", "Change reason tracking."],
+        files: ["internal/memory/validate.go", "internal/memory/validate_test.go"],
+        notes: ["This is an early but important quality boundary.", "It is not yet a full governance model."]
+      },
+      "llm-client": {
+        title: "OpenAI Client",
+        status: "implemented",
+        blurb: "Current LLM integration for replies and memory revision.",
+        summary: "The current implementation uses one client for generating replies and revising persistent memory after each turn.",
+        exists: ["Handles response generation.", "Handles post-turn memory revision.", "Configured by API key, model, and base URL."],
+        deepens: ["Provider abstraction.", "Structured model policy.", "Safer response contracts for tool actions."],
+        files: ["internal/llm/openai.go"],
+        notes: ["This is the current stack, but the visual spec should stay conceptually valid beyond one provider."]
+      },
+      "secrets": {
+        title: "Secrets Resolver",
+        status: "implemented",
+        blurb: "Resolves API key from environment or local file.",
+        summary: "Secrets handling is still minimal. It is suitable for local development but not yet the full enterprise-grade secret boundary.",
+        exists: ["Reads API key from env or file.", "Supports a default local key path.", "Keeps secret retrieval separate from app orchestration."],
+        deepens: ["Tenant-scoped secret access.", "Short-lived credentials.", "Secret access audit logs."],
+        files: ["internal/secrets/openai.go"],
+        notes: ["Implemented, but clearly not the final secure secret model."]
+      },
+      "evals": {
+        title: "Eval Runner",
+        status: "implemented",
+        blurb: "Sandbox-style case execution on copied agent data.",
+        summary: "Eval runs already create isolated temporary data sandboxes per case, which is a good pattern for later security hardening.",
+        exists: ["Loads eval cases from JSON.", "Creates temp sandbox data per case.", "Runs chat flows and checks expected substrings."],
+        deepens: ["Adversarial safety evals.", "Prompt injection evals.", "Isolation leakage tests."],
+        files: ["internal/app/app.go", "evals/horse-bella.json", "EVALS.md"],
+        notes: ["The current eval layer is functional but not yet security-focused."]
+      },
+      "capability-model": {
+        title: "Capability Model",
+        status: "planned",
+        blurb: "Explicit grants like memory.read, knowledge.read, visitor.lookup, or device.camera.read.",
+        summary: "The capability layer in SPEC.md is the mechanism that constrains what agents and future skills can actually access or do.",
+        exists: ["Capability grants are listed as core entities.", "Capability examples are explicitly named in the security model."],
+        deepens: ["Grant storage model.", "Runtime enforcement path.", "Per-skill and per-agent capability assignment."],
+        files: ["SPEC.md"],
+        notes: ["This is one of the most important next deepening areas from the spec."]
+      },
+      "data-isolation": {
+        title: "Data Isolation",
+        status: "planned",
+        blurb: "Strict tenant, agent, and subject scoping across all data access.",
+        summary: "The spec defines data isolation as a separate security layer. Memory, knowledge, and later skill execution must all respect strict scope boundaries.",
+        exists: ["Tenant and agent scoping are explicit in the spec.", "Prototype already separates agent data by tenant and agent paths."],
+        deepens: ["Formal isolation guarantees.", "Cross-tenant leakage tests.", "Scoping rules for future knowledge and devices."],
+        files: ["SPEC.md", "internal/storage/files.go", "internal/app/app.go"],
+        notes: ["This replaces the narrower earlier tenant-isolation framing."]
+      },
+      "sandbox-layer": {
+        title: "Sandbox Layer",
+        status: "planned",
+        blurb: "Isolated runtime for high-risk execution, especially skills.",
+        summary: "The spec treats sandboxing as a core system requirement, with filesystem isolation, network control, secret isolation, limits, and observability.",
+        exists: ["Detailed sandbox requirements are defined in the spec.", "No actual sandbox runner exists in the prototype yet."],
+        deepens: ["Execution contract.", "Runtime classes.", "Credential and workspace rules."],
+        files: ["SPEC.md"],
+        notes: ["This block should stay tied to sections 20 and 21 of SPEC.md."]
+      },
+      "gateway-pattern": {
+        title: "Gateway Pattern",
+        status: "planned",
+        blurb: "Sandboxed execution reaches privileged operations only through a narrow gateway contract.",
+        summary: "SPEC.md defines the gateway as the mechanism that keeps secrets out of sandboxes and centralizes policy, limits, and durable access.",
+        exists: ["Gateway pattern is explicit in sandbox sections of the spec."],
+        deepens: ["Gateway APIs.", "Scoped tokens.", "Centralized enforcement and rate controls."],
+        files: ["SPEC.md"],
+        notes: ["This is broader and more spec-accurate than the earlier tool-gateway block."]
+      },
+      "deployment-direction": {
+        title: "Deployment and Sandbox Direction",
+        status: "planned",
+        blurb: "Self-hosted Linux, Kubernetes, and gVisor as the default hosted sandbox direction.",
+        summary: "The spec already defines the current infrastructure direction: self-hosted Linux, Kubernetes orchestration, and gVisor as the default sandbox runtime, with stronger tiers later.",
+        exists: ["Technology and sandbox direction are explicit in SPEC.md."],
+        deepens: ["Topology spec.", "Tiered isolation rollout.", "Shared vs dedicated deployment packaging."],
+        files: ["SPEC.md"],
+        notes: ["This should be represented because it is part of the source-of-truth architecture today."]
+      },
+      "policy-engine": {
+        title: "Policy Engine",
+        status: "planned",
+        blurb: "Operational form of the policy model inside runtime decisions.",
+        summary: "The prototype does not have a dedicated policy engine yet, but this remains a useful implementation-facing deepening block under the policy model.",
+        exists: ["Not implemented yet."],
+        deepens: ["Runtime decision service.", "Approval and escalation hooks.", "Operator controls."],
+        files: ["SPEC.md"],
+        notes: ["Kept as prototype deepening, but policy model is the higher-level source-of-truth block."]
+      },
+      "inspect-ui": {
+        title: "Inspection Surface",
+        status: "future",
+        blurb: "Operator-facing visibility into traces, memory, and decisions.",
+        summary: "The spec emphasizes inspectability and auditability. A future inspection surface would expose these traces in an operational UI.",
+        exists: ["Not implemented yet."],
+        deepens: ["Trace viewer.", "Memory diff view.", "Policy event timeline."],
+        files: ["SPEC.md", "spec-overview.html"],
+        notes: ["Future implementation idea derived from the spec emphasis on audit and observability."]
+      }
+    };
+
+    const viewGrid = document.getElementById("viewGrid");
+    const modalBackdrop = document.getElementById("modalBackdrop");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalSummary = document.getElementById("modalSummary");
+    const modalExists = document.getElementById("modalExists");
+    const modalDeepens = document.getElementById("modalDeepens");
+    const modalFiles = document.getElementById("modalFiles");
+    const modalNotes = document.getElementById("modalNotes");
+    const modalClose = document.getElementById("modalClose");
+    const body = document.body;
+
+    function renderList(target, values, formatter) {
+      target.innerHTML = "";
+      values.forEach((value) => {
+        const li = document.createElement("li");
+        li.innerHTML = formatter ? formatter(value) : value;
+        target.appendChild(li);
+      });
+    }
+
+    function openModal(id) {
+      const node = nodes[id];
+      if (!node) return;
+      modalTitle.textContent = node.title;
+      modalSummary.textContent = node.summary;
+      renderList(modalExists, node.exists);
+      renderList(modalDeepens, node.deepens);
+      renderList(modalFiles, node.files, (file) => `<code>${file}</code>`);
+      renderList(modalNotes, node.notes);
+      modalBackdrop.classList.add("open");
+    }
+
+    function closeModal() {
+      modalBackdrop.classList.remove("open");
+    }
+
+    function makeNode(id) {
+      const node = nodes[id];
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "node";
+      button.dataset.id = id;
+      button.innerHTML = `
+        <div class="meta">
+          <span class="status ${node.status}">${node.status}</span>
+          <span class="toolbar-label">Popup</span>
+        </div>
+        <strong>${node.title}</strong>
+        <span>${node.blurb}</span>
+      `;
+      button.addEventListener("click", () => openModal(id));
+      return button;
+    }
+
+    function renderSections() {
+      viewGrid.innerHTML = "";
+      sections.forEach((section, index) => {
+        const wrapper = document.createElement("section");
+        wrapper.className = `section ${section.key}`;
+        wrapper.innerHTML = `<h2>${section.title}</h2>`;
+        const grid = document.createElement("div");
+        grid.className = "node-grid";
+        section.ids.forEach((id) => grid.appendChild(makeNode(id)));
+        wrapper.appendChild(grid);
+        viewGrid.appendChild(wrapper);
+
+        if (body.classList.contains("theme-1") && index === 0) {
+          const connector = document.createElement("div");
+          connector.className = "connector-bar";
+          connector.textContent = "Current System Pressure";
+          viewGrid.appendChild(connector);
+        }
+      });
+
+    }
+
+    modalClose.addEventListener("click", closeModal);
+    modalBackdrop.addEventListener("click", (event) => {
+      if (event.target === modalBackdrop) {
+        closeModal();
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    });
+
+    renderSections();
+  </script>
+</body>
+</html>
