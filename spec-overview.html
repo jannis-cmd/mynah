@@ -523,7 +523,7 @@
         status: "implemented",
         blurb: "Bounded memory, session recall, retrieval, and post-turn updates.",
         summary: "The memory system is central in SPEC.md and is already the strongest implemented part of the prototype.",
-        exists: ["AGENT_PROFILE.md, shared MEMORY.md, and user-scoped USER.md are defined in the spec and represented in the prototype.", "SQLite session history and recall align with the v0 memory model.", "Post-turn memory routing is already present for shared memory and user memory.", "Injected memory is treated as a frozen snapshot for the current turn.", "Memory and user-memory writes are validated, routed, written atomically, and now carry minimal provenance sidecars."],
+        exists: ["AGENT_PROFILE.md, shared MEMORY.md, and user-scoped USER.md are defined in the spec and represented in the prototype.", "SQLite session history and recall align with the v0 memory model.", "Post-turn memory updates now use an explicit operation contract instead of freeform document rewrites.", "Injected memory is treated as a frozen snapshot for the current turn.", "Memory and user-memory writes are validated, runtime-applied, written atomically, and carry minimal provenance sidecars."],
         deepens: ["Richer provenance beyond the current minimal sidecars.", "Policy-scoped writes.", "Richer retrieval and memory pipeline contracts."],
         files: ["SPEC.md", "internal/app/app.go", "internal/storage/files.go", "internal/storage/session_store.go", "internal/memory/validate.go"],
         notes: ["This is where the prototype is closest to the spec today."]
@@ -622,8 +622,8 @@
         title: "Memory Validation",
         status: "implemented",
         blurb: "Rejects generic or low-value memory/profile updates.",
-        summary: "Validation and routing constrain what can persist into memory, reducing accumulation of boilerplate, vague assistant self-description, or wrongly scoped facts.",
-        exists: ["Validates memory doc length and quality.", "Validates profile doc length and specificity.", "Routes shared facts away from user memory and user-specific facts away from shared memory.", "Has focused tests around rejection, acceptance, and routing."],
+        summary: "Validation and runtime application constrain what can persist into memory, reducing accumulation of boilerplate, vague assistant self-description, or wrongly scoped facts.",
+        exists: ["Validates memory doc length and quality.", "Validates profile doc length and specificity.", "Applies explicit memory operations and rejects unsafe or wrongly scoped writes.", "Has focused tests around rejection, acceptance, and operation application."],
         deepens: ["Policy-backed memory classes.", "Safer rules for regulated data.", "Change reason tracking."],
         files: ["internal/memory/validate.go", "internal/memory/validate_test.go"],
         notes: ["This is an early but important quality boundary.", "It is not yet a full governance model."]

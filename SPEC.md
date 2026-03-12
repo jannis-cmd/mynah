@@ -546,23 +546,37 @@ For each completed turn, the runtime may produce one bounded memory revision res
 The revision step may propose changes, but the runtime decides what is actually persisted.
 
 The runtime must:
-- validate the revised `MEMORY.md`
-- validate the revised `USER.md`
-- route wrongly scoped facts to the correct document when the correction is unambiguous
+- apply explicit memory operations against the current `MEMORY.md` and `USER.md`
+- validate the resulting `MEMORY.md`
+- validate the resulting `USER.md`
 - reject low-value, unsafe, or invalid revisions
 - persist accepted revisions atomically
 
 The runtime must not:
 - mutate `AGENT_PROFILE.md` from ordinary user turns
 - persist memory without a resolved `user_id`
-- trust freeform model output as the final authority on scope
+- trust the model as the final authority on scope
 - accept revisions that exceed bounded document limits
 
 ### 14.0.1 v0 Revision Shape
 The practical v0 revision shape is:
-- `memory_md`
-- `user_md`
+- `operations[]`
+- `operations[].target`
+- `operations[].action`
+- `operations[].content`
+- `operations[].old_text`
 - `reason`
+
+The operation contract is:
+- `target`
+  - `memory` or `user`
+- `action`
+  - `add`, `replace`, or `remove`
+- `content`
+  - required for `add` and `replace`
+- `old_text`
+  - required for `replace` and `remove`
+  - short unique substring match against the current target document
 
 The runtime should also attach or derive the following provenance at persistence time:
 - `tenant_id`
@@ -575,18 +589,18 @@ This keeps the model-facing output small while preserving inspectability in the 
 
 ### 14.0.2 v0 Routing Rules
 The routing rule is intentionally simple:
-- if the durable fact is about the agent, subject, shared environment, routine, or shared outcome, write it to `MEMORY.md`
-- if the durable fact is about the identified user in the current session, write it to that user's `USER.md`
-- if a proposed line is clearly in the wrong document and the correction is obvious, reroute it rather than dropping it
-- if scope is ambiguous and the runtime cannot correct it safely, reject that part of the revision
+- the model proposes the target explicitly
+- the runtime enforces whether that target is acceptable
+- if the proposed target is invalid for the content, reject that operation rather than silently trusting it
+- in v0, the runtime should prefer rejection over automatic rerouting when target scope is wrong
 
 Examples:
 - "The barn uses the blue gate."
-  - goes to `MEMORY.md`
+  - valid as `target=memory`
 - "Anna prefers concise answers."
-  - goes to Anna's `USER.md`
+  - valid as `target=user` for Anna's session
 - "There is a recurring reminder on Friday."
-  - goes to `MEMORY.md` unless the reminder is explicitly user-private
+  - valid as `target=memory` unless the reminder is explicitly user-private
 
 ### 14.0.3 v0 Rejection Rules
 The runtime should reject a proposed memory update, fully or partially, when it is:

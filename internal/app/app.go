@@ -200,11 +200,15 @@ func (s *Service) ChatOnce(ctx context.Context, tenantID, agentID, userID, sessi
 		s.debugf("memory_revision skipped error=%v", err)
 		return reply, nil
 	}
-	s.debugf("memory_revision reason=%q memory_chars=%d user_chars=%d", revision.Reason, len(revision.MemoryDoc), len(revision.UserDoc))
+	s.debugf("memory_revision reason=%q operation_count=%d", revision.Reason, len(revision.Operations))
 
-	revision.MemoryDoc, revision.UserDoc = memory.RouteMemoryDocuments(revision.MemoryDoc, revision.UserDoc, userID)
-	memoryChanged := strings.TrimSpace(revision.MemoryDoc) != strings.TrimSpace(memoryDoc)
-	userChanged := strings.TrimSpace(revision.UserDoc) != strings.TrimSpace(userDoc)
+	nextMemoryDoc, nextUserDoc, err := memory.ApplyMemoryOperations(memoryDoc, userDoc, userID, revision.Operations)
+	if err != nil {
+		s.debugf("memory_revision rejected error=%q", err)
+		return reply, nil
+	}
+	memoryChanged := strings.TrimSpace(nextMemoryDoc) != strings.TrimSpace(memoryDoc)
+	userChanged := strings.TrimSpace(nextUserDoc) != strings.TrimSpace(userDoc)
 
 	provenance := storage.RevisionProvenance{
 		UserID:    userID,
@@ -214,17 +218,17 @@ func (s *Service) ChatOnce(ctx context.Context, tenantID, agentID, userID, sessi
 		Message:   strings.TrimSpace(userInput),
 	}
 
-	if err := memory.ValidateMemoryDocument(revision.MemoryDoc, s.cfg.MemoryCharLimit); err != nil {
+	if err := memory.ValidateMemoryDocument(nextMemoryDoc, s.cfg.MemoryCharLimit); err != nil {
 		s.debugf("memory_revision rejected reason=%q", err)
 		return reply, nil
 	}
-	if err := memory.ValidateUserDocument(revision.UserDoc, s.cfg.ProfileCharLimit); err != nil {
+	if err := memory.ValidateUserDocument(nextUserDoc, s.cfg.ProfileCharLimit); err != nil {
 		s.debugf("user_revision rejected reason=%q", err)
 		return reply, nil
 	}
 
 	if memoryChanged {
-		if err := fileStore.WriteMemory(revision.MemoryDoc); err != nil {
+		if err := fileStore.WriteMemory(nextMemoryDoc); err != nil {
 			return reply, err
 		}
 		if err := fileStore.WriteMemoryProvenance(provenance); err != nil {
@@ -232,7 +236,7 @@ func (s *Service) ChatOnce(ctx context.Context, tenantID, agentID, userID, sessi
 		}
 	}
 	if userChanged {
-		if err := fileStore.WriteUserProfile(userID, revision.UserDoc); err != nil {
+		if err := fileStore.WriteUserProfile(userID, nextUserDoc); err != nil {
 			return reply, err
 		}
 		if err := fileStore.WriteUserProfileProvenance(userID, provenance); err != nil {

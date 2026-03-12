@@ -49,10 +49,16 @@ type MemoryRevisionRequest struct {
 	UserLimit     int
 }
 
+type MemoryOperation struct {
+	Target  string `json:"target"`
+	Action  string `json:"action"`
+	Content string `json:"content,omitempty"`
+	OldText string `json:"old_text,omitempty"`
+}
+
 type MemoryRevision struct {
-	MemoryDoc string `json:"memory_md"`
-	UserDoc   string `json:"user_md"`
-	Reason    string `json:"reason"`
+	Operations []MemoryOperation `json:"operations"`
+	Reason     string            `json:"reason"`
 }
 
 type chatCompletionRequest struct {
@@ -117,39 +123,35 @@ func (c *Client) GenerateReply(ctx context.Context, request ReplyRequest) (strin
 
 func (c *Client) ReviseMemory(ctx context.Context, request MemoryRevisionRequest) (MemoryRevision, error) {
 	system := fmt.Sprintf(
-		"You maintain two bounded markdown documents for one persistent agent.\n\n"+
-			"Document 1: MEMORY.md\n"+
-			"- Keep durable shared facts, recurring routines, important lessons, stable context, and important outcomes worth remembering.\n"+
-			"- Keep shared facts only. Do not store one user's preferences, name, or communication style here.\n"+
-			"- Do not keep transient chatter.\n"+
-			"- Do not log greetings, arithmetic questions, or one-off assistant behavior.\n"+
-			"- Do not write interaction guidelines, politeness rules, or generic chatbot habits.\n"+
-			"- Prefer compact bullets or short paragraphs.\n"+
-			"- Merge related facts instead of duplicating them.\n"+
-			"- Remove stale or superseded information.\n"+
-			"- Stay within %d characters.\n\n"+
-			"Document 2: USER.md\n"+
+		"You maintain two bounded memory stores for one persistent agent using explicit operations.\n\n"+
+			"Store 1: MEMORY.md\n"+
+			"- Keep durable shared facts, recurring routines, important lessons, stable context, and important shared outcomes worth remembering.\n"+
+			"- Never store one user's private preferences, name, or communication style here.\n"+
+			"- Stay within %d characters after operations are applied.\n\n"+
+			"Store 2: USER.md\n"+
 			"- Keep durable facts about the current identified user only.\n"+
 			"- Store preferences, communication style, recurring habits, and user-specific stable facts.\n"+
-			"- Do not copy shared environment facts, barn facts, horse facts, or shared reminders here unless they are explicitly unique to the current user.\n"+
-			"- Do not copy shared agent or environment facts here.\n"+
-			"- Prefer compact bullets or short paragraphs.\n"+
-			"- Stay within %d characters.\n\n"+
+			"- Never copy shared environment facts, barn facts, horse facts, or shared reminders here unless they are explicitly unique to the current user.\n"+
+			"- Stay within %d characters after operations are applied.\n\n"+
+			"Operation contract:\n"+
+			"- target: \"memory\" or \"user\"\n"+
+			"- action: \"add\", \"replace\", or \"remove\"\n"+
+			"- content: required for add and replace\n"+
+			"- old_text: required for replace and remove; use a short unique substring match\n\n"+
 			"Rules:\n"+
-			"- Preserve useful existing information unless it is outdated or redundant.\n"+
-			"- If nothing should change, return the existing document contents unchanged.\n"+
-			"- MEMORY.md is for shared remembered facts and important outcomes worth keeping.\n"+
-			"- USER.md is for user-specific remembered facts.\n"+
-			"- User answering preferences belong in USER.md, not MEMORY.md.\n"+
-			"- Shared reminders, routines, and environment facts belong in MEMORY.md unless they are explicitly about this one user.\n"+
-			"- Good MEMORY.md content sounds like remembered facts about the horse, company, routines, behaviors, or shared outcomes.\n"+
-			"- Good USER.md content sounds like durable facts about one specific user.\n"+
+			"- Use operations only. Do not rewrite full documents.\n"+
+			"- Prefer no operations if nothing durable should change.\n"+
+			"- Use add for new facts.\n"+
+			"- Use replace when an existing fact should be updated or merged.\n"+
+			"- Use remove when a fact is clearly stale or superseded.\n"+
+			"- MEMORY.md is for shared remembered facts and important shared outcomes.\n"+
+			"- USER.md is for current-user remembered facts.\n"+
+			"- User answering preferences belong in USER.md.\n"+
+			"- Shared reminders, routines, and environment facts belong in MEMORY.md.\n"+
 			"- Bad memory content sounds like a chat transcript, generic assistant instructions, or praise for the assistant.\n"+
 			"- Never invent facts that are not supported by the conversation.\n"+
-			"- Return the full revised contents for both documents.\n"+
-			"- Use plain markdown text only inside each field.\n"+
 			"- Output JSON only.\n"+
-			"- JSON shape: {\"memory_md\":\"...\",\"user_md\":\"...\",\"reason\":\"...\"}\n",
+			"- JSON shape: {\"operations\":[{\"target\":\"memory|user\",\"action\":\"add|replace|remove\",\"content\":\"...\",\"old_text\":\"...\"}],\"reason\":\"...\"}\n",
 		request.MemoryLimit,
 		request.UserLimit,
 	)
@@ -159,7 +161,7 @@ func (c *Client) ReviseMemory(ctx context.Context, request MemoryRevisionRequest
 			"Current USER.md:\n%s\n\n"+
 			"Latest user message:\n%s\n\n"+
 			"Latest assistant reply:\n%s\n\n"+
-			"Revise both documents now. Keep them compact, stable, and high signal.",
+			"Choose memory operations now. Keep them compact, stable, and high signal.",
 		emptyOrPlaceholder(request.MemoryDoc, "(empty)"),
 		emptyOrPlaceholder(request.UserDoc, "(empty)"),
 		request.UserMessage,

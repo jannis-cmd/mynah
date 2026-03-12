@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/ErniConcepts/mynah/internal/llm"
 )
 
 type threatPattern struct {
@@ -111,65 +113,61 @@ func ValidateUserDocument(content string, limit int) error {
 	return nil
 }
 
-func RouteMemoryDocuments(memoryDoc, userDoc, userID string) (string, string) {
-	memoryLines := documentLines(memoryDoc)
-	userLines := documentLines(userDoc)
-	userName := detectUserName(userID, userLines)
+func ApplyMemoryOperations(memoryDoc, userDoc, userID string, operations []llm.MemoryOperation) (string, string, error) {
+	memoryEntries := documentLines(memoryDoc)
+	userEntries := documentLines(userDoc)
 
-	routedMemory := make([]string, 0, len(memoryLines)+len(userLines))
-	routedUser := make([]string, 0, len(userLines)+len(memoryLines))
-	seenMemory := map[string]struct{}{}
-	seenUser := map[string]struct{}{}
+	for _, operation := range operations {
+		target := strings.ToLower(strings.TrimSpace(operation.Target))
+		action := strings.ToLower(strings.TrimSpace(operation.Action))
+		content := strings.TrimSpace(operation.Content)
+		oldText := strings.TrimSpace(operation.OldText)
 
-	addMemory := func(line string) {
-		key := canonicalLine(line)
-		if key == "" {
-			return
+		if target != "memory" && target != "user" {
+			return "", "", fmt.Errorf("invalid memory operation target %q", operation.Target)
 		}
-		if _, exists := seenMemory[key]; exists {
-			return
+		if action != "add" && action != "replace" && action != "remove" {
+			return "", "", fmt.Errorf("invalid memory operation action %q", operation.Action)
 		}
-		seenMemory[key] = struct{}{}
-		routedMemory = append(routedMemory, bulletLine(line))
-	}
-	addUser := func(line string) {
-		key := canonicalLine(line)
-		if key == "" {
-			return
+		if action == "add" && content == "" {
+			return "", "", fmt.Errorf("add operation requires content")
 		}
-		if _, exists := seenUser[key]; exists {
-			return
+		if action == "replace" && (content == "" || oldText == "") {
+			return "", "", fmt.Errorf("replace operation requires content and old_text")
 		}
-		seenUser[key] = struct{}{}
-		routedUser = append(routedUser, bulletLine(line))
-	}
+		if action == "remove" && oldText == "" {
+			return "", "", fmt.Errorf("remove operation requires old_text")
+		}
+		if content != "" {
+			if err := validateOperationContent(target, content, userID); err != nil {
+				return "", "", err
+			}
+		}
 
-	for _, line := range memoryLines {
-		if referencesDifferentUser(line, userID, userName) {
-			continue
+		entries := &memoryEntries
+		if target == "user" {
+			entries = &userEntries
 		}
-		if isUserScopedLine(line, userID, userName) {
-			addUser(line)
-			continue
+
+		switch action {
+		case "add":
+			*entries = appendUniqueEntry(*entries, content)
+		case "replace":
+			nextEntries, err := replaceEntry(*entries, oldText, content)
+			if err != nil {
+				return "", "", err
+			}
+			*entries = nextEntries
+		case "remove":
+			nextEntries, err := removeEntry(*entries, oldText)
+			if err != nil {
+				return "", "", err
+			}
+			*entries = nextEntries
 		}
-		addMemory(line)
-	}
-	for _, line := range userLines {
-		if referencesDifferentUser(line, userID, userName) {
-			continue
-		}
-		if isUserScopedLine(line, userID, userName) {
-			addUser(line)
-			continue
-		}
-		if isSharedLine(line, userID, userName) {
-			addMemory(line)
-			continue
-		}
-		addUser(line)
 	}
 
-	return strings.Join(routedMemory, "\n"), strings.Join(routedUser, "\n")
+	return renderDocument(memoryEntries), renderDocument(userEntries), nil
 }
 
 func validateBase(content string, limit int) error {
@@ -273,21 +271,6 @@ func documentLines(content string) []string {
 	return lines
 }
 
-func detectUserName(userID string, userLines []string) string {
-	for _, line := range userLines {
-		lower := strings.ToLower(line)
-		if strings.Contains(lower, "name is ") {
-			name := strings.TrimSpace(line[strings.Index(lower, "name is ")+len("name is "):])
-			return strings.TrimRight(name, ".")
-		}
-		if strings.Contains(lower, "user's name is ") {
-			name := strings.TrimSpace(line[strings.Index(lower, "user's name is ")+len("user's name is "):])
-			return strings.TrimRight(name, ".")
-		}
-	}
-	return strings.TrimSpace(userID)
-}
-
 func isUserScopedLine(line, userID, userName string) bool {
 	lower := canonicalLine(line)
 	if lower == "" {
@@ -387,4 +370,114 @@ func bulletLine(line string) string {
 		return ""
 	}
 	return "- " + line
+}
+
+func validateOperationContent(target, content, userID string) error {
+	if err := validateBase(content, 100000); err != nil {
+		return err
+	}
+
+	if target == "user" {
+		if referencesDifferentUser(content, userID, userID) {
+			return fmt.Errorf("user memory operation references a different user")
+		}
+		if !isUserScopedLine(content, userID, userID) {
+			return fmt.Errorf("user memory operation requires user-scoped content")
+		}
+		return nil
+	}
+
+	if referencesDifferentUser(content, userID, userID) {
+		return fmt.Errorf("shared memory operation references a different user")
+	}
+	if isUserScopedLine(content, userID, userID) && !isSharedLine(content, userID, userID) {
+		return fmt.Errorf("shared memory operation cannot store user-scoped content")
+	}
+	return nil
+}
+
+func appendUniqueEntry(entries []string, content string) []string {
+	key := canonicalLine(content)
+	for _, entry := range entries {
+		if canonicalLine(entry) == key {
+			return entries
+		}
+	}
+	return append(entries, content)
+}
+
+func replaceEntry(entries []string, oldText, content string) ([]string, error) {
+	matches := matchingEntryIndexes(entries, oldText)
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("no entry matched %q", oldText)
+	}
+	if len(matches) > 1 && !allMatchingEntriesIdentical(entries, matches) {
+		return nil, fmt.Errorf("multiple entries matched %q", oldText)
+	}
+	entries[matches[0]] = content
+	return dedupeEntries(entries), nil
+}
+
+func removeEntry(entries []string, oldText string) ([]string, error) {
+	matches := matchingEntryIndexes(entries, oldText)
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("no entry matched %q", oldText)
+	}
+	if len(matches) > 1 && !allMatchingEntriesIdentical(entries, matches) {
+		return nil, fmt.Errorf("multiple entries matched %q", oldText)
+	}
+	index := matches[0]
+	return append(entries[:index], entries[index+1:]...), nil
+}
+
+func matchingEntryIndexes(entries []string, oldText string) []int {
+	lowerNeedle := strings.ToLower(strings.TrimSpace(oldText))
+	matches := make([]int, 0, len(entries))
+	for index, entry := range entries {
+		if strings.Contains(strings.ToLower(entry), lowerNeedle) {
+			matches = append(matches, index)
+		}
+	}
+	return matches
+}
+
+func allMatchingEntriesIdentical(entries []string, indexes []int) bool {
+	if len(indexes) <= 1 {
+		return true
+	}
+	first := canonicalLine(entries[indexes[0]])
+	for _, index := range indexes[1:] {
+		if canonicalLine(entries[index]) != first {
+			return false
+		}
+	}
+	return true
+}
+
+func dedupeEntries(entries []string) []string {
+	out := make([]string, 0, len(entries))
+	seen := map[string]struct{}{}
+	for _, entry := range entries {
+		key := canonicalLine(entry)
+		if key == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, strings.TrimSpace(entry))
+	}
+	return out
+}
+
+func renderDocument(entries []string) string {
+	if len(entries) == 0 {
+		return ""
+	}
+	lines := make([]string, 0, len(entries))
+	for _, entry := range dedupeEntries(entries) {
+		lines = append(lines, bulletLine(entry))
+	}
+	return strings.Join(lines, "\n")
 }
