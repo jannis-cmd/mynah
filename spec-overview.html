@@ -523,8 +523,8 @@
         status: "implemented",
         blurb: "Bounded memory, session recall, retrieval, and post-turn updates.",
         summary: "The memory system is central in SPEC.md and is already the strongest implemented part of the prototype.",
-        exists: ["AGENT_PROFILE.md, shared MEMORY.md, and user-scoped USER.md are defined in the spec and represented in the prototype.", "SQLite session history and recall align with the v0 memory model.", "Post-turn memory routing is already present for shared memory and user memory.", "Injected memory is treated as a frozen snapshot for the current turn.", "Memory and user-memory writes are validated, routed, and written atomically."],
-        deepens: ["Full provenance metadata.", "Policy-scoped writes.", "Richer retrieval and memory pipeline contracts."],
+        exists: ["AGENT_PROFILE.md, shared MEMORY.md, and user-scoped USER.md are defined in the spec and represented in the prototype.", "SQLite session history and recall align with the v0 memory model.", "Post-turn memory routing is already present for shared memory and user memory.", "Injected memory is treated as a frozen snapshot for the current turn.", "Memory and user-memory writes are validated, routed, written atomically, and now carry minimal provenance sidecars."],
+        deepens: ["Richer provenance beyond the current minimal sidecars.", "Policy-scoped writes.", "Richer retrieval and memory pipeline contracts."],
         files: ["SPEC.md", "internal/app/app.go", "internal/storage/files.go", "internal/storage/session_store.go", "internal/memory/validate.go"],
         notes: ["This is where the prototype is closest to the spec today."]
       },
@@ -583,8 +583,8 @@
         status: "implemented",
         blurb: "Commands for init, chat, show, and eval.",
         summary: "The current entrypoint is the Go CLI. It exposes the system as a local tool and keeps the implementation inspectable.",
-        exists: ["Supports init, chat, show, and eval commands.", "Creates tenant and agent data directories.", "Invokes the app service for runtime behavior."],
-        deepens: ["Command-level policy hooks.", "Safer admin and inspection commands.", "Operator workflows and debug surfaces."],
+        exists: ["Supports init, chat, show, and eval commands.", "Creates tenant and agent data directories.", "Invokes the app service for runtime behavior.", "The show command exposes memory, user memory, and latest provenance for inspection."],
+        deepens: ["Command-level policy hooks.", "Safer admin and inspection commands.", "Operator workflows and richer debug surfaces."],
         files: ["cmd/mynah/main.go"],
         notes: ["This is implemented today.", "It is the current control surface, not yet a remote runtime API."]
       },
@@ -602,8 +602,8 @@
         title: "File Store",
         status: "implemented",
         blurb: "Persists AGENT_PROFILE.md, MEMORY.md, and per-user USER.md.",
-        summary: "The current memory layer is deliberately simple: bounded markdown documents stored per agent on disk.",
-        exists: ["Reads and writes MEMORY.md.", "Reads and writes AGENT_PROFILE.md.", "Reads and writes per-user USER.md.", "Keeps memory inspectable outside the model."],
+        summary: "The current memory layer is deliberately simple: bounded markdown documents stored per agent on disk, with minimal provenance kept alongside them.",
+        exists: ["Reads and writes MEMORY.md.", "Reads and writes AGENT_PROFILE.md.", "Reads and writes per-user USER.md.", "Persists minimal provenance sidecars for the latest accepted shared and user writes.", "Keeps memory inspectable outside the model."],
         deepens: ["Versioning and diff history.", "Approval gates for sensitive memory changes.", "Richer memory classes and separation."],
         files: ["internal/storage/files.go"],
         notes: ["This reflects the current implementation truthfully.", "The design favors inspectability over hidden vector stores."]
@@ -722,8 +722,8 @@
         title: "Inspection Surface",
         status: "future",
         blurb: "Operator-facing visibility into traces, memory, and decisions.",
-        summary: "The spec emphasizes inspectability and auditability. A future inspection surface would expose these traces in an operational UI.",
-        exists: ["Not implemented yet."],
+        summary: "The spec emphasizes inspectability and auditability. The CLI now exposes a small inspection surface, while a fuller operator UI remains future work.",
+        exists: ["CLI inspection already exposes current memory, user memory, and latest provenance.", "A dedicated operator UI is not implemented yet."],
         deepens: ["Trace viewer.", "Memory diff view.", "Policy event timeline."],
         files: ["SPEC.md", "spec-overview.html"],
         notes: ["Future implementation idea derived from the spec emphasis on audit and observability."]

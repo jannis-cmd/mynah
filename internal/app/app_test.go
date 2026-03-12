@@ -208,6 +208,41 @@ func TestRecallAndReplyStayUserScopedAndCoherent(t *testing.T) {
 	}
 }
 
+func TestInspectAgentIncludesLatestMemoryProvenance(t *testing.T) {
+	service, _ := newTestService(t)
+	if err := service.InitAgent("tenant", "bella"); err != nil {
+		t.Fatalf("init agent: %v", err)
+	}
+
+	if _, err := service.ChatOnce(context.Background(), "tenant", "bella", "anna", "sess_anna_1", "My name is Anna and I like concise answers."); err != nil {
+		t.Fatalf("anna intro: %v", err)
+	}
+	if _, err := service.ChatOnce(context.Background(), "tenant", "bella", "anna", "sess_anna_1", "The barn uses the blue gate."); err != nil {
+		t.Fatalf("shared memory write: %v", err)
+	}
+
+	result, err := service.InspectAgent("tenant", "bella", "anna", 10)
+	if err != nil {
+		t.Fatalf("inspect agent: %v", err)
+	}
+
+	if result.MemoryProvenance.Target != "memory" {
+		t.Fatalf("expected memory provenance target, got %+v", result.MemoryProvenance)
+	}
+	if result.MemoryProvenance.UserID != "anna" || result.MemoryProvenance.SessionID != "sess_anna_1" {
+		t.Fatalf("unexpected memory provenance identity: %+v", result.MemoryProvenance)
+	}
+	if !strings.Contains(strings.ToLower(result.MemoryProvenance.Message), "blue gate") {
+		t.Fatalf("expected memory provenance message to reference latest shared write, got %+v", result.MemoryProvenance)
+	}
+	if result.UserProvenance.Target != "user" {
+		t.Fatalf("expected user provenance target, got %+v", result.UserProvenance)
+	}
+	if result.UserProvenance.UserID != "anna" || result.UserProvenance.Reason != "test revision" {
+		t.Fatalf("unexpected user provenance: %+v", result.UserProvenance)
+	}
+}
+
 func newTestService(t *testing.T) (*Service, storage.AgentPaths) {
 	t.Helper()
 

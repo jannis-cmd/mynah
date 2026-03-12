@@ -39,14 +39,16 @@ type llmClient interface {
 }
 
 type InspectResult struct {
-	TenantID       string
-	AgentID        string
-	UserID         string
-	AgentRoot      string
-	MemoryDoc      string
-	ProfileDoc     string
-	UserDoc        string
-	RecentMessages []storage.Message
+	TenantID            string
+	AgentID             string
+	UserID              string
+	AgentRoot           string
+	MemoryDoc           string
+	ProfileDoc          string
+	UserDoc             string
+	MemoryProvenance    storage.RevisionProvenance
+	UserProvenance      storage.RevisionProvenance
+	RecentMessages      []storage.Message
 }
 
 type EvalCase struct {
@@ -202,6 +204,14 @@ func (s *Service) ChatOnce(ctx context.Context, tenantID, agentID, userID, sessi
 
 	revision.MemoryDoc, revision.UserDoc = memory.RouteMemoryDocuments(revision.MemoryDoc, revision.UserDoc, userID)
 
+	provenance := storage.RevisionProvenance{
+		UserID:    userID,
+		SessionID: sessionID,
+		Timestamp: time.Now().UTC(),
+		Reason:    strings.TrimSpace(revision.Reason),
+		Message:   strings.TrimSpace(userInput),
+	}
+
 	if err := memory.ValidateMemoryDocument(revision.MemoryDoc, s.cfg.MemoryCharLimit); err != nil {
 		s.debugf("memory_revision rejected reason=%q", err)
 		return reply, nil
@@ -214,7 +224,13 @@ func (s *Service) ChatOnce(ctx context.Context, tenantID, agentID, userID, sessi
 	if err := fileStore.WriteMemory(revision.MemoryDoc); err != nil {
 		return reply, err
 	}
+	if err := fileStore.WriteMemoryProvenance(provenance); err != nil {
+		return reply, err
+	}
 	if err := fileStore.WriteUserProfile(userID, revision.UserDoc); err != nil {
+		return reply, err
+	}
+	if err := fileStore.WriteUserProfileProvenance(userID, provenance); err != nil {
 		return reply, err
 	}
 
@@ -236,9 +252,21 @@ func (s *Service) InspectAgent(tenantID, agentID, userID string, messageLimit in
 	if err != nil {
 		return InspectResult{}, err
 	}
-	userDoc, err := fileStore.ReadUserProfile(userID)
+	memoryMeta, err := fileStore.ReadMemoryProvenance()
 	if err != nil {
 		return InspectResult{}, err
+	}
+	var userDoc string
+	var userMeta storage.RevisionProvenance
+	if strings.TrimSpace(userID) != "" {
+		userDoc, err = fileStore.ReadUserProfile(userID)
+		if err != nil {
+			return InspectResult{}, err
+		}
+		userMeta, err = fileStore.ReadUserProfileProvenance(userID)
+		if err != nil {
+			return InspectResult{}, err
+		}
 	}
 
 	sessionStore, err := storage.NewSessionStore(paths.HistoryPath)
@@ -256,14 +284,16 @@ func (s *Service) InspectAgent(tenantID, agentID, userID string, messageLimit in
 	}
 
 	return InspectResult{
-		TenantID:       tenantID,
-		AgentID:        agentID,
-		UserID:         userID,
-		AgentRoot:      paths.RootPath,
-		MemoryDoc:      memoryDoc,
-		ProfileDoc:     profileDoc,
-		UserDoc:        userDoc,
-		RecentMessages: messages,
+		TenantID:         tenantID,
+		AgentID:          agentID,
+		UserID:           userID,
+		AgentRoot:        paths.RootPath,
+		MemoryDoc:        memoryDoc,
+		ProfileDoc:       profileDoc,
+		UserDoc:          userDoc,
+		MemoryProvenance: memoryMeta,
+		UserProvenance:   userMeta,
+		RecentMessages:   messages,
 	}, nil
 }
 

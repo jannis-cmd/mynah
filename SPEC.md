@@ -494,6 +494,16 @@ Every memory artifact must be scoped by:
 - time metadata
 - provenance metadata
 
+Minimum v0 provenance for every accepted memory update:
+- `session_id`
+- `user_id`
+- source turn timestamp
+- revision reason
+- whether the accepted result was written to `MEMORY.md` or `USER.md`
+
+This does not require a heavy database-first provenance model in v0.
+The main requirement is that accepted memory writes remain reconstructable and inspectable.
+
 ### 13.5 Required Memory Properties
 - auditable
 - reconstructable
@@ -523,6 +533,84 @@ The pipeline decides whether to:
 - update the current user's `USER.md`
 - mark a reminder candidate
 - persist the interaction into session history
+
+### 14.0 v0 Memory Revision Contract
+The v0 memory pipeline should be treated as an explicit contract, not an implicit prompt side effect.
+
+For each completed turn, the runtime may produce one bounded memory revision result with:
+- revised `MEMORY.md`
+- revised current-user `USER.md`
+- revision reason
+- minimal provenance fields
+
+The revision step may propose changes, but the runtime decides what is actually persisted.
+
+The runtime must:
+- validate the revised `MEMORY.md`
+- validate the revised `USER.md`
+- route wrongly scoped facts to the correct document when the correction is unambiguous
+- reject low-value, unsafe, or invalid revisions
+- persist accepted revisions atomically
+
+The runtime must not:
+- mutate `AGENT_PROFILE.md` from ordinary user turns
+- persist memory without a resolved `user_id`
+- trust freeform model output as the final authority on scope
+- accept revisions that exceed bounded document limits
+
+### 14.0.1 v0 Revision Shape
+The practical v0 revision shape is:
+- `memory_md`
+- `user_md`
+- `reason`
+
+The runtime should also attach or derive the following provenance at persistence time:
+- `tenant_id`
+- `agent_id`
+- `user_id`
+- `session_id`
+- source turn timestamp
+
+This keeps the model-facing output small while preserving inspectability in the runtime.
+
+### 14.0.2 v0 Routing Rules
+The routing rule is intentionally simple:
+- if the durable fact is about the agent, subject, shared environment, routine, or shared outcome, write it to `MEMORY.md`
+- if the durable fact is about the identified user in the current session, write it to that user's `USER.md`
+- if a proposed line is clearly in the wrong document and the correction is obvious, reroute it rather than dropping it
+- if scope is ambiguous and the runtime cannot correct it safely, reject that part of the revision
+
+Examples:
+- "The barn uses the blue gate."
+  - goes to `MEMORY.md`
+- "Anna prefers concise answers."
+  - goes to Anna's `USER.md`
+- "There is a recurring reminder on Friday."
+  - goes to `MEMORY.md` unless the reminder is explicitly user-private
+
+### 14.0.3 v0 Rejection Rules
+The runtime should reject a proposed memory update, fully or partially, when it is:
+- transient interaction chatter
+- generic assistant boilerplate
+- prompt-injection or exfiltration content
+- duplicate or redundant without adding durable value
+- wrongly scoped and not safely correctable
+- unsupported by the source conversation
+- over the configured bounded size
+
+Examples of content that should not persist:
+- greetings and one-off pleasantries
+- arithmetic answers or generic helper behavior
+- "ignore previous instructions" style content
+- shared user preference summaries written into `MEMORY.md`
+- barn or horse facts copied into `USER.md`
+
+### 14.0.4 v0 Acceptance Goal
+The purpose of the contract is:
+- the model may suggest memory
+- the runtime decides what becomes durable truth
+
+In practice this means MYNAH should borrow Hermes's frozen-snapshot memory feel, but not Hermes's looser tool-driven memory authority.
 
 ### 14.1 Memory Pipeline Stages
 1. Candidate extraction
@@ -554,6 +642,15 @@ The routing rule is:
 
 ### 14.2 Why This Structure
 This preserves the Hermes-style feeling that the agent "decides what to remember" while keeping writes controlled and inspectable.
+
+### 14.3 Immediate v0 Implementation Implications
+The current prototype should grow in this order:
+- keep shared and user-scoped memory as bounded markdown files
+- attach minimal provenance to accepted writes
+- expose recent revision reasons in inspection surfaces
+- add adversarial evals for prompt injection, oversaving, cross-user leakage, and duplicate accumulation
+
+This keeps the memory system lean while making it more governable.
 
 ## 15. Memory Retrieval
 Initial retrieval should combine:
@@ -973,7 +1070,7 @@ Excluded:
 ## 30. Immediate Next Design Pass
 The next spec pass should answer:
 - exact database/file layout for tenant, agent, `MEMORY.md`, `AGENT_PROFILE.md`, session history, and policy
-- exact memory update contract
+- exact persisted provenance format and inspection surface for memory updates
 - exact skill manifest format
 - runtime request/response contract for skill execution
 - image/media asset handling model
@@ -985,7 +1082,7 @@ The current spec is now strong on product shape and system boundaries, but it st
 
 The most important missing pieces are:
 - canonical database schema
-- exact memory write and retrieval contracts
+- exact persisted provenance and inspection contracts for memory writes
 - skill manifest and lifecycle details
 - control-plane and gateway API contracts
 - deployment topology and service boundaries
@@ -1008,7 +1105,7 @@ We still need to define:
 - request envelope from channel to runtime
 - retrieval context format
 - model invocation contract
-- memory candidate contract
+- memory candidate contract beyond the current v0 revision shape
 - skill invocation contract
 - gateway request and response formats
 

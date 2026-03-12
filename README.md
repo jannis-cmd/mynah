@@ -55,7 +55,14 @@ Memory contract in the current prototype:
 - SQLite session history is the deeper recall archive searched on demand
 - memory and user-memory writes are validated before persistence
 - memory routing is LLM-guided but corrected by deterministic post-validation routing rules
+- accepted shared and user-memory writes persist minimal provenance with reason, session, user, timestamp, and source message
 - memory and user-memory writes are durable for future turns but do not alter the current turn's already-built prompt
+
+Inspection in the current prototype:
+
+- `show` prints `AGENT_PROFILE.md`, `MEMORY.md`, the selected user's `USER.md`, and recent session history
+- `show` also prints the latest shared-memory and user-memory provenance sidecars
+- this gives a quick view of what the agent currently knows and why it was last updated
 
 ## Setup
 

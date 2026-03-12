@@ -13,6 +13,7 @@ import (
 
 	"github.com/ErniConcepts/mynah/internal/app"
 	"github.com/ErniConcepts/mynah/internal/secrets"
+	"github.com/ErniConcepts/mynah/internal/storage"
 )
 
 func main() {
@@ -200,9 +201,13 @@ func runShow(args []string) error {
 	fmt.Println(emptyDoc(result.ProfileDoc))
 	fmt.Println("\n=== MEMORY.md ===")
 	fmt.Println(emptyDoc(result.MemoryDoc))
+	fmt.Println("\n=== MEMORY Provenance ===")
+	fmt.Println(formatProvenance(result.MemoryProvenance))
 	if strings.TrimSpace(result.UserID) != "" {
 		fmt.Printf("\n=== USER.md (%s) ===\n", result.UserID)
 		fmt.Println(emptyDoc(result.UserDoc))
+		fmt.Printf("\n=== USER Provenance (%s) ===\n", result.UserID)
+		fmt.Println(formatProvenance(result.UserProvenance))
 	}
 	fmt.Println("\n=== Recent Session History ===")
 	if len(result.RecentMessages) == 0 {
@@ -299,6 +304,29 @@ func printUsage() {
 func emptyDoc(value string) string {
 	if strings.TrimSpace(value) == "" {
 		return "(empty)"
+	}
+	return value
+}
+
+func formatProvenance(meta storage.RevisionProvenance) string {
+	if meta.Timestamp.IsZero() && strings.TrimSpace(meta.Reason) == "" && strings.TrimSpace(meta.SessionID) == "" {
+		return "(empty)"
+	}
+
+	lines := []string{
+		fmt.Sprintf("target: %s", emptyOr(meta.Target, "(unknown)")),
+		fmt.Sprintf("user_id: %s", emptyOr(meta.UserID, "(empty)")),
+		fmt.Sprintf("session_id: %s", emptyOr(meta.SessionID, "(empty)")),
+		fmt.Sprintf("timestamp: %s", meta.Timestamp.Local().Format(time.RFC3339)),
+		fmt.Sprintf("reason: %s", emptyOr(meta.Reason, "(empty)")),
+		fmt.Sprintf("message: %s", emptyOr(meta.Message, "(empty)")),
+	}
+	return strings.Join(lines, "\n")
+}
+
+func emptyOr(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
 	}
 	return value
 }
