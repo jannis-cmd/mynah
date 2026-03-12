@@ -50,8 +50,11 @@ Memory contract in the current prototype:
 - `AGENT_PROFILE.md` is developer-defined framing
 - `MEMORY.md` is shared durable memory for the agent
 - `USER.md` is durable memory for the current identified user
+- post-turn routing keeps shared facts and shared outcomes in `MEMORY.md`
+- post-turn routing keeps user-specific identity and preferences in the current user's `USER.md`
 - SQLite session history is the deeper recall archive searched on demand
 - memory and user-memory writes are validated before persistence
+- memory routing is LLM-guided but corrected by deterministic post-validation routing rules
 - memory and user-memory writes are durable for future turns but do not alter the current turn's already-built prompt
 
 ## Setup
@@ -138,4 +141,5 @@ The live test:
 
 - uses a temp sandbox and cleans up after itself
 - checks user-scoped memory routing and isolation with the real model
+- includes a broader 20-variant robustness pass for paraphrased prompts and interleaved users
 - uses broad assertions so it validates behavior without overfitting to one exact phrasing
