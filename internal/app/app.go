@@ -39,16 +39,17 @@ type llmClient interface {
 }
 
 type InspectResult struct {
-	TenantID            string
-	AgentID             string
-	UserID              string
-	AgentRoot           string
-	MemoryDoc           string
-	ProfileDoc          string
-	UserDoc             string
-	MemoryProvenance    storage.RevisionProvenance
-	UserProvenance      storage.RevisionProvenance
-	RecentMessages      []storage.Message
+	TenantID         string
+	AgentID          string
+	UserID           string
+	AgentRoot        string
+	MemoryDoc        string
+	ProfileDoc       string
+	UserDoc          string
+	MemoryProvenance storage.RevisionProvenance
+	UserProvenance   storage.RevisionProvenance
+	RejectedRevision storage.RejectedRevision
+	RecentMessages   []storage.Message
 }
 
 type EvalCase struct {
@@ -202,9 +203,25 @@ func (s *Service) ChatOnce(ctx context.Context, tenantID, agentID, userID, sessi
 	}
 	s.debugf("memory_revision reason=%q operation_count=%d", revision.Reason, len(revision.Operations))
 
+	writeRejectedRevision := func(rejectionErr error) {
+		if rejectionErr == nil {
+			return
+		}
+		_ = fileStore.WriteRejectedRevision(storage.RejectedRevision{
+			Timestamp:      time.Now().UTC(),
+			UserID:         userID,
+			SessionID:      sessionID,
+			Message:        strings.TrimSpace(userInput),
+			Reason:         strings.TrimSpace(revision.Reason),
+			RejectionError: rejectionErr.Error(),
+			Operations:     revision.Operations,
+		})
+	}
+
 	nextMemoryDoc, nextUserDoc, err := memory.ApplyMemoryOperations(memoryDoc, userDoc, userID, revision.Operations)
 	if err != nil {
 		s.debugf("memory_revision rejected error=%q", err)
+		writeRejectedRevision(err)
 		return reply, nil
 	}
 	memoryChanged := strings.TrimSpace(nextMemoryDoc) != strings.TrimSpace(memoryDoc)
@@ -220,10 +237,12 @@ func (s *Service) ChatOnce(ctx context.Context, tenantID, agentID, userID, sessi
 
 	if err := memory.ValidateMemoryDocument(nextMemoryDoc, s.cfg.MemoryCharLimit); err != nil {
 		s.debugf("memory_revision rejected reason=%q", err)
+		writeRejectedRevision(err)
 		return reply, nil
 	}
 	if err := memory.ValidateUserDocument(nextUserDoc, s.cfg.ProfileCharLimit); err != nil {
 		s.debugf("user_revision rejected reason=%q", err)
+		writeRejectedRevision(err)
 		return reply, nil
 	}
 
@@ -266,6 +285,10 @@ func (s *Service) InspectAgent(tenantID, agentID, userID string, messageLimit in
 	if err != nil {
 		return InspectResult{}, err
 	}
+	rejectedRevision, err := fileStore.ReadRejectedRevision()
+	if err != nil {
+		return InspectResult{}, err
+	}
 	var userDoc string
 	var userMeta storage.RevisionProvenance
 	if strings.TrimSpace(userID) != "" {
@@ -303,6 +326,7 @@ func (s *Service) InspectAgent(tenantID, agentID, userID string, messageLimit in
 		UserDoc:          userDoc,
 		MemoryProvenance: memoryMeta,
 		UserProvenance:   userMeta,
+		RejectedRevision: rejectedRevision,
 		RecentMessages:   messages,
 	}, nil
 }

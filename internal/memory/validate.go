@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/ErniConcepts/mynah/internal/llm"
 )
@@ -151,9 +152,11 @@ func ApplyMemoryOperations(memoryDoc, userDoc, userID string, operations []llm.M
 
 		switch action {
 		case "add":
-			*entries = appendUniqueEntry(*entries, content)
+			for _, atomicEntry := range splitAtomicEntries(content) {
+				*entries = appendUniqueEntry(*entries, atomicEntry)
+			}
 		case "replace":
-			nextEntries, err := replaceEntry(*entries, oldText, content)
+			nextEntries, err := replaceEntry(*entries, oldText, splitAtomicEntries(content))
 			if err != nil {
 				return "", "", err
 			}
@@ -339,13 +342,13 @@ func referencesDifferentUser(line, userID, userName string) bool {
 
 func extractUserMarkers(lower string) []string {
 	markers := []string{}
-	patterns := []string{"user's name is ", "name is "}
+	patterns := []string{"user's name is ", "user name is ", "name is "}
 	for _, pattern := range patterns {
 		if idx := strings.Index(lower, pattern); idx >= 0 {
 			value := strings.TrimSpace(lower[idx+len(pattern):])
 			value = strings.Trim(value, " .,:;!?")
 			if value != "" {
-				markers = append(markers, strings.Fields(value)[0])
+				markers = append(markers, strings.Trim(strings.Fields(value)[0], " .,:;!?"))
 			}
 		}
 	}
@@ -353,7 +356,7 @@ func extractUserMarkers(lower string) []string {
 	words := strings.Fields(lower)
 	if len(words) >= 2 && containsAny(lower, []string{"prefers", "likes", "answers", "replies"}) {
 		first := strings.Trim(words[0], " .,:;!?")
-		if first != "" && first != "user" && first != "prefers" {
+		if first != "" && !strings.HasPrefix(first, "user") && first != "prefers" {
 			markers = append(markers, first)
 		}
 	}
@@ -406,7 +409,7 @@ func appendUniqueEntry(entries []string, content string) []string {
 	return append(entries, content)
 }
 
-func replaceEntry(entries []string, oldText, content string) ([]string, error) {
+func replaceEntry(entries []string, oldText string, contentEntries []string) ([]string, error) {
 	matches := matchingEntryIndexes(entries, oldText)
 	if len(matches) == 0 {
 		return nil, fmt.Errorf("no entry matched %q", oldText)
@@ -414,8 +417,15 @@ func replaceEntry(entries []string, oldText, content string) ([]string, error) {
 	if len(matches) > 1 && !allMatchingEntriesIdentical(entries, matches) {
 		return nil, fmt.Errorf("multiple entries matched %q", oldText)
 	}
-	entries[matches[0]] = content
-	return dedupeEntries(entries), nil
+	if len(contentEntries) == 0 {
+		return nil, fmt.Errorf("replace operation requires replacement content")
+	}
+	index := matches[0]
+	next := make([]string, 0, len(entries)-1+len(contentEntries))
+	next = append(next, entries[:index]...)
+	next = append(next, contentEntries...)
+	next = append(next, entries[index+1:]...)
+	return dedupeEntries(next), nil
 }
 
 func removeEntry(entries []string, oldText string) ([]string, error) {
@@ -431,10 +441,10 @@ func removeEntry(entries []string, oldText string) ([]string, error) {
 }
 
 func matchingEntryIndexes(entries []string, oldText string) []int {
-	lowerNeedle := strings.ToLower(strings.TrimSpace(oldText))
+	lowerNeedle := canonicalLine(strings.TrimSpace(strings.TrimLeft(oldText, "-* ")))
 	matches := make([]int, 0, len(entries))
 	for index, entry := range entries {
-		if strings.Contains(strings.ToLower(entry), lowerNeedle) {
+		if lowerNeedle != "" && strings.Contains(canonicalLine(entry), lowerNeedle) {
 			matches = append(matches, index)
 		}
 	}
@@ -480,4 +490,57 @@ func renderDocument(entries []string) string {
 		lines = append(lines, bulletLine(entry))
 	}
 	return strings.Join(lines, "\n")
+}
+
+func splitAtomicEntries(content string) []string {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return nil
+	}
+
+	parts := make([]string, 0, 4)
+	var current strings.Builder
+	flush := func() {
+		value := strings.TrimSpace(current.String())
+		value = strings.TrimLeft(value, "-* ")
+		value = strings.TrimSpace(value)
+		if value != "" {
+			parts = append(parts, value)
+		}
+		current.Reset()
+	}
+
+	for _, r := range content {
+		switch {
+		case r == '\n' || r == ';':
+			flush()
+		default:
+			current.WriteRune(r)
+			if r == '.' || r == '!' || r == '?' {
+				flush()
+			}
+		}
+	}
+	flush()
+
+	if len(parts) <= 1 {
+		return parts
+	}
+
+	normalized := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		last := rune(0)
+		for _, r := range part {
+			last = r
+		}
+		if last != 0 && !unicode.IsPunct(last) {
+			part += "."
+		}
+		normalized = append(normalized, part)
+	}
+	return normalized
 }

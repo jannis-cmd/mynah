@@ -150,4 +150,6 @@ The live test:
 - uses a temp sandbox and cleans up after itself
 - checks user-scoped memory routing and isolation with the real model
 - includes a broader 20-variant robustness pass for paraphrased prompts and interleaved users
+- checks the structured memory operation contract directly, including `target`, `add`, `replace`, and `remove` behavior
+- verifies update/removal scenarios by inspecting stored `MEMORY.md` and `USER.md` state, not only final reply wording
 - uses broad assertions so it validates behavior without overfitting to one exact phrasing

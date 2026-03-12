@@ -51,6 +51,7 @@ Do not treat it as a final reporting step after implementation is already fixed.
 - keep live model smoke tests separate from deterministic contract tests
 - live tests should be opt-in so the default suite stays fast, cheap, and rerunnable
 - use broad behavior assertions for live tests rather than brittle exact phrasing checks
+- when testing structured memory contracts, prefer checking persisted state and rejection records in addition to reply text
 - live tests must still use temporary sandboxes and leave no durable local artifacts
 
 ## Metrics

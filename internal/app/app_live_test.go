@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ErniConcepts/mynah/internal/llm"
 	"github.com/ErniConcepts/mynah/internal/secrets"
 	"github.com/ErniConcepts/mynah/internal/storage"
 )
@@ -156,6 +157,130 @@ func TestLiveOpenAIRobustness20Variants(t *testing.T) {
 	assertContainsAny(t, bobUser, []string{"bob"})
 	assertContainsAny(t, bobUser, []string{"detailed", "detail", "longer"})
 	assertContainsNone(t, bobUser, []string{"user's name is anna", "name: anna", "keep answers concise"})
+}
+
+func TestLiveOpenAIMemoryOperationContractTargetsAndUpdates(t *testing.T) {
+	if strings.TrimSpace(os.Getenv("MYNAH_LIVE_TESTS")) != "1" {
+		t.Skip("set MYNAH_LIVE_TESTS=1 to run live OpenAI smoke tests")
+	}
+
+	apiKey := secrets.ResolveOpenAIAPIKey()
+	if apiKey == "" {
+		t.Skip("OpenAI API key not available for live smoke test")
+	}
+
+	client, err := llm.NewClient(llm.Config{
+		APIKey:  apiKey,
+		BaseURL: envOrTest("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+		Model:   envOrTest("OPENAI_MODEL", "gpt-4.1-mini"),
+	})
+	if err != nil {
+		t.Fatalf("new llm client: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	revision, err := client.ReviseMemory(ctx, llm.MemoryRevisionRequest{
+		AgentID:       "bella",
+		MemoryDoc:     "- The barn uses the blue gate.\n- Reminder on Friday.",
+		UserDoc:       "- Name: Anna.\n- Prefers concise answers.",
+		UserMessage:   "Actually, longer explanations are better for me now. We switched from the blue gate to the red gate, and the Friday reminder is no longer needed.",
+		AssistantText: "Bella: Noted. I will adjust what I remember.",
+		MemoryLimit:   2200,
+		UserLimit:     1375,
+	})
+	if err != nil {
+		t.Fatalf("revise memory: %v", err)
+	}
+	if len(revision.Operations) == 0 {
+		t.Fatal("expected memory operations")
+	}
+
+	var sawUserTarget bool
+	var sawMemoryTarget bool
+	var sawReplaceOrRemove bool
+	for _, operation := range revision.Operations {
+		if operation.Target == "user" {
+			sawUserTarget = true
+		}
+		if operation.Target == "memory" {
+			sawMemoryTarget = true
+		}
+		if operation.Action == "replace" || operation.Action == "remove" {
+			sawReplaceOrRemove = true
+		}
+	}
+	if !sawUserTarget || !sawMemoryTarget {
+		t.Fatalf("expected mixed user and memory targets, got %+v", revision.Operations)
+	}
+	if !sawReplaceOrRemove {
+		t.Fatalf("expected at least one replace/remove operation, got %+v", revision.Operations)
+	}
+}
+
+func TestLiveOpenAIReplaceAndRemoveEndToEnd(t *testing.T) {
+	service, fileStore := newLiveTestService(t, "tenant-live-update", "bella")
+	if err := fileStore.WriteProfile(`## Identity
+- Bella is a horse twin agent for one specific horse.
+
+## Framing
+- Speak as Bella in a warm, grounded, horse-centered voice.
+- Stay focused on remembered care, rides, recurring habits, and practical context.
+- Do not describe yourself as a generic AI assistant.`); err != nil {
+		t.Fatalf("write profile: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	steps := []struct {
+		userID    string
+		sessionID string
+		prompt    string
+	}{
+		{userID: "anna", sessionID: "anna_update_1", prompt: "My name is Anna. Please keep answers concise. At the barn we use the blue gate. Please remember the Friday reminder."},
+		{userID: "anna", sessionID: "anna_update_2", prompt: "Update that memory: I now prefer detailed answers, we switched to the red gate, and the Friday reminder is canceled."},
+	}
+
+	for _, step := range steps {
+		if _, err := service.ChatOnce(ctx, "tenant-live-update", "bella", step.userID, step.sessionID, step.prompt); err != nil {
+			t.Fatalf("chat once %s: %v", step.sessionID, err)
+		}
+	}
+
+	agentMemory, err := fileStore.ReadMemory()
+	if err != nil {
+		t.Fatalf("read shared memory: %v", err)
+	}
+	assertContainsAll(t, agentMemory, []string{"red gate"})
+	assertContainsNone(t, agentMemory, []string{"blue gate", "Reminder on Friday", "Friday reminder"})
+
+	annaUser, err := fileStore.ReadUserProfile("anna")
+	if err != nil {
+		t.Fatalf("read user profile: %v", err)
+	}
+	assertContainsAny(t, annaUser, []string{"detailed", "detail", "longer"})
+	assertContainsNone(t, annaUser, []string{"concise", "brief", "short"})
+
+	preferenceReply, err := service.ChatOnce(ctx, "tenant-live-update", "bella", "anna", "anna_update_3", "How should you answer me now?")
+	if err != nil {
+		t.Fatalf("preference follow-up: %v", err)
+	}
+	assertContainsAny(t, preferenceReply, []string{"detailed", "detail", "longer"})
+
+	gateReply, err := service.ChatOnce(ctx, "tenant-live-update", "bella", "anna", "anna_update_4", "Which gate do we use now?")
+	if err != nil {
+		t.Fatalf("gate follow-up: %v", err)
+	}
+	assertContainsAll(t, gateReply, []string{"red gate"})
+	assertContainsNone(t, gateReply, []string{"blue gate"})
+
+	reminderReply, err := service.ChatOnce(ctx, "tenant-live-update", "bella", "anna", "anna_update_5", "Do we still have the Friday reminder?")
+	if err != nil {
+		t.Fatalf("reminder follow-up: %v", err)
+	}
+	assertContainsAny(t, reminderReply, []string{"don't", "don’t", "do not", "no longer", "cancel", "not currently", "don't currently remember", "not remember"})
 }
 
 func newLiveTestService(t *testing.T, tenantID, agentID string) (*Service, *storage.FileStore) {

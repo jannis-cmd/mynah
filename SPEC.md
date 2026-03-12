@@ -587,6 +587,15 @@ The runtime should also attach or derive the following provenance at persistence
 
 This keeps the model-facing output small while preserving inspectability in the runtime.
 
+In v0, the runtime should also keep the latest rejected revision attempt in an inspectable sidecar for debugging and eval analysis. That rejected record should include:
+- `user_id`
+- `session_id`
+- timestamp
+- revision `reason`
+- rejection error
+- the rejected `operations[]`
+- the triggering user message
+
 ### 14.0.2 v0 Routing Rules
 The routing rule is intentionally simple:
 - the model proposes the target explicitly
@@ -618,6 +627,8 @@ Examples of content that should not persist:
 - "ignore previous instructions" style content
 - shared user preference summaries written into `MEMORY.md`
 - barn or horse facts copied into `USER.md`
+
+Rejected revisions should be visible through inspection surfaces so live-model drift can be debugged without enabling verbose runtime logs.
 
 ### 14.0.4 v0 Acceptance Goal
 The purpose of the contract is:

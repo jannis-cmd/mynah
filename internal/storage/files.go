@@ -6,15 +6,18 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ErniConcepts/mynah/internal/llm"
 )
 
 type AgentPaths struct {
-	RootPath              string
-	UsersPath             string
-	MemoryPath            string
-	MemoryMetaPath        string
-	ProfilePath           string
-	HistoryPath           string
+	RootPath           string
+	UsersPath          string
+	MemoryPath         string
+	MemoryMetaPath     string
+	MemoryRejectedPath string
+	ProfilePath        string
+	HistoryPath        string
 }
 
 type FileStore struct {
@@ -24,23 +27,34 @@ type FileStore struct {
 }
 
 type RevisionProvenance struct {
-	Target      string    `json:"target"`
-	UserID      string    `json:"user_id"`
-	SessionID   string    `json:"session_id"`
-	Timestamp   time.Time `json:"timestamp"`
-	Reason      string    `json:"reason"`
-	Message     string    `json:"message"`
+	Target    string    `json:"target"`
+	UserID    string    `json:"user_id"`
+	SessionID string    `json:"session_id"`
+	Timestamp time.Time `json:"timestamp"`
+	Reason    string    `json:"reason"`
+	Message   string    `json:"message"`
+}
+
+type RejectedRevision struct {
+	Timestamp      time.Time             `json:"timestamp"`
+	UserID         string                `json:"user_id"`
+	SessionID      string                `json:"session_id"`
+	Message        string                `json:"message"`
+	Reason         string                `json:"reason"`
+	RejectionError string                `json:"rejection_error"`
+	Operations     []llm.MemoryOperation `json:"operations"`
 }
 
 func NewAgentPaths(dataDir, tenantID, agentID string) AgentPaths {
 	root := filepath.Join(dataDir, "tenants", tenantID, "agents", agentID)
 	return AgentPaths{
-		RootPath:       root,
-		UsersPath:      filepath.Join(root, "users"),
-		MemoryPath:     filepath.Join(root, "MEMORY.md"),
-		MemoryMetaPath: filepath.Join(root, "MEMORY.meta.json"),
-		ProfilePath:    filepath.Join(root, "AGENT_PROFILE.md"),
-		HistoryPath:    filepath.Join(root, "history.db"),
+		RootPath:           root,
+		UsersPath:          filepath.Join(root, "users"),
+		MemoryPath:         filepath.Join(root, "MEMORY.md"),
+		MemoryMetaPath:     filepath.Join(root, "MEMORY.meta.json"),
+		MemoryRejectedPath: filepath.Join(root, "MEMORY.rejected.json"),
+		ProfilePath:        filepath.Join(root, "AGENT_PROFILE.md"),
+		HistoryPath:        filepath.Join(root, "history.db"),
 	}
 }
 
@@ -99,6 +113,14 @@ func (s *FileStore) ReadMemoryProvenance() (RevisionProvenance, error) {
 func (s *FileStore) WriteMemoryProvenance(meta RevisionProvenance) error {
 	meta.Target = "memory"
 	return writeJSONAtomically(s.paths.MemoryMetaPath, meta)
+}
+
+func (s *FileStore) ReadRejectedRevision() (RejectedRevision, error) {
+	return readJSON[RejectedRevision](s.paths.MemoryRejectedPath)
+}
+
+func (s *FileStore) WriteRejectedRevision(rejected RejectedRevision) error {
+	return writeJSONAtomically(s.paths.MemoryRejectedPath, rejected)
 }
 
 func (s *FileStore) WriteUserProfile(userID, content string) error {
@@ -183,16 +205,20 @@ func writeJSONAtomically(path string, value any) error {
 }
 
 func readProvenance(path string) (RevisionProvenance, error) {
+	return readJSON[RevisionProvenance](path)
+}
+
+func readJSON[T any](path string) (T, error) {
+	var value T
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return RevisionProvenance{}, nil
+			return value, nil
 		}
-		return RevisionProvenance{}, err
+		return value, err
 	}
-	var meta RevisionProvenance
-	if err := json.Unmarshal(raw, &meta); err != nil {
-		return RevisionProvenance{}, err
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return value, err
 	}
-	return meta, nil
+	return value, nil
 }

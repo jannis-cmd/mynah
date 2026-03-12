@@ -523,7 +523,7 @@
         status: "implemented",
         blurb: "Bounded memory, session recall, retrieval, and post-turn updates.",
         summary: "The memory system is central in SPEC.md and is already the strongest implemented part of the prototype.",
-        exists: ["AGENT_PROFILE.md, shared MEMORY.md, and user-scoped USER.md are defined in the spec and represented in the prototype.", "SQLite session history and recall align with the v0 memory model.", "Post-turn memory updates now use an explicit operation contract instead of freeform document rewrites.", "Injected memory is treated as a frozen snapshot for the current turn.", "Memory and user-memory writes are validated, runtime-applied, written atomically, and carry minimal provenance sidecars."],
+        exists: ["AGENT_PROFILE.md, shared MEMORY.md, and user-scoped USER.md are defined in the spec and represented in the prototype.", "SQLite session history and recall align with the v0 memory model.", "Post-turn memory updates now use an explicit operation contract instead of freeform document rewrites.", "Injected memory is treated as a frozen snapshot for the current turn.", "Memory and user-memory writes are validated, runtime-applied, split into atomic entries, written atomically, and carry minimal provenance sidecars.", "The latest rejected memory revision is inspectable for live-debug and eval review."],
         deepens: ["Richer provenance beyond the current minimal sidecars.", "Policy-scoped writes.", "Richer retrieval and memory pipeline contracts."],
         files: ["SPEC.md", "internal/app/app.go", "internal/storage/files.go", "internal/storage/session_store.go", "internal/memory/validate.go"],
         notes: ["This is where the prototype is closest to the spec today."]
@@ -583,7 +583,7 @@
         status: "implemented",
         blurb: "Commands for init, chat, show, and eval.",
         summary: "The current entrypoint is the Go CLI. It exposes the system as a local tool and keeps the implementation inspectable.",
-        exists: ["Supports init, chat, show, and eval commands.", "Creates tenant and agent data directories.", "Invokes the app service for runtime behavior.", "The show command exposes memory, user memory, and latest provenance for inspection."],
+        exists: ["Supports init, chat, show, and eval commands.", "Creates tenant and agent data directories.", "Invokes the app service for runtime behavior.", "The show command exposes memory, user memory, latest provenance, and the latest rejected memory revision for inspection."],
         deepens: ["Command-level policy hooks.", "Safer admin and inspection commands.", "Operator workflows and richer debug surfaces."],
         files: ["cmd/mynah/main.go"],
         notes: ["This is implemented today.", "It is the current control surface, not yet a remote runtime API."]
@@ -603,7 +603,7 @@
         status: "implemented",
         blurb: "Persists AGENT_PROFILE.md, MEMORY.md, and per-user USER.md.",
         summary: "The current memory layer is deliberately simple: bounded markdown documents stored per agent on disk, with minimal provenance kept alongside them.",
-        exists: ["Reads and writes MEMORY.md.", "Reads and writes AGENT_PROFILE.md.", "Reads and writes per-user USER.md.", "Persists minimal provenance sidecars for the latest accepted shared and user writes.", "Keeps memory inspectable outside the model."],
+        exists: ["Reads and writes MEMORY.md.", "Reads and writes AGENT_PROFILE.md.", "Reads and writes per-user USER.md.", "Persists minimal provenance sidecars for the latest accepted shared and user writes.", "Persists the latest rejected memory revision attempt for inspection.", "Keeps memory inspectable outside the model."],
         deepens: ["Versioning and diff history.", "Approval gates for sensitive memory changes.", "Richer memory classes and separation."],
         files: ["internal/storage/files.go"],
         notes: ["This reflects the current implementation truthfully.", "The design favors inspectability over hidden vector stores."]
@@ -653,7 +653,7 @@
         status: "implemented",
         blurb: "Sandbox-style case execution on copied agent data.",
         summary: "Eval runs already create isolated temporary data sandboxes per case, which is a good pattern for later security hardening.",
-        exists: ["Loads eval cases from JSON.", "Creates temp sandbox data per case.", "Runs deterministic contract tests plus live robustness checks against the real model.", "Checks chat flows and expected behavioral assertions."],
+        exists: ["Loads eval cases from JSON.", "Creates temp sandbox data per case.", "Runs deterministic contract tests plus live robustness checks against the real model.", "Checks chat flows and expected behavioral assertions.", "Live tests now inspect structured memory operations, rejected revisions, and replace/remove outcomes against persisted state."],
         deepens: ["Adversarial safety evals.", "Prompt injection evals.", "Isolation leakage tests."],
         files: ["internal/app/app.go", "evals/horse-bella.json", "EVALS.md"],
         notes: ["The current eval layer is functional but not yet security-focused."]

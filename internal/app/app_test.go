@@ -104,7 +104,7 @@ func (c staticRevisionLLMClient) ReviseMemory(_ context.Context, _ llm.MemoryRev
 
 func TestChatOnceRequiresUserID(t *testing.T) {
 	service := &Service{
-		cfg: Config{DataDir: t.TempDir(), MemoryCharLimit: 2200, ProfileCharLimit: 1375, RecallLimit: 8},
+		cfg:       Config{DataDir: t.TempDir(), MemoryCharLimit: 2200, ProfileCharLimit: 1375, RecallLimit: 8},
 		llmClient: fakeLLMClient{},
 	}
 
@@ -388,6 +388,12 @@ func TestRejectedRevisionDoesNotOverwritePriorProvenance(t *testing.T) {
 	if before.MemoryProvenance.Timestamp != after.MemoryProvenance.Timestamp || before.MemoryProvenance.Message != after.MemoryProvenance.Message {
 		t.Fatalf("expected prior memory provenance to remain after rejected revision, before=%+v after=%+v", before.MemoryProvenance, after.MemoryProvenance)
 	}
+	if after.RejectedRevision.RejectionError == "" || after.RejectedRevision.SessionID != "sess_anna_2" {
+		t.Fatalf("expected rejected revision to be inspectable, got %+v", after.RejectedRevision)
+	}
+	if len(after.RejectedRevision.Operations) != 1 || after.RejectedRevision.Operations[0].Target != "memory" {
+		t.Fatalf("expected rejected operations to be persisted, got %+v", after.RejectedRevision.Operations)
+	}
 }
 
 func TestAdversarialPromptInjectionDoesNotPersist(t *testing.T) {
@@ -425,6 +431,9 @@ func TestAdversarialPromptInjectionDoesNotPersist(t *testing.T) {
 	}
 	if !result.MemoryProvenance.Timestamp.IsZero() || !result.UserProvenance.Timestamp.IsZero() {
 		t.Fatalf("expected no provenance for rejected injection, got memory=%+v user=%+v", result.MemoryProvenance, result.UserProvenance)
+	}
+	if result.RejectedRevision.RejectionError == "" || !strings.Contains(strings.ToLower(result.RejectedRevision.Reason), "unsafe") {
+		t.Fatalf("expected rejected injection metadata, got %+v", result.RejectedRevision)
 	}
 }
 

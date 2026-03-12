@@ -203,6 +203,8 @@ func runShow(args []string) error {
 	fmt.Println(emptyDoc(result.MemoryDoc))
 	fmt.Println("\n=== MEMORY Provenance ===")
 	fmt.Println(formatProvenance(result.MemoryProvenance))
+	fmt.Println("\n=== Latest Rejected Memory Revision ===")
+	fmt.Println(formatRejectedRevision(result.RejectedRevision))
 	if strings.TrimSpace(result.UserID) != "" {
 		fmt.Printf("\n=== USER.md (%s) ===\n", result.UserID)
 		fmt.Println(emptyDoc(result.UserDoc))
@@ -329,4 +331,26 @@ func emptyOr(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func formatRejectedRevision(rejected storage.RejectedRevision) string {
+	if rejected.Timestamp.IsZero() && strings.TrimSpace(rejected.RejectionError) == "" {
+		return "(empty)"
+	}
+
+	lines := []string{
+		fmt.Sprintf("timestamp: %s", rejected.Timestamp.Local().Format(time.RFC3339)),
+		fmt.Sprintf("user_id: %s", emptyOr(rejected.UserID, "(empty)")),
+		fmt.Sprintf("session_id: %s", emptyOr(rejected.SessionID, "(empty)")),
+		fmt.Sprintf("reason: %s", emptyOr(rejected.Reason, "(empty)")),
+		fmt.Sprintf("rejection_error: %s", emptyOr(rejected.RejectionError, "(empty)")),
+		fmt.Sprintf("message: %s", emptyOr(rejected.Message, "(empty)")),
+	}
+	if len(rejected.Operations) > 0 {
+		payload, err := json.Marshal(rejected.Operations)
+		if err == nil {
+			lines = append(lines, fmt.Sprintf("operations: %s", string(payload)))
+		}
+	}
+	return strings.Join(lines, "\n")
 }
