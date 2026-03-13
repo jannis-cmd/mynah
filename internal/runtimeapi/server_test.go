@@ -42,7 +42,7 @@ type sessionCall struct {
 	tenantID string
 	agentID  string
 	userID   string
-	channel  app.ChannelInfo
+	source   app.SourceInfo
 }
 
 type inspectCall struct {
@@ -57,8 +57,8 @@ func (s *stubService) InitAgent(tenantID, agentID string) error {
 	return nil
 }
 
-func (s *stubService) StartSession(tenantID, agentID, userID string, channel app.ChannelInfo) (app.SessionInfo, error) {
-	s.sessionCalls = append(s.sessionCalls, sessionCall{tenantID: tenantID, agentID: agentID, userID: userID, channel: channel})
+func (s *stubService) StartSession(tenantID, agentID, userID string, source app.SourceInfo) (app.SessionInfo, error) {
+	s.sessionCalls = append(s.sessionCalls, sessionCall{tenantID: tenantID, agentID: agentID, userID: userID, source: source})
 	return s.sessionResp, nil
 }
 
@@ -148,16 +148,17 @@ func TestStartSessionEndpoint(t *testing.T) {
 			AgentID:   "bella",
 			UserID:    "anna",
 			SessionID: "sess_123",
-			Channel: app.ChannelInfo{
-				Type:    "whatsapp",
-				Subject: "+41790000000",
+			Source: app.SourceInfo{
+				Type:       "chat_platform",
+				Subject:    "telegram:user:12345",
+				SessionRef: "telegram:chat:777",
 			},
 		},
 	}
 	handler := NewHandler(service, 5*time.Second)
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/v1/sessions", bytes.NewBufferString(`{"tenant_id":"demo","agent_id":"bella","user_id":"anna","channel":{"type":"whatsapp","subject":"+41790000000"}}`))
+	request := httptest.NewRequest(http.MethodPost, "/v1/sessions", bytes.NewBufferString(`{"tenant_id":"demo","agent_id":"bella","user_id":"anna","source":{"type":"chat_platform","subject":"telegram:user:12345","session_ref":"telegram:chat:777"}}`))
 	request.Header.Set("Content-Type", "application/json")
 
 	handler.ServeHTTP(recorder, request)
@@ -168,14 +169,14 @@ func TestStartSessionEndpoint(t *testing.T) {
 	if len(service.sessionCalls) != 1 || service.sessionCalls[0].userID != "anna" {
 		t.Fatalf("unexpected session calls: %+v", service.sessionCalls)
 	}
-	if service.sessionCalls[0].channel.Type != "whatsapp" || service.sessionCalls[0].channel.Subject != "+41790000000" {
-		t.Fatalf("unexpected session channel: %+v", service.sessionCalls[0].channel)
+	if service.sessionCalls[0].source.Type != "chat_platform" || service.sessionCalls[0].source.Subject != "telegram:user:12345" || service.sessionCalls[0].source.SessionRef != "telegram:chat:777" {
+		t.Fatalf("unexpected session source: %+v", service.sessionCalls[0].source)
 	}
 	if !strings.Contains(recorder.Body.String(), `"session_id":"sess_123"`) {
 		t.Fatalf("unexpected body: %s", recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), `"type":"whatsapp"`) {
-		t.Fatalf("expected channel in body: %s", recorder.Body.String())
+	if !strings.Contains(recorder.Body.String(), `"type":"chat_platform"`) || !strings.Contains(recorder.Body.String(), `"session_ref":"telegram:chat:777"`) {
+		t.Fatalf("expected source in body: %s", recorder.Body.String())
 	}
 }
 

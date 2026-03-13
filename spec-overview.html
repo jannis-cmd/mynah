@@ -523,8 +523,8 @@
         status: "implemented",
         blurb: "Request handling for text, image, and later multimodal interactions.",
         summary: "The spec defines a runtime API as the request-facing subsystem. The prototype now includes a small HTTP runtime with agent init, session creation, chat, inspect, and health endpoints on top of the existing app layer.",
-        exists: ["Specified as a major subsystem.", "Prototype now exposes an HTTP runtime API alongside the CLI.", "Runtime-created sessions are the preferred path.", "The session API can already carry minimal channel metadata."],
-        deepens: ["Richer request envelopes.", "Auth and operator identity.", "Channel-aware request and audit contracts."],
+        exists: ["Specified as a major subsystem.", "Prototype now exposes an HTTP runtime API alongside the CLI.", "Runtime-created sessions are the preferred path.", "The session API can already carry minimal source metadata."],
+        deepens: ["Richer request envelopes.", "Auth and operator identity.", "Adapter-aware request and audit contracts."],
         files: ["SPEC.md", "cmd/mynah/main.go", "internal/runtimeapi/server.go"],
         notes: ["The HTTP layer is intentionally small.", "It establishes the runtime boundary needed for later hosted deployment work."]
       },
@@ -622,8 +622,8 @@
         title: "Session Store",
         status: "implemented",
         blurb: "SQLite-backed conversation archive with recall search.",
-        summary: "Longer history is stored in SQLite. Recent turns and searched turns are pulled into context on demand instead of injected permanently, and session records now carry minimal channel metadata.",
-        exists: ["Stores sessions and messages.", "Binds each session to exactly one user.", "Persists minimal channel metadata on session creation.", "Supports recent history, time-window lookup, and FTS search.", "Uses a safer token-based FTS query builder.", "Sets a small SQLite busy timeout."],
+        summary: "Longer history is stored in SQLite. Recent turns and searched turns are pulled into context on demand instead of injected permanently, and session records now carry minimal source metadata.",
+        exists: ["Stores sessions and messages.", "Binds each session to exactly one user.", "Persists minimal source metadata on session creation.", "Supports recent history, time-window lookup, and FTS search.", "Uses a safer token-based FTS query builder.", "Sets a small SQLite busy timeout."],
         deepens: ["Per-tenant isolation guarantees.", "Audit-friendly query traces.", "More formal retention and lifecycle controls."],
         files: ["internal/storage/session_store.go", "internal/storage/session_store_test.go"],
         notes: ["This is currently the long-term recall substrate.", "It is simple enough to inspect and test directly."]

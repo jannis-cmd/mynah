@@ -37,17 +37,18 @@ type llmClient interface {
 	RunTurn(ctx context.Context, request llm.TurnRequest, handleTool llm.ToolHandler) (string, error)
 }
 
-type ChannelInfo struct {
-	Type    string `json:"type,omitempty"`
-	Subject string `json:"subject,omitempty"`
+type SourceInfo struct {
+	Type       string `json:"type,omitempty"`
+	Subject    string `json:"subject,omitempty"`
+	SessionRef string `json:"session_ref,omitempty"`
 }
 
 type SessionInfo struct {
-	TenantID  string      `json:"tenant_id"`
-	AgentID   string      `json:"agent_id"`
-	UserID    string      `json:"user_id"`
-	SessionID string      `json:"session_id"`
-	Channel   ChannelInfo `json:"channel,omitempty"`
+	TenantID  string     `json:"tenant_id"`
+	AgentID   string     `json:"agent_id"`
+	UserID    string     `json:"user_id"`
+	SessionID string     `json:"session_id"`
+	Source    SourceInfo `json:"source,omitempty"`
 }
 
 type InspectResult struct {
@@ -116,7 +117,7 @@ func (s *Service) InitAgent(tenantID, agentID string) error {
 	return store.EnsureSchema()
 }
 
-func (s *Service) StartSession(tenantID, agentID, userID string, channel ChannelInfo) (SessionInfo, error) {
+func (s *Service) StartSession(tenantID, agentID, userID string, source SourceInfo) (SessionInfo, error) {
 	if strings.TrimSpace(userID) == "" {
 		return SessionInfo{}, fmt.Errorf("user_id is required")
 	}
@@ -138,8 +139,9 @@ func (s *Service) StartSession(tenantID, agentID, userID string, channel Channel
 
 	sessionID := NewSessionID()
 	if err := store.EnsureSessionForUserWithMetadata(sessionID, userID, storage.SessionMetadata{
-		ChannelType:    strings.TrimSpace(channel.Type),
-		ChannelSubject: strings.TrimSpace(channel.Subject),
+		SourceType:       strings.TrimSpace(source.Type),
+		SourceSubject:    strings.TrimSpace(source.Subject),
+		SourceSessionRef: strings.TrimSpace(source.SessionRef),
 	}); err != nil {
 		return SessionInfo{}, err
 	}
@@ -149,9 +151,10 @@ func (s *Service) StartSession(tenantID, agentID, userID string, channel Channel
 		AgentID:   agentID,
 		UserID:    userID,
 		SessionID: sessionID,
-		Channel: ChannelInfo{
-			Type:    strings.TrimSpace(channel.Type),
-			Subject: strings.TrimSpace(channel.Subject),
+		Source: SourceInfo{
+			Type:       strings.TrimSpace(source.Type),
+			Subject:    strings.TrimSpace(source.Subject),
+			SessionRef: strings.TrimSpace(source.SessionRef),
 		},
 	}, nil
 }

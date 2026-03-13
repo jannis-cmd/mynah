@@ -282,8 +282,9 @@ The per-agent SQLite schema is:
 CREATE TABLE sessions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
-  channel_type TEXT NOT NULL DEFAULT '',
-  channel_subject TEXT NOT NULL DEFAULT '',
+  source_type TEXT NOT NULL DEFAULT '',
+  source_subject TEXT NOT NULL DEFAULT '',
+  source_session_ref TEXT NOT NULL DEFAULT '',
   started_at TEXT NOT NULL
 );
 
@@ -315,7 +316,7 @@ The v0 session-history model is deliberately narrow:
 Current behavior enforced by the prototype:
 - each session belongs to exactly one `user_id`
 - a session cannot be rebound to a different user later
-- a session may carry minimal server-trusted channel metadata
+- a session may carry minimal server-trusted source metadata
 - recall search is limited to the current user inside the current agent
 - recent agent inspection can still show cross-user recent history to the operator because that is an inspection surface, not user-facing recall
 
@@ -326,7 +327,7 @@ The conceptual v0 entity mapping is:
 | --- | --- | --- |
 | `tenant` | path scope segment | implemented in prototype |
 | `agent` | path scope segment | implemented in prototype |
-| `channel` | session metadata on runtime-created sessions | partial |
+| `source` | session metadata on runtime-created sessions | partial |
 | `session` | SQLite `sessions` table | implemented |
 | `user` | scoped identifier plus per-user directory | implemented |
 | `policy` | spec-only | planned |

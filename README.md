@@ -129,13 +129,14 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8080/v1/agents/init `
 ```powershell
 $session = Invoke-RestMethod -Method Post -Uri http://localhost:8080/v1/sessions `
   -ContentType 'application/json' `
-  -Body '{"tenant_id":"demo","agent_id":"bella","user_id":"anna","channel":{"type":"whatsapp","subject":"+41790000000"}}'
+  -Body '{"tenant_id":"demo","agent_id":"bella","user_id":"anna","source":{"type":"chat_platform","subject":"telegram:user:12345","session_ref":"telegram:chat:777"}}'
 ```
 
-The `channel` object is currently optional and can carry minimal session-origin metadata such as:
+The `source` object is currently optional and can carry minimal session-origin metadata such as:
 
 - `type`
 - `subject`
+- `session_ref`
 
 3. Chat on that session:
 

@@ -15,8 +15,9 @@ type SessionStore struct {
 }
 
 type SessionMetadata struct {
-	ChannelType    string
-	ChannelSubject string
+	SourceType       string
+	SourceSubject    string
+	SourceSessionRef string
 }
 
 type Message struct {
@@ -41,8 +42,9 @@ PRAGMA journal_mode = WAL;
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
-  channel_type TEXT NOT NULL DEFAULT '',
-  channel_subject TEXT NOT NULL DEFAULT '',
+  source_type TEXT NOT NULL DEFAULT '',
+  source_subject TEXT NOT NULL DEFAULT '',
+  source_session_ref TEXT NOT NULL DEFAULT '',
   started_at TEXT NOT NULL
 );
 
@@ -114,11 +116,12 @@ func (s *SessionStore) EnsureSessionForUserWithMetadata(sessionID, userID string
 		return fmt.Errorf("user_id is required")
 	}
 	if _, err := s.db.Exec(
-		`INSERT OR IGNORE INTO sessions(id, user_id, channel_type, channel_subject, started_at) VALUES(?, ?, ?, ?, ?)`,
+		`INSERT OR IGNORE INTO sessions(id, user_id, source_type, source_subject, source_session_ref, started_at) VALUES(?, ?, ?, ?, ?, ?)`,
 		sessionID,
 		userID,
-		strings.TrimSpace(metadata.ChannelType),
-		strings.TrimSpace(metadata.ChannelSubject),
+		strings.TrimSpace(metadata.SourceType),
+		strings.TrimSpace(metadata.SourceSubject),
+		strings.TrimSpace(metadata.SourceSessionRef),
 		time.Now().UTC().Format(time.RFC3339Nano),
 	); err != nil {
 		return err
@@ -136,7 +139,7 @@ func (s *SessionStore) EnsureSessionForUserWithMetadata(sessionID, userID string
 
 func (s *SessionStore) SessionMetadata(sessionID string) (SessionMetadata, error) {
 	var metadata SessionMetadata
-	err := s.db.QueryRow(`SELECT channel_type, channel_subject FROM sessions WHERE id = ?`, sessionID).Scan(&metadata.ChannelType, &metadata.ChannelSubject)
+	err := s.db.QueryRow(`SELECT source_type, source_subject, source_session_ref FROM sessions WHERE id = ?`, sessionID).Scan(&metadata.SourceType, &metadata.SourceSubject, &metadata.SourceSessionRef)
 	if err != nil {
 		return SessionMetadata{}, err
 	}
@@ -330,13 +333,28 @@ func (s *SessionStore) ensureSessionColumns() error {
 	if err != nil {
 		return err
 	}
-	if _, ok := columns["channel_type"]; !ok {
-		if _, err := s.db.Exec(`ALTER TABLE sessions ADD COLUMN channel_type TEXT NOT NULL DEFAULT ''`); err != nil {
+	if _, ok := columns["source_type"]; !ok {
+		if _, err := s.db.Exec(`ALTER TABLE sessions ADD COLUMN source_type TEXT NOT NULL DEFAULT ''`); err != nil {
 			return err
 		}
 	}
-	if _, ok := columns["channel_subject"]; !ok {
-		if _, err := s.db.Exec(`ALTER TABLE sessions ADD COLUMN channel_subject TEXT NOT NULL DEFAULT ''`); err != nil {
+	if _, ok := columns["source_subject"]; !ok {
+		if _, err := s.db.Exec(`ALTER TABLE sessions ADD COLUMN source_subject TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	if _, ok := columns["source_session_ref"]; !ok {
+		if _, err := s.db.Exec(`ALTER TABLE sessions ADD COLUMN source_session_ref TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	if _, hasChannelType := columns["channel_type"]; hasChannelType {
+		if _, err := s.db.Exec(`UPDATE sessions SET source_type = channel_type WHERE source_type = '' AND channel_type != ''`); err != nil {
+			return err
+		}
+	}
+	if _, hasChannelSubject := columns["channel_subject"]; hasChannelSubject {
+		if _, err := s.db.Exec(`UPDATE sessions SET source_subject = channel_subject WHERE source_subject = '' AND channel_subject != ''`); err != nil {
 			return err
 		}
 	}
