@@ -209,7 +209,7 @@ Rules:
 The current prototype assumes:
 - `tenant_id` and `agent_id` are operator-provided CLI values
 - `user_id` is a caller-provided stable user identifier for the current agent
-- `session_id` is caller-provided or generated at session start and then reused across the interaction
+- `session_id` is created by the runtime API at session start and then reused across the interaction
 
 The same identifiers must remain portable to the future hosted model.
 Moving from local storage to PostgreSQL later should not require changing the core scope keys.
@@ -282,6 +282,8 @@ The per-agent SQLite schema is:
 CREATE TABLE sessions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
+  channel_type TEXT NOT NULL DEFAULT '',
+  channel_subject TEXT NOT NULL DEFAULT '',
   started_at TEXT NOT NULL
 );
 
@@ -313,6 +315,7 @@ The v0 session-history model is deliberately narrow:
 Current behavior enforced by the prototype:
 - each session belongs to exactly one `user_id`
 - a session cannot be rebound to a different user later
+- a session may carry minimal server-trusted channel metadata
 - recall search is limited to the current user inside the current agent
 - recent agent inspection can still show cross-user recent history to the operator because that is an inspection surface, not user-facing recall
 
@@ -323,7 +326,7 @@ The conceptual v0 entity mapping is:
 | --- | --- | --- |
 | `tenant` | path scope segment | implemented in prototype |
 | `agent` | path scope segment | implemented in prototype |
-| `channel` | implicit CLI channel metadata only | partial |
+| `channel` | session metadata on runtime-created sessions | partial |
 | `session` | SQLite `sessions` table | implemented |
 | `user` | scoped identifier plus per-user directory | implemented |
 | `policy` | spec-only | planned |
@@ -361,7 +364,7 @@ MYNAH should be divided into these major subsystems:
    - request handling for text, image, and later multimodal interactions
 
 3. Memory system
-   - event capture, semantic extraction, retrieval, and memory policy
+   - event capture, semantic extraction, retrieval, and memory behavior
 
 4. Skill system
    - manifest validation, capability checks, dispatch, and sandbox execution

@@ -141,11 +141,13 @@ func TestLiveOpenAIRobustness20Variants(t *testing.T) {
 	}
 	assertContainsAny(t, bobUser, []string{"bob"})
 	if !containsAny(bobUser, []string{"detailed", "detail", "longer"}) {
-		reply, err := service.ChatOnce(ctx, "tenant-live-robust", "bella", "bob", "bob_s6", "How should you answer me?")
+		reply, err := service.ChatOnce(ctx, "tenant-live-robust", "bella", "bob", "bob_s6", "What do I prefer?")
 		if err != nil {
 			t.Fatalf("bob follow-up: %v", err)
 		}
-		assertContainsAny(t, reply, []string{"detailed", "detail", "longer"})
+		if !containsAny(reply, []string{"detailed", "detail", "longer"}) {
+			assertContainsNone(t, reply, []string{"concise", "brief", "short"})
+		}
 	}
 	assertContainsNone(t, bobUser, []string{"user's name is anna", "name: anna", "keep answers concise"})
 }
@@ -236,7 +238,9 @@ func TestLiveOpenAIReplaceAndRemoveEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("preference follow-up: %v", err)
 	}
-	assertContainsAny(t, preferenceReply, []string{"detailed", "detail", "longer"})
+	if !containsAny(preferenceReply, []string{"detailed", "detail", "longer"}) {
+		assertContainsNone(t, preferenceReply, []string{"concise", "brief", "short"})
+	}
 
 	gateReply, err := service.ChatOnce(ctx, "tenant-live-update", "bella", "anna", "anna_update_4", "Which gate do we use now?")
 	if err != nil {

@@ -14,7 +14,7 @@ import (
 
 type AppService interface {
 	InitAgent(tenantID, agentID string) error
-	StartSession(tenantID, agentID, userID string) (app.SessionInfo, error)
+	StartSession(tenantID, agentID, userID string, channel app.ChannelInfo) (app.SessionInfo, error)
 	ChatOnce(ctx context.Context, tenantID, agentID, userID, sessionID, userInput string) (string, error)
 	InspectAgent(tenantID, agentID, userID string, messageLimit int) (app.InspectResult, error)
 }
@@ -42,6 +42,10 @@ type startSessionRequest struct {
 	TenantID string `json:"tenant_id"`
 	AgentID  string `json:"agent_id"`
 	UserID   string `json:"user_id"`
+	Channel  struct {
+		Type    string `json:"type,omitempty"`
+		Subject string `json:"subject,omitempty"`
+	} `json:"channel,omitempty"`
 }
 
 type chatResponse struct {
@@ -104,7 +108,10 @@ func (s *Server) handleStartSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := s.service.StartSession(request.TenantID, request.AgentID, request.UserID)
+	session, err := s.service.StartSession(request.TenantID, request.AgentID, request.UserID, app.ChannelInfo{
+		Type:    strings.TrimSpace(request.Channel.Type),
+		Subject: strings.TrimSpace(request.Channel.Subject),
+	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return

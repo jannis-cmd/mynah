@@ -92,6 +92,71 @@ go run ./cmd/mynah chat --tenant demo --agent bella --user anna
 go run ./cmd/mynah show --tenant demo --agent bella --user anna
 ```
 
+## Container Dev
+
+Local container dev now uses:
+
+- [Dockerfile](/C:/Users/janni/workspace/PRIVAT/mynah/Dockerfile)
+- [compose.yaml](/C:/Users/janni/workspace/PRIVAT/mynah/compose.yaml)
+
+The compose setup:
+
+- runs `mynah serve --listen :8080 --data .mynah`
+- binds the repo-local `.mynah/` into the container for storage parity
+- reads `OPENAI_API_KEY` from your shell environment
+
+Start it with:
+
+```powershell
+$env:OPENAI_API_KEY=(Get-Content "$HOME\.mynah\secrets\openai_api_key" -Raw).Trim()
+docker compose up --build
+```
+
+## Runtime API Flow
+
+Basic runtime flow:
+
+1. Initialize an agent:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/v1/agents/init `
+  -ContentType 'application/json' `
+  -Body '{"tenant_id":"demo","agent_id":"bella"}'
+```
+
+2. Start a session:
+
+```powershell
+$session = Invoke-RestMethod -Method Post -Uri http://localhost:8080/v1/sessions `
+  -ContentType 'application/json' `
+  -Body '{"tenant_id":"demo","agent_id":"bella","user_id":"anna","channel":{"type":"whatsapp","subject":"+41790000000"}}'
+```
+
+The `channel` object is currently optional and can carry minimal session-origin metadata such as:
+
+- `type`
+- `subject`
+
+3. Chat on that session:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/v1/chat `
+  -ContentType 'application/json' `
+  -Body (@{
+    tenant_id = 'demo'
+    agent_id = 'bella'
+    user_id = 'anna'
+    session_id = $session.session_id
+    message = 'My name is Anna and I prefer concise answers.'
+  } | ConvertTo-Json)
+```
+
+4. Inspect current state:
+
+```powershell
+Invoke-RestMethod -Method Get -Uri "http://localhost:8080/v1/inspect?tenant_id=demo&agent_id=bella&user_id=anna"
+```
+
 ## Secret Handling
 
 Preferred local setup:

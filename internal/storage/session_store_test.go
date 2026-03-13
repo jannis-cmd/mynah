@@ -45,3 +45,29 @@ func TestNewSessionStoreSetsBusyTimeout(t *testing.T) {
 		t.Fatalf("expected busy_timeout=3000, got %d", timeoutMS)
 	}
 }
+
+func TestEnsureSessionForUserWithMetadataPersistsChannelFields(t *testing.T) {
+	store, err := NewSessionStore("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("new session store: %v", err)
+	}
+	defer store.Close()
+
+	if err := store.EnsureSchema(); err != nil {
+		t.Fatalf("ensure schema: %v", err)
+	}
+	if err := store.EnsureSessionForUserWithMetadata("sess_1", "anna", SessionMetadata{
+		ChannelType:    "whatsapp",
+		ChannelSubject: "+41790000000",
+	}); err != nil {
+		t.Fatalf("ensure session with metadata: %v", err)
+	}
+
+	metadata, err := store.SessionMetadata("sess_1")
+	if err != nil {
+		t.Fatalf("read session metadata: %v", err)
+	}
+	if metadata.ChannelType != "whatsapp" || metadata.ChannelSubject != "+41790000000" {
+		t.Fatalf("unexpected metadata: %+v", metadata)
+	}
+}

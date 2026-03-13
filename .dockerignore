@@ -1,0 +1,11 @@
+.git
+.gocache
+.mynah
+bin
+dist
+*.exe
+*.test
+*.out
+*.db
+*.db-shm
+*.db-wal

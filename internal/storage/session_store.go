@@ -14,6 +14,11 @@ type SessionStore struct {
 	db *sql.DB
 }
 
+type SessionMetadata struct {
+	ChannelType    string
+	ChannelSubject string
+}
+
 type Message struct {
 	ID        int64
 	SessionID string
@@ -36,6 +41,8 @@ PRAGMA journal_mode = WAL;
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
+  channel_type TEXT NOT NULL DEFAULT '',
+  channel_subject TEXT NOT NULL DEFAULT '',
   started_at TEXT NOT NULL
 );
 
@@ -92,18 +99,26 @@ func (s *SessionStore) Close() error {
 }
 
 func (s *SessionStore) EnsureSchema() error {
-	_, err := s.db.Exec(schemaSQL)
-	return err
+	if _, err := s.db.Exec(schemaSQL); err != nil {
+		return err
+	}
+	return s.ensureSessionColumns()
 }
 
 func (s *SessionStore) EnsureSessionForUser(sessionID, userID string) error {
+	return s.EnsureSessionForUserWithMetadata(sessionID, userID, SessionMetadata{})
+}
+
+func (s *SessionStore) EnsureSessionForUserWithMetadata(sessionID, userID string, metadata SessionMetadata) error {
 	if strings.TrimSpace(userID) == "" {
 		return fmt.Errorf("user_id is required")
 	}
 	if _, err := s.db.Exec(
-		`INSERT OR IGNORE INTO sessions(id, user_id, started_at) VALUES(?, ?, ?)`,
+		`INSERT OR IGNORE INTO sessions(id, user_id, channel_type, channel_subject, started_at) VALUES(?, ?, ?, ?, ?)`,
 		sessionID,
 		userID,
+		strings.TrimSpace(metadata.ChannelType),
+		strings.TrimSpace(metadata.ChannelSubject),
 		time.Now().UTC().Format(time.RFC3339Nano),
 	); err != nil {
 		return err
@@ -117,6 +132,15 @@ func (s *SessionStore) EnsureSessionForUser(sessionID, userID string) error {
 		return fmt.Errorf("session %q belongs to user %q, not %q", sessionID, existingUserID, userID)
 	}
 	return nil
+}
+
+func (s *SessionStore) SessionMetadata(sessionID string) (SessionMetadata, error) {
+	var metadata SessionMetadata
+	err := s.db.QueryRow(`SELECT channel_type, channel_subject FROM sessions WHERE id = ?`, sessionID).Scan(&metadata.ChannelType, &metadata.ChannelSubject)
+	if err != nil {
+		return SessionMetadata{}, err
+	}
+	return metadata, nil
 }
 
 func (s *SessionStore) AppendMessage(sessionID, role, content string, createdAt time.Time) error {
@@ -299,4 +323,47 @@ func buildFTSQuery(query string) string {
 		filtered[i] = `"` + token + `"`
 	}
 	return strings.Join(filtered, " ")
+}
+
+func (s *SessionStore) ensureSessionColumns() error {
+	columns, err := s.sessionColumns()
+	if err != nil {
+		return err
+	}
+	if _, ok := columns["channel_type"]; !ok {
+		if _, err := s.db.Exec(`ALTER TABLE sessions ADD COLUMN channel_type TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	if _, ok := columns["channel_subject"]; !ok {
+		if _, err := s.db.Exec(`ALTER TABLE sessions ADD COLUMN channel_subject TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *SessionStore) sessionColumns() (map[string]struct{}, error) {
+	rows, err := s.db.Query(`PRAGMA table_info(sessions)`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	columns := map[string]struct{}{}
+	for rows.Next() {
+		var (
+			cid          int
+			name         string
+			columnType   string
+			notNull      int
+			defaultValue sql.NullString
+			primaryKey   int
+		)
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return nil, err
+		}
+		columns[name] = struct{}{}
+	}
+	return columns, rows.Err()
 }
