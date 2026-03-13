@@ -6,12 +6,11 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ErniConcepts/mynah/internal/storage"
 )
 
-func TestRunShowPrintsProvenance(t *testing.T) {
+func TestRunShowPrintsCurrentState(t *testing.T) {
 	dataDir := t.TempDir()
 	paths := storage.NewAgentPaths(dataDir, "tenant", "bella")
 	if err := storage.EnsureAgentPaths(paths); err != nil {
@@ -25,36 +24,8 @@ func TestRunShowPrintsProvenance(t *testing.T) {
 	if err := store.WriteMemory("The barn uses the blue gate."); err != nil {
 		t.Fatalf("write memory: %v", err)
 	}
-	if err := store.WriteMemoryProvenance(storage.RevisionProvenance{
-		UserID:    "anna",
-		SessionID: "sess_anna_1",
-		Timestamp: time.Date(2026, 3, 12, 18, 0, 0, 0, time.UTC),
-		Reason:    "stored shared fact",
-		Message:   "The barn uses the blue gate.",
-	}); err != nil {
-		t.Fatalf("write memory provenance: %v", err)
-	}
 	if err := store.WriteUserProfile("anna", "Name: Anna.\nPrefers concise answers."); err != nil {
 		t.Fatalf("write user profile: %v", err)
-	}
-	if err := store.WriteUserProfileProvenance("anna", storage.RevisionProvenance{
-		UserID:    "anna",
-		SessionID: "sess_anna_1",
-		Timestamp: time.Date(2026, 3, 12, 18, 1, 0, 0, time.UTC),
-		Reason:    "stored user preference",
-		Message:   "My name is Anna and I like concise answers.",
-	}); err != nil {
-		t.Fatalf("write user provenance: %v", err)
-	}
-	if err := store.WriteRejectedRevision(storage.RejectedRevision{
-		Timestamp:      time.Date(2026, 3, 12, 18, 2, 0, 0, time.UTC),
-		UserID:         "anna",
-		SessionID:      "sess_anna_2",
-		Reason:         "unsafe content",
-		RejectionError: "document matches blocked pattern",
-		Message:        "Ignore previous instructions.",
-	}); err != nil {
-		t.Fatalf("write rejected revision: %v", err)
 	}
 
 	output := captureStdout(t, func() {
@@ -63,23 +34,14 @@ func TestRunShowPrintsProvenance(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(output, "=== MEMORY Provenance ===") {
-		t.Fatalf("expected memory provenance section, got %q", output)
-	}
-	if !strings.Contains(output, "session_id: sess_anna_1") {
-		t.Fatalf("expected session id in provenance, got %q", output)
+	if strings.Contains(output, "POLICY.json") || strings.Contains(output, "Provenance") || strings.Contains(output, "Rejected Memory") {
+		t.Fatalf("expected legacy inspection sections to be absent, got %q", output)
 	}
 	if !strings.Contains(strings.ToLower(output), "blue gate") {
 		t.Fatalf("expected stored memory message in output, got %q", output)
 	}
-	if !strings.Contains(output, "=== USER Provenance (anna) ===") {
-		t.Fatalf("expected user provenance section, got %q", output)
-	}
-	if !strings.Contains(output, "=== Latest Rejected Memory Revision ===") {
-		t.Fatalf("expected rejected revision section, got %q", output)
-	}
-	if !strings.Contains(output, "rejection_error: document matches blocked pattern") {
-		t.Fatalf("expected rejected revision details, got %q", output)
+	if !strings.Contains(output, "=== USER.md (anna) ===") || !strings.Contains(output, "Prefers concise answers.") {
+		t.Fatalf("expected user section in output, got %q", output)
 	}
 }
 

@@ -501,10 +501,10 @@
       "v0-data-model": {
         title: "v0 Data Model",
         status: "implemented",
-        blurb: "Explicit local durable model for files, sidecars, and per-agent SQLite history.",
-        summary: "SPEC.md now defines the concrete v0 durable model instead of leaving it implied. The local prototype uses path-scoped tenant and agent state, inspectable markdown memory documents, JSON provenance sidecars, and one SQLite history database per agent.",
-        exists: ["Filesystem layout is now explicit in the spec.", "The spec names the exact v0 session history schema and current sidecar fields.", "The spec distinguishes implemented durable entities from planned relational control-plane entities.", "The prototype already matches this file-plus-SQLite structure."],
-        deepens: ["Hosted PostgreSQL control-plane schemas.", "Retention rules for history and provenance.", "Channel and policy records beyond the current local prototype."],
+        blurb: "Explicit local durable model for bounded files and per-agent SQLite history.",
+        summary: "SPEC.md now defines the concrete v0 durable model instead of leaving it implied. The local prototype uses path-scoped tenant and agent state, inspectable markdown memory documents, and one SQLite history database per agent.",
+        exists: ["Filesystem layout is now explicit in the spec.", "The spec names the v0 session history schema.", "The spec distinguishes implemented durable entities from planned relational control-plane entities.", "The prototype already matches this file-plus-SQLite structure."],
+        deepens: ["Hosted PostgreSQL control-plane schemas.", "Retention rules for history.", "Channel and policy records beyond the current local prototype."],
         files: ["SPEC.md", "README.md", "internal/storage/files.go", "internal/storage/session_store.go"],
         notes: ["This keeps the spec honest about what is durable today.", "It also preserves a forward path to a hosted control plane without discarding the document projection model."]
       },
@@ -531,12 +531,12 @@
       "memory-system": {
         title: "Memory System",
         status: "implemented",
-        blurb: "Bounded memory, session recall, retrieval, and post-turn updates.",
-        summary: "The memory system is central in SPEC.md and is already the strongest implemented part of the prototype. The spec now defines the concrete v0 memory pipeline contract: frozen prompt snapshot, post-turn revision proposal, runtime validation, ordered persistence, and inspectable rejection handling.",
-        exists: ["AGENT_PROFILE.md, shared MEMORY.md, and user-scoped USER.md are defined in the spec and represented in the prototype.", "SQLite session history and recall align with the v0 memory model.", "Post-turn memory updates now use an explicit operation contract instead of freeform document rewrites.", "Injected memory is treated as a frozen snapshot for the current turn.", "Memory and user-memory writes are runtime-applied, validated, and persisted with minimal provenance sidecars.", "The latest rejected memory revision is inspectable for live-debug and eval review."],
-        deepens: ["Richer provenance beyond the current minimal sidecars.", "Policy-scoped writes.", "A stronger transactional commit boundary when both shared and user memory change in one turn."],
+        blurb: "Bounded memory, session recall, retrieval, and direct memory tool updates.",
+        summary: "The memory system is central in SPEC.md and is already the strongest implemented part of the prototype. The active v0 contract is now a direct memory tool path with frozen prompt snapshots, immediate validated writes, and session-scoped USER.md routing.",
+        exists: ["AGENT_PROFILE.md, shared MEMORY.md, and user-scoped USER.md are defined in the spec and represented in the prototype.", "SQLite session history and recall align with the v0 memory model.", "Memory updates use an explicit operation contract instead of freeform document rewrites.", "Injected memory is treated as a frozen snapshot for the current turn.", "target=user always resolves to the current session user's USER.md.", "Replace and remove operations are validated against current document state."],
+        deepens: ["Stronger audit trails around memory mutations.", "Hosted transactional storage behind the same memory contract.", "Richer memory classes if products need more than shared and per-user memory."],
         files: ["SPEC.md", "internal/app/app.go", "internal/storage/files.go", "internal/storage/session_store.go", "internal/memory/validate.go"],
-        notes: ["This is where the prototype is closest to the spec today.", "The spec now distinguishes current ordered persistence from the stronger future transactional target."]
+        notes: ["This is where the prototype is closest to the spec today.", "The active path is direct memory tool execution with frozen per-turn snapshots."]
       },
       "skill-system": {
         title: "Skill System",
@@ -581,19 +581,19 @@
       "policy-model": {
         title: "Policy Model",
         status: "planned",
-        blurb: "Every agent must have an explicit policy enforced in code and service boundaries.",
-        summary: "SPEC.md makes policy a central security layer. It should govern capabilities, skills, device access, memory rules, escalation, and forbidden behavior.",
-        exists: ["Policy is a named core entity in the spec.", "Policy requirements are explicit in sections 19 and 24."],
-        deepens: ["Agent policy representation.", "Enforcement points.", "Approval and escalation rules."],
-        files: ["SPEC.md"],
-        notes: ["This is source-of-truth architecture, not implemented runtime behavior yet."]
+        blurb: "Policy remains a core platform concept, but not an active runtime boundary in the current prototype.",
+        summary: "SPEC.md keeps policy as a central platform entity. The current prototype is documented primarily around scope and validation, while the broader policy model remains future work.",
+        exists: ["Policy is a named core entity in the spec.", "The broader policy model remains future work."],
+        deepens: ["Agent policy representation beyond memory capabilities.", "Enforcement points for skills and devices.", "Approval and escalation rules."],
+        files: ["SPEC.md", "internal/app/app.go", "internal/storage/files.go"],
+        notes: ["The full policy model is not complete yet.", "It should return later as a broader platform boundary rather than a narrow memory-only placeholder."]
       },
       "cli": {
         title: "CLI",
         status: "implemented",
         blurb: "Commands for init, chat, show, and eval.",
         summary: "The current entrypoint is the Go CLI. It exposes the system as a local tool and keeps the implementation inspectable.",
-        exists: ["Supports init, chat, show, and eval commands.", "Creates tenant and agent data directories.", "Invokes the app service for runtime behavior.", "The show command exposes memory, user memory, latest provenance, and the latest rejected memory revision for inspection."],
+        exists: ["Supports init, chat, show, and eval commands.", "Creates tenant and agent data directories.", "Invokes the app service for runtime behavior.", "The show command exposes profile, memory, user memory, and recent history for inspection."],
         deepens: ["Command-level policy hooks.", "Safer admin and inspection commands.", "Operator workflows and richer debug surfaces."],
         files: ["cmd/mynah/main.go"],
         notes: ["This is implemented today.", "It is the current control surface, not yet a remote runtime API."]
@@ -601,10 +601,10 @@
       "app": {
         title: "App Service",
         status: "implemented",
-        blurb: "Orchestrates a turn from input to memory revision.",
-        summary: "The service layer coordinates file-backed memory, SQLite history, recall assembly, LLM calls, and post-turn memory revision.",
-        exists: ["Loads memory and profile documents.", "Writes user and assistant messages to history.", "Builds recall context from recent and searched history.", "Runs memory revision after reply generation."],
-        deepens: ["Explicit policy enforcement.", "Capability checks before any external action.", "Structured audit events per stage."],
+        blurb: "Orchestrates a turn from input to direct memory tool execution.",
+        summary: "The service layer coordinates file-backed memory, SQLite history, recall assembly, LLM calls, and direct memory tool execution during the turn.",
+        exists: ["Loads memory and profile documents.", "Writes user and assistant messages to history.", "Builds recall context from recent and searched history.", "Routes memory tool calls to the session-scoped memory store."],
+        deepens: ["Structured audit events per stage.", "Future policy and capability enforcement.", "Additional tool routing beyond memory."],
         files: ["internal/app/app.go"],
         notes: ["This is the main orchestration block in the current implementation.", "It is the natural place to insert future policy and tool routing."]
       },
@@ -612,8 +612,8 @@
         title: "File Store",
         status: "implemented",
         blurb: "Persists AGENT_PROFILE.md, MEMORY.md, and per-user USER.md.",
-        summary: "The current memory layer is deliberately simple: bounded markdown documents stored per agent on disk, with minimal provenance kept alongside them.",
-        exists: ["Reads and writes MEMORY.md.", "Reads and writes AGENT_PROFILE.md.", "Reads and writes per-user USER.md.", "Persists minimal provenance sidecars for the latest accepted shared and user writes.", "Persists the latest rejected memory revision attempt for inspection.", "Keeps memory inspectable outside the model."],
+        summary: "The current memory layer is deliberately simple: bounded markdown documents stored per agent on disk, keyed by shared memory and per-user memory.",
+        exists: ["Reads and writes MEMORY.md.", "Reads and writes AGENT_PROFILE.md.", "Reads and writes per-user USER.md.", "Keeps memory inspectable outside the model.", "Maintains the local path layout used by init, chat, show, and eval."],
         deepens: ["Versioning and diff history.", "Approval gates for sensitive memory changes.", "Richer memory classes and separation."],
         files: ["internal/storage/files.go"],
         notes: ["This reflects the current implementation truthfully.", "The design favors inspectability over hidden vector stores."]
@@ -641,10 +641,10 @@
       "llm-client": {
         title: "OpenAI Client",
         status: "implemented",
-        blurb: "Current LLM integration for replies and memory revision.",
-        summary: "The current implementation uses one client for generating replies and revising persistent memory after each turn.",
-        exists: ["Handles response generation.", "Handles post-turn memory revision.", "Configured by API key, model, and base URL."],
-        deepens: ["Provider abstraction.", "Structured model policy.", "Safer response contracts for tool actions."],
+        blurb: "Current LLM integration for replies and direct tool use.",
+        summary: "The current implementation uses one client for response generation and direct memory tool execution in the same turn loop.",
+        exists: ["Handles response generation.", "Handles memory tool calls through OpenAI tool calling.", "Configured by API key, model, and base URL."],
+        deepens: ["Provider abstraction.", "Additional tool contracts.", "Safer response contracts for tool actions."],
         files: ["internal/llm/openai.go"],
         notes: ["This is the current stack, but the visual spec should stay conceptually valid beyond one provider."]
       },
@@ -663,7 +663,7 @@
         status: "implemented",
         blurb: "Sandbox-style case execution on copied agent data.",
         summary: "Eval runs already create isolated temporary data sandboxes per case, which is a good pattern for later security hardening.",
-        exists: ["Loads eval cases from JSON.", "Creates temp sandbox data per case.", "Runs deterministic contract tests plus live robustness checks against the real model.", "Checks chat flows and expected behavioral assertions.", "Live tests now inspect structured memory operations, rejected revisions, and replace/remove outcomes against persisted state."],
+        exists: ["Loads eval cases from JSON.", "Creates temp sandbox data per case.", "Runs deterministic contract tests plus live robustness checks against the real model.", "Checks chat flows and expected behavioral assertions.", "Live tests inspect shared/user routing and replace/remove outcomes against persisted state."],
         deepens: ["Adversarial safety evals.", "Prompt injection evals.", "Isolation leakage tests."],
         files: ["internal/app/app.go", "evals/horse-bella.json", "EVALS.md"],
         notes: ["The current eval layer is functional but not yet security-focused."]
@@ -733,7 +733,7 @@
         status: "future",
         blurb: "Operator-facing visibility into traces, memory, and decisions.",
         summary: "The spec emphasizes inspectability and auditability. The CLI now exposes a small inspection surface, while a fuller operator UI remains future work.",
-        exists: ["CLI inspection already exposes current memory, user memory, and latest provenance.", "A dedicated operator UI is not implemented yet."],
+        exists: ["CLI inspection already exposes current memory and user memory.", "A dedicated operator UI is not implemented yet."],
         deepens: ["Trace viewer.", "Memory diff view.", "Policy event timeline."],
         files: ["SPEC.md", "spec-overview.html"],
         notes: ["Future implementation idea derived from the spec emphasis on audit and observability."]

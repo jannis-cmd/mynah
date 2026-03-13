@@ -176,7 +176,7 @@ The initial platform should define these core entities:
 The v0 data model should be explicit about what is durable today, what is planned next, and what is only a conceptual entity so far.
 
 The current prototype uses two durable storage forms:
-- filesystem-backed bounded markdown and JSON sidecars for agent memory state
+- filesystem-backed bounded markdown files for agent memory state, with a small number of inspectable JSON sidecars still present in the local layout
 - one SQLite database per agent for session history and recall
 
 This means v0 durable truth is split intentionally:
@@ -187,7 +187,7 @@ The v0 prototype does not yet persist all conceptual entities from section 8 as 
 In practice:
 - `tenant`, `agent`, and `user` are currently represented by stable scoped identifiers and directory layout
 - `session` and message history are persisted in SQLite
-- `memory_snapshot` is represented by markdown files plus provenance sidecars
+- `memory_snapshot` is represented primarily by markdown files
 - `policy`, `capability_grant`, `knowledge_asset`, `skill`, `skill_installation`, `device_adapter`, `sandbox_execution`, and `audit_event` remain specification entities, not yet full durable prototype records
 
 ### 8.3 Identifier Rules
@@ -204,7 +204,7 @@ Rules:
 - identifiers must be safe for use in paths, logs, and database keys
 - identifiers must be resolved before durable writes happen
 - `user_id` is required before creating durable `USER.md` state
-- `session_id` is required before writing session history or memory provenance
+- `session_id` is required before writing session history
 
 The current prototype assumes:
 - `tenant_id` and `agent_id` are operator-provided CLI values
@@ -225,13 +225,10 @@ The current durable filesystem layout is:
         <agent_id>/
           AGENT_PROFILE.md
           MEMORY.md
-          MEMORY.meta.json
-          MEMORY.rejected.json
           history.db
           users/
             <user_id>/
               USER.md
-              USER.meta.json
 ```
 
 Default local root:
@@ -243,15 +240,9 @@ v0 file responsibilities:
   - not mutated by ordinary user turns
 - `MEMORY.md`
   - bounded shared durable memory for the agent
-  - learned and updated through the memory revision pipeline
-- `MEMORY.meta.json`
-  - latest accepted shared-memory provenance record
-- `MEMORY.rejected.json`
-  - latest rejected memory revision attempt for inspection and eval debugging
+  - learned and updated through direct memory tool calls
 - `users/<user_id>/USER.md`
   - bounded durable memory for one identified user under one agent
-- `users/<user_id>/USER.meta.json`
-  - latest accepted user-memory provenance record
 - `history.db`
   - per-agent SQLite database for sessions, messages, and recall indexes
 
@@ -274,33 +265,15 @@ The projection rules are:
 
 This projection-first design is intentional for v0 because it keeps the memory layer easy to inspect, debug, diff, and evaluate.
 
-### 8.6 v0 Provenance Sidecars
-Accepted memory writes must keep minimal provenance in JSON sidecars.
+### 8.6 v0 JSON Sidecars
+Earlier local prototype iterations included JSON sidecars for inspection compatibility, but the active memory path is now the markdown documents plus SQLite history.
 
-Current accepted provenance fields:
-- `target`
-- `user_id`
-- `session_id`
-- `timestamp`
-- `reason`
-- `message`
+Current role of sidecars:
+- optional inspect/debug metadata
+- not the primary source of truth for memory state
+- not required for the direct memory tool path to function
 
-Current rejected revision fields:
-- `timestamp`
-- `user_id`
-- `session_id`
-- `message`
-- `reason`
-- `rejection_error`
-- `operations[]`
-
-Sidecar intent:
-- reconstruct why the latest durable memory state changed
-- expose rejected live-model behavior without requiring verbose logs
-- support inspection through CLI and future operator surfaces
-
-This is intentionally the minimum v0 provenance contract.
-Later versions may append richer revision history, operator review state, or diff chains, but should not remove the inspectable minimum.
+Future versions may either remove these local sidecars or replace them with a stronger control-plane audit model.
 
 ### 8.7 v0 Session History Schema
 The per-agent SQLite schema is:
@@ -598,16 +571,16 @@ But the implementation must remain:
 - structured
 - auditable
 - tenant-scoped
-- policy-controlled
+- inspectable
 
-This means we want the user experience of natural persistent memory without allowing unconstrained memory writes.
+This means we want the user experience of natural persistent memory while keeping memory bounded, inspectable, and correctly scoped.
 
 ## 12. Memory Direction
 MYNAH should intentionally follow this high-level memory pattern:
 - persistent cross-session memory
 - an agent-driven sense of what is worth remembering
 - lightweight recall from prior context
-- bounded memory updates after interaction
+- bounded direct memory updates during interaction
 
 What we want to preserve from that philosophy:
 - the agent should not require the user to manually tag every memory
@@ -616,7 +589,8 @@ What we want to preserve from that philosophy:
 
 What MYNAH must change from looser agent-memory systems:
 - memory must be scoped per tenant and per agent
-- memory writes must go through validation and policy gates
+- one shared `MEMORY.md` may coexist with many per-user `USER.md` files
+- memory writes must still go through bounded operations and validation
 - memory cannot become a silent prompt-injection or cross-tenant leak vector
 - session history must work in a hosted multi-tenant environment rather than a single local user workspace
 
@@ -698,22 +672,10 @@ Every memory artifact must be scoped by:
 - `user_id` when the artifact is user-scoped
 - source channel or source system
 - time metadata
-- provenance metadata
-
-Minimum v0 provenance for every accepted memory update:
-- `session_id`
-- `user_id`
-- source turn timestamp
-- revision reason
-- whether the accepted result was written to `MEMORY.md` or `USER.md`
-
-This does not require a heavy database-first provenance model in v0.
-The main requirement is that accepted memory writes remain reconstructable and inspectable.
 
 ### 13.5 Required Memory Properties
 - auditable
 - reconstructable
-- policy-scoped
 - searchable
 - safe against accidental cross-tenant leakage
 
@@ -731,47 +693,26 @@ And it fits MYNAH because:
 - session history remains available for deeper recall without bloating every prompt
 
 ## 14. Memory Pipeline
-The memory pipeline should run as a bounded internal step, usually after response generation.
+The active v0 memory path is direct and narrow.
 
-The pipeline decides whether to:
+The model may call a `memory` tool during the turn.
+That tool can:
 - store nothing
 - update `MEMORY.md`
-- update the current user's `USER.md`
-- mark a reminder candidate
-- persist the interaction into session history
+- update the current session user's `USER.md`
 
-### 14.0 v0 Memory Revision Contract
-The v0 memory pipeline should be treated as an explicit contract, not an implicit prompt side effect.
-
-For each completed turn, the runtime may produce one bounded memory revision result with:
-- revised `MEMORY.md`
-- revised current-user `USER.md`
-- revision reason
-- minimal provenance fields
-
-The revision step may propose changes, but the runtime decides what is actually persisted.
-
-The runtime must:
-- apply explicit memory operations against the current `MEMORY.md` and `USER.md`
-- validate the resulting `MEMORY.md`
-- validate the resulting `USER.md`
-- reject low-value, unsafe, or invalid revisions
-- persist accepted revisions through one explicit ordered commit path
-
-The runtime must not:
+The tool must not:
 - mutate `AGENT_PROFILE.md` from ordinary user turns
-- persist memory without a resolved `user_id`
-- trust the model as the final authority on scope
-- accept revisions that exceed bounded document limits
+- write user memory without a resolved `user_id`
+- write to another user's `USER.md`
+- exceed bounded document limits
 
-### 14.0.1 v0 Revision Shape
-The practical v0 revision shape is:
-- `operations[]`
-- `operations[].target`
-- `operations[].action`
-- `operations[].content`
-- `operations[].old_text`
-- `reason`
+### 14.0 v0 Direct Memory Tool Contract
+The practical v0 contract is:
+- `target`
+- `action`
+- `content`
+- `old_text`
 
 The operation contract is:
 - `target`
@@ -784,234 +725,106 @@ The operation contract is:
   - required for `replace` and `remove`
   - short unique substring match against the current target document
 
-The runtime should also attach or derive the following provenance at persistence time:
-- `tenant_id`
-- `agent_id`
-- `user_id`
-- `session_id`
-- source turn timestamp
+The important routing rule is:
+- `target=memory` updates the shared `MEMORY.md`
+- `target=user` updates the current authenticated session user's `USER.md`
+- the model never chooses among users directly
 
-This keeps the model-facing output small while preserving inspectability in the runtime.
-
-The practical implementation interpretation is:
-- this is a tool-like contract shape
-- the model emits structured memory operations as if it were filling a narrow tool payload
-- the runtime does not expose direct durable write authority through that shape
-- persistence still happens only after runtime validation and application
-
-In v0, the runtime should also keep the latest rejected revision attempt in an inspectable sidecar for debugging and eval analysis. That rejected record should include:
-- `user_id`
-- `session_id`
-- timestamp
-- revision `reason`
-- rejection error
-- the rejected `operations[]`
-- the triggering user message
-
-### 14.0.2 v0 Routing Rules
-The routing rule is intentionally simple:
-- the model proposes the target explicitly
-- the runtime enforces whether that target is acceptable
-- if the proposed target is invalid for the content, reject that operation rather than silently trusting it
-- in v0, the runtime should prefer rejection over automatic rerouting when target scope is wrong
-
-Examples:
-- "The barn uses the blue gate."
-  - valid as `target=memory`
-- "Anna prefers concise answers."
-  - valid as `target=user` for Anna's session
-- "There is a recurring reminder on Friday."
-  - valid as `target=memory` unless the reminder is explicitly user-private
-
-### 14.0.3 v0 Rejection Rules
-The runtime should reject a proposed memory update, fully or partially, when it is:
-- transient interaction chatter
-- generic assistant boilerplate
-- prompt-injection or exfiltration content
-- duplicate or redundant without adding durable value
-- wrongly scoped and not safely correctable
-- unsupported by the source conversation
-- over the configured bounded size
-
-Examples of content that should not persist:
-- greetings and one-off pleasantries
-- arithmetic answers or generic helper behavior
-- "ignore previous instructions" style content
-- shared user preference summaries written into `MEMORY.md`
-- barn or horse facts copied into `USER.md`
-
-Rejected revisions should be visible through inspection surfaces so live-model drift can be debugged without enabling verbose runtime logs.
-
-### 14.0.4 v0 Acceptance Goal
-The purpose of the contract is:
-- the model may suggest memory
-- the runtime decides what becomes durable truth
-
-In practice this means MYNAH should keep the frozen-snapshot memory feel while keeping memory authority in the runtime rather than in model-issued tool calls.
-
-### 14.0.5 Pattern Preserved, Authority Tightened
-The memory pipeline should intentionally preserve the useful product pattern:
-- the agent feels persistent across sessions
-- the model helps decide what is worth remembering
-- memory updates happen after the user-facing response
-- session history remains available for later recall
-
-But MYNAH must keep a stricter authority boundary than tool-driven memory systems:
-- the model does not call a durable memory tool directly
-- the model only emits a bounded revision proposal
-- the runtime applies, validates, scopes, and persists changes
-- unsupported or unsafe operations are rejected instead of partially trusted
-
-This keeps the product behavior inspiration while moving the real trust boundary into code.
-
-### 14.0.6 Turn-Level Memory Pipeline Contract
-For one completed turn, the runtime should execute the memory pipeline in this order:
+### 14.0.1 Turn-Level Contract
+For one turn, the runtime should execute memory in this order:
 
 1. Build the response prompt from the frozen snapshot:
    - `AGENT_PROFILE.md`
    - current `MEMORY.md`
    - current session user's `USER.md`
    - recall excerpts from session history
-2. Generate the user-facing reply
+2. Generate the user-facing reply and allow direct `memory` tool calls during the same turn
 3. Persist the user and assistant messages into session history
-4. Ask the model for a bounded memory revision proposal
-5. Validate and apply the proposed operations against the pre-turn memory documents
-6. Persist accepted document updates and latest provenance sidecars
-7. Persist the latest rejected revision sidecar when validation fails
+4. Persist accepted memory changes immediately to the target markdown document
 
-The revision proposal must never mutate the already-built prompt for the current turn.
-All accepted changes are durable only for later turns.
+Writes that happen during the turn are durable for later turns but do not change the already-built prompt snapshot for the current turn.
 
-### 14.0.7 Revision Inputs and Evidence Rules
-The memory revision step should receive:
-- current `MEMORY.md`
-- current `USER.md` for the resolved session user
-- latest user message
-- latest assistant reply
-- current configured size limits
+### 14.0.2 Validation Rules
+The memory store must validate:
 
-Evidence rules:
-- the latest user message is the primary evidence source for new durable memory
-- the latest assistant reply may help identify corrections, removals, or clarified outcomes, but it is not sufficient evidence by itself
-- current stored memory may be used to decide whether to add, replace, or remove
-- session history beyond the current turn should not be silently rewritten during this step unless it is already reflected in current memory or the latest turn
-
-The revision model should prefer no-op output when the turn does not add durable value.
-
-### 14.0.8 Runtime Validation Order
-The runtime validation order should be explicit:
-
-1. Parse the revision payload
-2. Validate operation shape:
+1. Operation shape
    - valid `target`
    - valid `action`
    - required `content`
    - required `old_text`
-3. Validate operation content safety:
+2. Content safety
    - prompt-injection patterns
    - secret exfiltration patterns
    - invisible or unsafe unicode
-4. Validate operation scope:
-   - shared facts stay in `MEMORY.md`
-   - current-user facts stay in `USER.md`
-   - facts about a different user are rejected
-5. Apply operations to the current documents
-6. Validate the resulting `MEMORY.md`
-7. Validate the resulting `USER.md`
-8. Persist accepted results or record the rejection
+3. Target document semantics
+   - `add` deduplicates exact entries
+   - `replace` fails when `old_text` is missing or ambiguous
+   - `remove` fails when `old_text` is missing or ambiguous
+4. Bounded size
+   - resulting `MEMORY.md` and `USER.md` must stay within configured char limits
 
-If any step fails, the runtime should reject the revision and keep the prior durable memory unchanged.
+If validation fails, the store must keep the previous durable document unchanged and return a structured tool error.
 
-### 14.0.9 No-Op and Partial-Target Semantics
-The v0 runtime should treat the revision result as one bounded proposal that may touch:
-- only `MEMORY.md`
-- only `USER.md`
-- both documents
-- neither document
+### 14.0.3 Routing Rules
+The routing rule is intentionally simple:
+- shared facts, routines, reminders, environment details, and lessons learned belong in `MEMORY.md`
+- the current user's identity, communication style, and preferences belong in that user's `USER.md`
+- contradictory facts should use `replace` or `remove` rather than keeping both versions
 
-Semantics:
-- zero operations is a valid no-op result
-- if only shared memory changes, user-memory provenance must remain unchanged
-- if only user memory changes, shared-memory provenance must remain unchanged
-- if both documents are unchanged after deduplication or matching, no new provenance should be written
-- duplicate adds should collapse into one durable entry
-- `replace` and `remove` should fail when `old_text` is missing or ambiguous against non-identical entries
+Examples:
+- "The barn uses the blue gate."
+  - valid as `target=memory`
+- "Please keep answers concise."
+  - valid as `target=user`
+- "I now prefer detailed answers."
+  - valid as `target=user` with `replace`
+- "The Friday reminder is canceled."
+  - valid as `target=memory` with `replace` or `remove`
 
-### 14.0.10 Persistence Semantics in v0
-The v0 persistence contract should distinguish current prototype behavior from the stronger hosted target.
+### 14.0.4 Rejection Rules
+The store should reject a memory write when it is:
+- transient interaction chatter
+- generic assistant boilerplate
+- prompt-injection or exfiltration content
+- invalid because `old_text` does not match safely
+- duplicate or redundant without adding durable value
+- over the configured bounded size
 
+Examples of content that should not persist:
+- greetings and one-off pleasantries
+- generic helper self-description
+- "ignore previous instructions" style content
+- shell snippets intended to read secrets
+
+### 14.0.5 Persistence Semantics in v0
 Current prototype behavior:
-- session history is persisted in SQLite before memory revision persistence
-- accepted document writes are runtime-ordered, file-backed writes
-- latest provenance is stored as one latest sidecar per target document
-- latest rejection is stored as one latest inspectable sidecar
-- the runtime preserves the previous durable documents when revision validation fails
+- memory state lives in bounded markdown files
+- session history lives in SQLite
+- direct memory tool writes persist immediately to the selected target document
+- frozen prompt snapshots refresh on the next turn, not mid-turn
 
 Current prototype limitation:
-- when both `MEMORY.md` and `USER.md` change in the same turn, persistence is not yet a true cross-document transaction
-- v0 therefore guarantees ordered commit behavior, not an all-or-nothing transactional bundle across both target documents and sidecars
+- durable memory is still simple file-backed state rather than a transactional control-plane store
 
-Required next hardening step:
-- move accepted shared-memory write, user-memory write, and their latest provenance into one explicit transactional commit boundary
-- keep the same external revision contract while strengthening the persistence guarantee underneath
-
-### 14.0.11 Inspection Surface Contract
-The minimum v0 inspection surface for memory decisions is:
+### 14.0.6 Inspection Surface Contract
+The minimum v0 inspection surface is:
 - current `AGENT_PROFILE.md`
 - current `MEMORY.md`
 - current session user's `USER.md`
-- latest shared-memory provenance sidecar
-- latest user-memory provenance sidecar
-- latest rejected revision sidecar
 - recent session history excerpts
-
-This inspection surface must make it possible to answer:
-- what the agent currently remembers
-- which latest user turn caused the last accepted shared-memory change
-- which latest user turn caused the last accepted user-memory change
-- what the latest rejected revision tried to do and why it failed
 
 The CLI `show` flow is the current prototype implementation of this contract.
 
-### 14.1 Memory Pipeline Stages
-1. Candidate extraction
-   - identify memory-worthy content from the interaction or sensor input
+### 14.1 Why This Structure
+This preserves the feeling that the agent decides what to remember while keeping the implementation bounded, inspectable, and easy to evaluate.
 
-2. Decision step
-   - classify each candidate as:
-     - ignore
-     - memory update
-     - user memory update
-     - profile update
-     - reminder candidate
-
-The routing rule is:
-- if the durable fact is about the agent, subject, or shared environment, write to `MEMORY.md`
-- if the durable fact is about the identified user in the current session, write to that user's `USER.md`
-- if the content is an important shared outcome worth remembering, keep it in `MEMORY.md`
-
-3. Validation
-   - enforce schema, size, provenance, and policy rules
-
-4. Persistence
-   - update bounded memory files
-   - persist session history records
-   - persist accepted memory writes through the explicit v0 ordered commit path, with stronger cross-document transactional persistence as the next hardening step
-
-5. Retrieval index update
-   - update search structures for session history as needed
-
-### 14.2 Why This Structure
-This preserves the feeling that the agent "decides what to remember" while keeping writes controlled and inspectable.
-
-### 14.3 Immediate v0 Implementation Implications
-The current prototype should grow in this order:
-- keep shared and user-scoped memory as bounded markdown files
-- attach minimal provenance to accepted writes
-- expose recent revision reasons in inspection surfaces
-- add adversarial evals for prompt injection, oversaving, cross-user leakage, and duplicate accumulation
-
-This keeps the memory system lean while making it more governable.
+### 14.2 Immediate v0 Implementation Implications
+The current prototype should continue to strengthen:
+- routing quality between shared and user memory
+- prompt-injection rejection
+- duplicate handling
+- replace/remove correctness
+- adversarial evals for cross-user leakage and oversaving
 
 ## 15. Memory Retrieval
 Initial retrieval should combine:

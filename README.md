@@ -8,7 +8,7 @@ The repository is moving from planning into an initial local prototype phase.
 
 ## Current Direction
 
-- Tenant-aware agent runtime with hard policy boundaries
+- Tenant-aware agent runtime with explicit scope boundaries
 - Memory-first agents by default, with optional sealed skills
 - Dedicated device adapters for multimodal use cases
 - Security, sandboxing, stability, low cost, and scalability as primary design drivers
@@ -34,6 +34,15 @@ The first runnable target is a local CLI:
 - `mynah chat --tenant demo --agent bella --user anna`
 - `mynah show --tenant demo --agent bella --user anna`
 - `mynah eval --tenant demo --agent bella --cases evals\horse-bella.json`
+- `mynah serve --listen :8080`
+
+The runtime API now exposes:
+
+- `GET /healthz`
+- `POST /v1/agents/init`
+- `POST /v1/sessions`
+- `POST /v1/chat`
+- `GET /v1/inspect`
 
 Environment:
 
@@ -45,25 +54,31 @@ Environment:
 
 The CLI stores agent data in `.mynah/` by default.
 
+Runtime session model:
+
+- sessions are now expected to be created by the runtime through `POST /v1/sessions`
+- `POST /v1/chat` expects an existing `session_id`
+- `session_id` remains explicit in the API so later runtime, audit, and sandbox boundaries can rely on it cleanly
+
 Memory contract in the current prototype:
 
 - `AGENT_PROFILE.md` is developer-defined framing
 - `MEMORY.md` is shared durable memory for the agent
 - `USER.md` is durable memory for the current identified user
-- post-turn memory updates use an explicit tool-like operation contract: `target`, `action`, `content`, and optional `old_text`
+- `target=user` always resolves to the current session user's `USER.md`
+- memory updates happen through a direct memory tool contract: `target`, `action`, `content`, and optional `old_text`
 - shared facts and shared outcomes are accepted only for `MEMORY.md`
 - user-specific identity and preferences are accepted only for the current user's `USER.md`
 - SQLite session history is the deeper recall archive searched on demand
 - memory and user-memory writes are validated before persistence
-- memory updates are LLM-proposed but runtime-applied and runtime-validated
-- accepted shared and user-memory writes persist minimal provenance with reason, session, user, timestamp, and source message
+- the model chooses when to call the memory tool and whether to write to shared or user memory
+- the memory store validates target, action, content safety, duplicate handling, and bounded document size before writing
 - memory and user-memory writes are durable for future turns but do not alter the current turn's already-built prompt
 
 Inspection in the current prototype:
 
 - `show` prints `AGENT_PROFILE.md`, `MEMORY.md`, the selected user's `USER.md`, and recent session history
-- `show` also prints the latest shared-memory and user-memory provenance sidecars
-- this gives a quick view of what the agent currently knows and why it was last updated
+- this gives a quick view of what the agent currently knows
 
 ## Setup
 
@@ -114,8 +129,8 @@ Use `--debug` on `init`, `chat`, or `eval` to print:
 - recall hits
 - prompt context sizes
 - assistant reply size
-- memory revision reason and output sizes
-- when stored memory/profile docs are ignored for being low-value or generic
+- memory tool target and action
+- when stored profile docs are ignored for being low-value or generic
 
 Example:
 

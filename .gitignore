@@ -1,4 +1,5 @@
 .mynah/
+.gocache/
 bin/
 dist/
 *.exe

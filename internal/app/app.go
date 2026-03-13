@@ -34,22 +34,25 @@ type Service struct {
 }
 
 type llmClient interface {
-	GenerateReply(ctx context.Context, request llm.ReplyRequest) (string, error)
-	ProposeMemoryOps(ctx context.Context, request llm.MemoryOpProposalRequest) (llm.MemoryOpProposal, error)
+	RunTurn(ctx context.Context, request llm.TurnRequest, handleTool llm.ToolHandler) (string, error)
+}
+
+type SessionInfo struct {
+	TenantID  string `json:"tenant_id"`
+	AgentID   string `json:"agent_id"`
+	UserID    string `json:"user_id"`
+	SessionID string `json:"session_id"`
 }
 
 type InspectResult struct {
-	TenantID         string
-	AgentID          string
-	UserID           string
-	AgentRoot        string
-	MemoryDoc        string
-	ProfileDoc       string
-	UserDoc          string
-	MemoryProvenance storage.RevisionProvenance
-	UserProvenance   storage.RevisionProvenance
-	RejectedRevision storage.RejectedRevision
-	RecentMessages   []storage.Message
+	TenantID       string
+	AgentID        string
+	UserID         string
+	AgentRoot      string
+	MemoryDoc      string
+	ProfileDoc     string
+	UserDoc        string
+	RecentMessages []storage.Message
 }
 
 type EvalCase struct {
@@ -107,6 +110,39 @@ func (s *Service) InitAgent(tenantID, agentID string) error {
 	return store.EnsureSchema()
 }
 
+func (s *Service) StartSession(tenantID, agentID, userID string) (SessionInfo, error) {
+	if strings.TrimSpace(userID) == "" {
+		return SessionInfo{}, fmt.Errorf("user_id is required")
+	}
+
+	paths := storage.NewAgentPaths(s.cfg.DataDir, tenantID, agentID)
+	if err := storage.EnsureAgentPaths(paths); err != nil {
+		return SessionInfo{}, err
+	}
+
+	store, err := storage.NewSessionStore(paths.HistoryPath)
+	if err != nil {
+		return SessionInfo{}, err
+	}
+	defer store.Close()
+
+	if err := store.EnsureSchema(); err != nil {
+		return SessionInfo{}, err
+	}
+
+	sessionID := NewSessionID()
+	if err := store.EnsureSessionForUser(sessionID, userID); err != nil {
+		return SessionInfo{}, err
+	}
+
+	return SessionInfo{
+		TenantID:  tenantID,
+		AgentID:   agentID,
+		UserID:    userID,
+		SessionID: sessionID,
+	}, nil
+}
+
 func (s *Service) ChatOnce(ctx context.Context, tenantID, agentID, userID, sessionID, userInput string) (string, error) {
 	if strings.TrimSpace(userID) == "" {
 		return "", fmt.Errorf("user_id is required")
@@ -118,29 +154,17 @@ func (s *Service) ChatOnce(ctx context.Context, tenantID, agentID, userID, sessi
 	}
 
 	fileStore := storage.NewFileStore(paths, s.cfg.MemoryCharLimit, s.cfg.ProfileCharLimit)
-	memoryDoc, err := fileStore.ReadMemory()
-	if err != nil {
-		return "", err
-	}
 	profileDoc, err := fileStore.ReadProfile()
 	if err != nil {
 		return "", err
 	}
-	userDoc, err := fileStore.ReadUserProfile(userID)
+	memoryStore, err := memory.NewStore(fileStore, userID, s.cfg.MemoryCharLimit, s.cfg.ProfileCharLimit)
 	if err != nil {
 		return "", err
-	}
-	if err := memory.ValidateMemoryDocument(memoryDoc, s.cfg.MemoryCharLimit); err != nil && strings.TrimSpace(memoryDoc) != "" {
-		s.debugf("stored_memory ignored reason=%q", err)
-		memoryDoc = ""
 	}
 	if err := memory.ValidateProfileDocument(profileDoc, s.cfg.ProfileCharLimit); err != nil && strings.TrimSpace(profileDoc) != "" {
 		s.debugf("stored_profile ignored reason=%q", err)
 		profileDoc = ""
-	}
-	if err := memory.ValidateUserDocument(userDoc, s.cfg.ProfileCharLimit); err != nil && strings.TrimSpace(userDoc) != "" {
-		s.debugf("stored_user ignored reason=%q", err)
-		userDoc = ""
 	}
 
 	sessionStore, err := storage.NewSessionStore(paths.HistoryPath)
@@ -169,15 +193,32 @@ func (s *Service) ChatOnce(ctx context.Context, tenantID, agentID, userID, sessi
 	if err != nil {
 		return "", err
 	}
-	s.debugf("prompt_context recent_messages=%d memory_chars=%d profile_chars=%d user_chars=%d recall_chars=%d", len(recentMessages), len(memoryDoc), len(profileDoc), len(userDoc), len(recallContext))
+	s.debugf("prompt_context recent_messages=%d memory_chars=%d profile_chars=%d user_chars=%d recall_chars=%d", len(recentMessages), len(memoryStore.MemorySnapshot()), len(profileDoc), len(memoryStore.UserSnapshot()), len(recallContext))
 
-	reply, err := s.llmClient.GenerateReply(ctx, llm.ReplyRequest{
-		AgentID:        agentID,
-		MemoryDoc:      memoryDoc,
-		ProfileDoc:     profileDoc,
-		UserDoc:        userDoc,
-		RecallContext:  recallContext,
-		RecentMessages: toPromptMessages(recentMessages),
+	reply, err := s.llmClient.RunTurn(ctx, llm.TurnRequest{
+		AgentID:           agentID,
+		CurrentUserID:     userID,
+		ProfileDoc:        profileDoc,
+		MemoryDoc:         memoryStore.MemorySnapshot(),
+		UserDoc:           memoryStore.UserSnapshot(),
+		RecallContext:     recallContext,
+		RecentMessages:    toPromptMessages(recentMessages),
+		MemoryToolEnabled: true,
+	}, func(ctx context.Context, call llm.ToolCall) (string, error) {
+		if call.Name != "memory" {
+			return "", fmt.Errorf("unsupported tool %q", call.Name)
+		}
+		var operation llm.MemoryOperation
+		if err := json.Unmarshal(call.Arguments, &operation); err != nil {
+			return "", fmt.Errorf("parse memory tool args: %w", err)
+		}
+		result, err := memoryStore.Execute(operation)
+		if err != nil {
+			s.debugf("memory_tool rejected error=%q", err)
+		} else {
+			s.debugf("memory_tool target=%s action=%s", strings.TrimSpace(operation.Target), strings.TrimSpace(operation.Action))
+		}
+		return result, err
 	})
 	if err != nil {
 		return "", err
@@ -187,81 +228,6 @@ func (s *Service) ChatOnce(ctx context.Context, tenantID, agentID, userID, sessi
 		return "", err
 	}
 	s.debugf("assistant_reply chars=%d", len(reply))
-
-	proposal, err := s.llmClient.ProposeMemoryOps(ctx, llm.MemoryOpProposalRequest{
-		AgentID:       agentID,
-		MemoryDoc:     memoryDoc,
-		UserDoc:       userDoc,
-		UserMessage:   userInput,
-		AssistantText: reply,
-		MemoryLimit:   s.cfg.MemoryCharLimit,
-		UserLimit:     s.cfg.ProfileCharLimit,
-	})
-	if err != nil {
-		s.debugf("memory_ops skipped error=%v", err)
-		return reply, nil
-	}
-	s.debugf("memory_ops reason=%q operation_count=%d", proposal.Reason, len(proposal.Operations))
-
-	writeRejectedRevision := func(rejectionErr error) {
-		if rejectionErr == nil {
-			return
-		}
-		_ = fileStore.CommitRejectedMemory(storage.RejectedMemoryCommit{
-			RejectedRevision: storage.RejectedRevision{
-				Timestamp:      time.Now().UTC(),
-				UserID:         userID,
-				SessionID:      sessionID,
-				Message:        strings.TrimSpace(userInput),
-				Reason:         strings.TrimSpace(proposal.Reason),
-				RejectionError: rejectionErr.Error(),
-				Operations:     proposal.Operations,
-			},
-		})
-	}
-
-	nextMemoryDoc, nextUserDoc, err := memory.ApplyMemoryOperations(memoryDoc, userDoc, userID, proposal.Operations)
-	if err != nil {
-		s.debugf("memory_ops rejected error=%q", err)
-		writeRejectedRevision(err)
-		return reply, nil
-	}
-	memoryChanged := strings.TrimSpace(nextMemoryDoc) != strings.TrimSpace(memoryDoc)
-	userChanged := strings.TrimSpace(nextUserDoc) != strings.TrimSpace(userDoc)
-
-	provenance := storage.RevisionProvenance{
-		UserID:    userID,
-		SessionID: sessionID,
-		Timestamp: time.Now().UTC(),
-		Reason:    strings.TrimSpace(proposal.Reason),
-		Message:   strings.TrimSpace(userInput),
-	}
-
-	if err := memory.ValidateMemoryDocument(nextMemoryDoc, s.cfg.MemoryCharLimit); err != nil {
-		s.debugf("memory_ops rejected reason=%q", err)
-		writeRejectedRevision(err)
-		return reply, nil
-	}
-	if err := memory.ValidateUserDocument(nextUserDoc, s.cfg.ProfileCharLimit); err != nil {
-		s.debugf("user_ops rejected reason=%q", err)
-		writeRejectedRevision(err)
-		return reply, nil
-	}
-
-	commit := storage.AcceptedMemoryCommit{}
-	if memoryChanged {
-		commit.MemoryDoc = &nextMemoryDoc
-		memoryMeta := provenance
-		commit.MemoryProvenance = &memoryMeta
-	}
-	if userChanged {
-		commit.UserDoc = &nextUserDoc
-		userMeta := provenance
-		commit.UserProvenance = &userMeta
-	}
-	if err := fileStore.CommitAcceptedMemory(userID, commit); err != nil {
-		return reply, err
-	}
 
 	return reply, nil
 }
@@ -281,22 +247,9 @@ func (s *Service) InspectAgent(tenantID, agentID, userID string, messageLimit in
 	if err != nil {
 		return InspectResult{}, err
 	}
-	memoryMeta, err := fileStore.ReadMemoryProvenance()
-	if err != nil {
-		return InspectResult{}, err
-	}
-	rejectedRevision, err := fileStore.ReadRejectedRevision()
-	if err != nil {
-		return InspectResult{}, err
-	}
 	var userDoc string
-	var userMeta storage.RevisionProvenance
 	if strings.TrimSpace(userID) != "" {
 		userDoc, err = fileStore.ReadUserProfile(userID)
-		if err != nil {
-			return InspectResult{}, err
-		}
-		userMeta, err = fileStore.ReadUserProfileProvenance(userID)
 		if err != nil {
 			return InspectResult{}, err
 		}
@@ -317,17 +270,14 @@ func (s *Service) InspectAgent(tenantID, agentID, userID string, messageLimit in
 	}
 
 	return InspectResult{
-		TenantID:         tenantID,
-		AgentID:          agentID,
-		UserID:           userID,
-		AgentRoot:        paths.RootPath,
-		MemoryDoc:        memoryDoc,
-		ProfileDoc:       profileDoc,
-		UserDoc:          userDoc,
-		MemoryProvenance: memoryMeta,
-		UserProvenance:   userMeta,
-		RejectedRevision: rejectedRevision,
-		RecentMessages:   messages,
+		TenantID:       tenantID,
+		AgentID:        agentID,
+		UserID:         userID,
+		AgentRoot:      paths.RootPath,
+		MemoryDoc:      memoryDoc,
+		ProfileDoc:     profileDoc,
+		UserDoc:        userDoc,
+		RecentMessages: messages,
 	}, nil
 }
 
